@@ -76,7 +76,7 @@ export function ProductsGrid({
         const res = await api.get<ProductsResponse>("/products", { params });
         if (cancelled) return;
         setItems(res.data.items || []);
-      } catch (e) {
+      } catch {
         if (cancelled) return;
         setError("Failed to load products. Start the backend API and try again.");
         setItems([]);

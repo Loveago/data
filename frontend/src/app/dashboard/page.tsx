@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import type { User } from "@/lib/types";
 
 type Order = {
   id: string;
@@ -196,7 +197,6 @@ function DashboardInner() {
 
   useEffect(() => {
     setActiveTab(normalizeTab(searchParams.get("tab")));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   useEffect(() => {
@@ -226,15 +226,16 @@ function DashboardInner() {
         phone: profilePhone,
         email: profileEmail,
       });
-      const data = res.data as { user: any; accessToken?: string; refreshToken?: string };
+      const data = res.data as { user: User; accessToken?: string; refreshToken?: string };
       updateSession({
         user: data.user,
         accessToken: data.accessToken ?? undefined,
         refreshToken: data.refreshToken ?? undefined,
       });
       setProfileSuccess("Profile updated successfully.");
-    } catch (e: any) {
-      setProfileError(e?.response?.data?.error || "Failed to update profile.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setProfileError(maybeError?.response?.data?.error || "Failed to update profile.");
     } finally {
       setProfileBusy(false);
     }
@@ -259,7 +260,7 @@ function DashboardInner() {
       }
 
       const res = await api.post("/auth/change-password", { currentPassword, newPassword });
-      const data = res.data as { user: any; accessToken?: string; refreshToken?: string };
+      const data = res.data as { user: User; accessToken?: string; refreshToken?: string };
       updateSession({
         user: data.user,
         accessToken: data.accessToken ?? undefined,
@@ -269,8 +270,9 @@ function DashboardInner() {
       setNewPassword("");
       setConfirmPassword("");
       setPasswordSuccess("Password changed successfully.");
-    } catch (e: any) {
-      setPasswordError(e?.response?.data?.error || "Failed to change password.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setPasswordError(maybeError?.response?.data?.error || "Failed to change password.");
     } finally {
       setPasswordBusy(false);
     }
@@ -395,8 +397,9 @@ function DashboardInner() {
       }
 
       window.location.href = authorizationUrl;
-    } catch (e: any) {
-      setDepositError(e?.response?.data?.error || "Failed to start deposit.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setDepositError(maybeError?.response?.data?.error || "Failed to start deposit.");
     } finally {
       setDepositBusy(false);
     }
@@ -723,7 +726,7 @@ function DashboardInner() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="text-sm font-semibold">Change Password</div>
-                      <div className="mt-1 text-xs text-zinc-500">Use a strong password you haven't used before.</div>
+                      <div className="mt-1 text-xs text-zinc-500">Use a strong password you haven&apos;t used before.</div>
                     </div>
                     <button
                       type="button"

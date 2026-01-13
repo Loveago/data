@@ -1,4 +1,4 @@
-import axios, { AxiosHeaders } from "axios";
+import axios, { AxiosError, AxiosHeaders, InternalAxiosRequestConfig } from "axios";
 
 import { clearAuth, getAccessToken, getRefreshToken, setAuthTokens } from "./storage";
 
@@ -49,12 +49,12 @@ async function refreshAccessToken(): Promise<string | null> {
 
 api.interceptors.response.use(
   (res) => res,
-  async (error) => {
-    const status = error?.response?.status;
-    const original = error?.config;
+  async (error: AxiosError) => {
+    const status = error.response?.status;
+    const original = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
-    if (status === 401 && original && !(original as any)._retry) {
-      (original as any)._retry = true;
+    if (status === 401 && original && !original._retry) {
+      original._retry = true;
       const newToken = await refreshAccessToken();
       if (newToken) {
         const headers = AxiosHeaders.from(original.headers || {});

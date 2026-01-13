@@ -66,8 +66,9 @@ export default function AdminProductsPage() {
       if (!categoryId && (cats.data.items || []).length > 0) {
         setCategoryId(cats.data.items[0].id);
       }
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to load products.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to load products.");
       setCategories([]);
       setProducts([]);
     } finally {
@@ -155,8 +156,9 @@ export default function AdminProductsPage() {
       }
 
       await loadAll();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || (editingId ? "Failed to update product." : "Failed to create product."));
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || (editingId ? "Failed to update product." : "Failed to create product."));
     } finally {
       setSaving(false);
     }
@@ -167,8 +169,9 @@ export default function AdminProductsPage() {
     try {
       await api.delete(`/products/${id}`);
       await loadAll();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to delete product.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to delete product.");
     }
   }
 

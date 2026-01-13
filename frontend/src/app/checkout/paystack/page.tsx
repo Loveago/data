@@ -25,7 +25,15 @@ function PaystackCallbackInner() {
         return;
       }
 
-      let pending: any = null;
+      let pending:
+        | {
+            customerName?: string;
+            customerEmail?: string;
+            customerPhone?: string;
+            customerAddress?: string;
+            items?: unknown;
+          }
+        | null = null;
       try {
         const raw = window.sessionStorage.getItem("gigshub_paystack_pending");
         pending = raw ? JSON.parse(raw) : null;
@@ -51,9 +59,10 @@ function PaystackCallbackInner() {
         setMessage("Payment confirmed. Redirecting...");
         const label = res.data?.orderCode || res.data?.id;
         router.push(`/dashboard?order=${encodeURIComponent(label)}`);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
-        const msg = e?.response?.data?.error || "Payment verification failed.";
+        const maybeError = e as { response?: { data?: { error?: string } } };
+        const msg = maybeError?.response?.data?.error || "Payment verification failed.";
         setStatus("error");
         setMessage(msg);
       }

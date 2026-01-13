@@ -21,8 +21,9 @@ export default function LoginPage() {
     try {
       await login({ email, password });
       router.push("/dashboard");
-    } catch (e: any) {
-      const msg = e?.response?.data?.error || "Login failed.";
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      const msg = maybeError?.response?.data?.error || "Login failed.";
       setError(msg);
     } finally {
       setSubmitting(false);

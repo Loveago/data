@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
 
@@ -30,7 +30,7 @@ export default function AdminOrdersPage() {
   const [status, setStatusFilter] = useState<"" | AdminOrder["status"]>("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -41,24 +41,26 @@ export default function AdminOrdersPage() {
 
       const res = await api.get<{ items: AdminOrder[] }>(`/admin/orders${suffix}`);
       setOrders(res.data.items || []);
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to load orders.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to load orders.");
       setOrders([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, [q, status]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   async function setStatus(id: string, status: AdminOrder["status"]) {
     try {
       await api.patch(`/admin/orders/${id}/status`, { status });
       await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to update status.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to update status.");
     }
   }
 
@@ -83,7 +85,10 @@ export default function AdminOrdersPage() {
           />
           <select
             value={status}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setStatusFilter(v === "PENDING" || v === "PROCESSING" || v === "COMPLETED" ? v : "");
+            }}
             className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none dark:border-zinc-800 dark:bg-zinc-950"
           >
             <option value="">All statuses</option>

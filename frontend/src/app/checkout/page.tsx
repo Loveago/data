@@ -9,19 +9,6 @@ import { getNetworkMeta } from "@/lib/network";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 
-function NetworkBadge({ slug, name }: { slug?: string; name?: string }) {
-  const meta = getNetworkMeta({ slug, name });
-  return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-900 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 dark:text-white">
-      <span className={`relative inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-full text-[10px] font-bold ${meta.badgeClass}`}>
-        <span className="relative z-10">{meta.initials}</span>
-        {meta.icon ? <img src={meta.icon} alt="" className="absolute inset-0 h-full w-full object-contain opacity-90" /> : null}
-      </span>
-      <span>{meta.label}</span>
-    </div>
-  );
-}
-
 function formatMoney(n: number) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "GHS" }).format(n);
 }
@@ -138,8 +125,9 @@ export default function CheckoutPage() {
         );
       }
       window.location.href = authorizationUrl;
-    } catch (e: any) {
-      const msg = e?.response?.data?.error || "Failed to place order.";
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      const msg = maybeError?.response?.data?.error || "Failed to place order.";
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -161,8 +149,9 @@ export default function CheckoutPage() {
       const label = res.data?.orderCode || res.data?.id;
       clear();
       router.push(`/dashboard?order=${encodeURIComponent(label)}`);
-    } catch (e: any) {
-      const msg = e?.response?.data?.error || "Failed to place order.";
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      const msg = maybeError?.response?.data?.error || "Failed to place order.";
       setError(msg);
     } finally {
       setSubmitting(false);

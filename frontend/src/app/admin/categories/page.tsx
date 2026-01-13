@@ -25,8 +25,9 @@ export default function AdminCategoriesPage() {
     try {
       const res = await api.get<{ items: Category[] }>("/categories");
       setCategories(res.data.items || []);
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to load categories.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to load categories.");
       setCategories([]);
     } finally {
       setLoading(false);
@@ -45,8 +46,9 @@ export default function AdminCategoriesPage() {
       setName("");
       setSlug("");
       await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to create category.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to create category.");
     } finally {
       setSaving(false);
     }
@@ -72,8 +74,9 @@ export default function AdminCategoriesPage() {
       await api.put(`/categories/${editingId}`, { name: editName, slug: editSlug });
       cancelEdit();
       await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to update category.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to update category.");
     } finally {
       setSaving(false);
     }
@@ -84,8 +87,9 @@ export default function AdminCategoriesPage() {
     try {
       await api.delete(`/categories/${id}`);
       await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to delete category.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to delete category.");
     }
   }
 

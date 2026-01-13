@@ -41,8 +41,9 @@ export default function AdminUsersPage() {
     try {
       const res = await api.get<{ items: AdminUser[] }>("/admin/users");
       setUsers(res.data.items || []);
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to load users.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to load users.");
       setUsers([]);
     } finally {
       setLoading(false);
@@ -57,8 +58,9 @@ export default function AdminUsersPage() {
     try {
       await api.patch(`/admin/users/${id}/role`, { role });
       await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to update role.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to update role.");
     }
   }
 
@@ -76,8 +78,9 @@ export default function AdminUsersPage() {
       setWalletAmount("");
       setWalletReason("");
       await load();
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to update wallet balance.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to update wallet balance.");
     } finally {
       setBusy(false);
     }
@@ -91,8 +94,9 @@ export default function AdminUsersPage() {
       await api.post(`/admin/users/${selected.id}/reset-password`, { newPassword });
       setPasswordOpen(false);
       setNewPassword("");
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to reset password.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to reset password.");
     } finally {
       setBusy(false);
     }
@@ -103,8 +107,9 @@ export default function AdminUsersPage() {
     setError(null);
     try {
       await api.post(`/admin/users/${u.id}/force-logout`);
-    } catch (e: any) {
-      setError(e?.response?.data?.error || "Failed to force logout.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to force logout.");
     } finally {
       setBusy(false);
     }
@@ -236,7 +241,10 @@ export default function AdminUsersPage() {
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <select
                 value={walletMode}
-                onChange={(e) => setWalletMode(e.target.value as any)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setWalletMode(v === "increment" || v === "set" ? v : "increment");
+                }}
                 className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none dark:border-zinc-800 dark:bg-zinc-950"
               >
                 <option value="increment">Increment</option>

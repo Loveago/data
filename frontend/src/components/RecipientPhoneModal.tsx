@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { Product } from "@/lib/types";
@@ -21,83 +21,57 @@ function normalizeMsisdn(input: string) {
   return digits;
 }
 
-export function RecipientPhoneModal({
-  open,
+function RecipientPhoneModalInner({
   product,
   onCancel,
   onConfirm,
 }: {
-  open: boolean;
-  product: Product | null;
+  product: Product;
   onCancel: () => void;
   onConfirm: (recipientPhone: string) => void;
 }) {
-  const [mounted, setMounted] = useState(false);
   const [value, setValue] = useState("");
   const [iconFailed, setIconFailed] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
+  const slug = product.category?.slug;
+  const categoryName = product.category?.name;
+  const normalized = normalizeMsisdn(value);
+  const prefixes = getNetworkPrefixes(slug);
+  const meta = getNetworkMeta({ slug, name: categoryName });
+  const network = { name: meta.label, icon: meta.icon };
 
-  useEffect(() => {
-    if (!open) return;
-    setValue("");
-  }, [open]);
+  const n = (network.name || "N").trim();
+  const networkInitials =
+    n.toLowerCase() === "airteltigo"
+      ? "AT"
+      : n.toLowerCase() === "telecel"
+        ? "TC"
+        : n.toLowerCase() === "mtn"
+          ? "MTN"
+          : (() => {
+              const parts = n.split(/\s+/).filter(Boolean);
+              if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+              return (parts[0][0] + parts[1][0]).toUpperCase();
+            })();
 
-  useEffect(() => {
-    if (!open) return;
-    setIconFailed(false);
-  }, [open, product?.category?.slug]);
+  const s = String(slug || "").toLowerCase();
+  const networkBadgeClass =
+    s === "mtn"
+      ? "bg-yellow-500 text-black"
+      : s === "telecel"
+        ? "bg-red-600 text-white"
+        : s === "airteltigo"
+          ? "bg-rose-600 text-white"
+          : "bg-zinc-700 text-white";
 
-  const normalized = useMemo(() => normalizeMsisdn(value), [value]);
-  const prefixes = useMemo(() => getNetworkPrefixes(product?.category?.slug), [product?.category?.slug]);
-  const network = useMemo(() => {
-    const meta = getNetworkMeta({ slug: product?.category?.slug, name: product?.category?.name });
-    return { name: meta.label, icon: meta.icon };
-  }, [product?.category?.name, product?.category?.slug]);
+  const prefixMatchesNetwork = !normalized || prefixes.length === 0 ? true : prefixes.some((p) => normalized.startsWith(p));
 
-  const networkInitials = useMemo(() => {
-    const n = (network.name || "N").trim();
-    if (n.toLowerCase() === "airteltigo") return "AT";
-    if (n.toLowerCase() === "telecel") return "TC";
-    if (n.toLowerCase() === "mtn") return "MTN";
-    const parts = n.split(/\s+/).filter(Boolean);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }, [network.name]);
+  const isValid = normalized.startsWith("0") && normalized.length === 10;
 
-  const networkBadgeClass = useMemo(() => {
-    const s = (product?.category?.slug || "").toLowerCase();
-    if (s === "mtn") return "bg-yellow-500 text-black";
-    if (s === "telecel") return "bg-red-600 text-white";
-    if (s === "airteltigo") return "bg-rose-600 text-white";
-    return "bg-zinc-700 text-white";
-  }, [product?.category?.slug]);
+  const gb = /(\d+(?:\.\d+)?)\s*gb/i.exec(product.name)?.[0]?.toUpperCase();
+  const packageLabel = `${gb || "BUNDLE"} - ${network.name} ${gb || ""}`.trim();
 
-  const prefixMatchesNetwork = useMemo(() => {
-    if (!normalized || prefixes.length === 0) return true;
-    return prefixes.some((p) => normalized.startsWith(p));
-  }, [normalized, prefixes]);
-
-  const isValid = useMemo(() => {
-    if (!open) return false;
-    if (!normalized) return false;
-    if (!normalized.startsWith("0")) return false;
-    if (normalized.length !== 10) return false;
-    return true;
-  }, [normalized, open, prefixes]);
-
-  const packageLabel = useMemo(() => {
-    if (!product) return "";
-    const gb = /(\d+(?:\.\d+)?)\s*gb/i.exec(product.name)?.[0]?.toUpperCase();
-    return `${gb || "BUNDLE"} - ${network.name} ${gb || ""}`.trim();
-  }, [network.name, product]);
-
-  if (!mounted || !open || !product) return null;
-
-  return createPortal(
+  return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onCancel} />
 
@@ -206,7 +180,29 @@ export function RecipientPhoneModal({
           </button>
         </div>
       </div>
-    </div>,
+    </div>
+  );
+}
+
+export function RecipientPhoneModal({
+  open,
+  product,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  product: Product | null;
+  onCancel: () => void;
+  onConfirm: (recipientPhone: string) => void;
+}) {
+  const [mounted] = useState(() => typeof document !== "undefined");
+
+  if (!mounted || !open || !product) return null;
+
+  const resetKey = `${String(product.category?.slug || "")}-${open ? "open" : "closed"}`;
+
+  return createPortal(
+    <RecipientPhoneModalInner key={resetKey} product={product} onCancel={onCancel} onConfirm={onConfirm} />, 
     document.body
   );
 }

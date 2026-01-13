@@ -23,7 +23,7 @@ function WalletPaystackCallbackInner() {
         return;
       }
 
-      let pending: any = null;
+      let pending: { amount?: number } | null = null;
       try {
         const raw = window.sessionStorage.getItem("gigshub_wallet_deposit_pending");
         pending = raw ? JSON.parse(raw) : null;
@@ -39,9 +39,10 @@ function WalletPaystackCallbackInner() {
         setStatus("success");
         setMessage("Deposit confirmed. Redirecting...");
         router.push("/dashboard");
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
-        const msg = e?.response?.data?.error || "Deposit verification failed.";
+        const maybeError = e as { response?: { data?: { error?: string } } };
+        const msg = maybeError?.response?.data?.error || "Deposit verification failed.";
         setStatus("error");
         setMessage(msg);
       }

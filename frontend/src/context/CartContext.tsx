@@ -18,18 +18,19 @@ type CartContextValue = {
 const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
-
-  useEffect(() => {
+  const [items, setItems] = useState<CartItem[]>(() => {
     const loaded = loadCart();
-    const patched = loaded.map((it) => ({
+    const makeId = (productId: string) => {
+      const cryptoObj = globalThis.crypto as unknown as { randomUUID?: () => string } | undefined;
+      if (cryptoObj?.randomUUID) return cryptoObj.randomUUID();
+      return `${productId}-${Date.now()}-${Math.random()}`;
+    };
+
+    return loaded.map((it) => ({
       ...it,
-      id:
-        (it as any).id ||
-        (globalThis.crypto && "randomUUID" in globalThis.crypto ? (globalThis.crypto as any).randomUUID() : `${it.productId}-${Date.now()}-${Math.random()}`),
+      id: typeof it.id === "string" && it.id ? it.id : makeId(it.productId),
     }));
-    setItems(patched);
-  }, []);
+  });
 
   useEffect(() => {
     saveCart(items);
@@ -46,10 +47,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           existing.quantity += quantity;
           return next;
         }
-        const id =
-          globalThis.crypto && "randomUUID" in globalThis.crypto
-            ? (globalThis.crypto as any).randomUUID()
-            : `${product.id}-${Date.now()}-${Math.random()}`;
+        const cryptoObj = globalThis.crypto as unknown as { randomUUID?: () => string } | undefined;
+        const id = cryptoObj?.randomUUID ? cryptoObj.randomUUID() : `${product.id}-${Date.now()}-${Math.random()}`;
         next.push({
           id,
           productId: product.id,
