@@ -420,7 +420,7 @@ function DashboardInner() {
     <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
         <aside
-          className={`rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 ${
+          className={`hidden rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:block ${
             sidebarCollapsed ? "lg:w-[88px]" : "lg:w-[280px]"
           }`}
         >
@@ -485,6 +485,47 @@ function DashboardInner() {
 
         <main className="relative animate-fade-up">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.06)_1px,transparent_0)] [background-size:24px_24px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)]" />
+
+          <div className="lg:hidden">
+            <div className="mb-4 rounded-2xl border border-zinc-200 bg-white/80 p-3 shadow-soft backdrop-blur dark:border-zinc-800 dark:bg-black/50">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold">Dashboard</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void (async () => {
+                      await logout();
+                      router.push("/login");
+                    })();
+                  }}
+                  className="inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-zinc-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                >
+                  Sign out
+                </button>
+              </div>
+
+              <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                {(["overview", "profile", "wallet", "orders", "settings"] as DashboardTab[]).map((tab) => {
+                  const isActive = activeTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => pushTab(tab)}
+                      className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                        isActive
+                          ? "bg-blue-600 text-white"
+                          : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                      }`}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      {tabLabel(tab)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
