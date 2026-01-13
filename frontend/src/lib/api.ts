@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosHeaders } from "axios";
 
 import { clearAuth, getAccessToken, getRefreshToken, setAuthTokens } from "./storage";
 
@@ -14,11 +14,9 @@ export const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) {
-    if (config.headers && typeof (config.headers as any).set === "function") {
-      (config.headers as any).set("Authorization", `Bearer ${token}`);
-    } else {
-      config.headers = { ...(config.headers || {}), Authorization: `Bearer ${token}` };
-    }
+    const headers = AxiosHeaders.from(config.headers || {});
+    headers.set("Authorization", `Bearer ${token}`);
+    config.headers = headers;
   }
   return config;
 });
@@ -59,11 +57,9 @@ api.interceptors.response.use(
       (original as any)._retry = true;
       const newToken = await refreshAccessToken();
       if (newToken) {
-        if (original.headers && typeof (original.headers as any).set === "function") {
-          (original.headers as any).set("Authorization", `Bearer ${newToken}`);
-        } else {
-          original.headers = { ...(original.headers || {}), Authorization: `Bearer ${newToken}` };
-        }
+        const headers = AxiosHeaders.from(original.headers || {});
+        headers.set("Authorization", `Bearer ${newToken}`);
+        original.headers = headers;
         return api.request(original);
       }
     }

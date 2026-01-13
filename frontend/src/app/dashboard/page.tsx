@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 
@@ -158,7 +158,7 @@ function tabIcon(tab: DashboardTab) {
   );
 }
 
-export default function DashboardPage() {
+function DashboardInner() {
   const { user, isAuthenticated, logout, updateSession } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -847,5 +847,21 @@ export default function DashboardPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-7xl px-4 py-8">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+            Loading...
+          </div>
+        </div>
+      }
+    >
+      <DashboardInner />
+    </Suspense>
   );
 }

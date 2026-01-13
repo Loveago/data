@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { api } from "@/lib/api";
 
-export default function WalletPaystackCallbackPage() {
+function WalletPaystackCallbackInner() {
   const router = useRouter();
   const search = useSearchParams();
 
@@ -72,5 +72,22 @@ export default function WalletPaystackCallbackPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+export default function WalletPaystackCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-2xl px-4 py-16">
+          <div className="rounded-3xl border border-zinc-200 bg-white p-8 text-center shadow-soft dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="text-lg font-semibold">Processing</div>
+            <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Loading...</div>
+          </div>
+        </div>
+      }
+    >
+      <WalletPaystackCallbackInner />
+    </Suspense>
   );
 }
