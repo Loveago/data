@@ -1,0 +1,111 @@
+VERCEL.TXT (very easy deploy guide)
+
+Goal:
+- Frontend (Next.js) goes to Vercel
+- Backend (Express + Prisma) goes to a normal Node host (Render/Railway/VPS/cPanel)
+- Database is PostgreSQL (Neon/Supabase/Railway/etc)
+
+IMPORTANT:
+- This repo is 2 apps:
+  - frontend/  (Next.js)
+  - backend/   (Express + Prisma)
+- Vercel is perfect for the frontend.
+- The backend is NOT a Vercel “serverless” app in this repo, so host it somewhere else.
+
+------------------------------------------------------------
+STEP 0 — Put code on GitHub
+1) Create a GitHub repo.
+2) Push your project (both folders frontend/ and backend/).
+
+------------------------------------------------------------
+STEP 1 — Create a PostgreSQL database (Neon example)
+1) Go to https://neon.tech
+2) Create a project (free is okay).
+3) Copy the connection string (DATABASE_URL).
+   It looks like:
+   postgresql://USER:PASSWORD@HOST:5432/DBNAME?schema=public
+
+Keep this DATABASE_URL safe.
+
+------------------------------------------------------------
+STEP 2 — Deploy the BACKEND (recommended: Render)
+(You can use Railway/Fly/VPS instead. Render is easy.)
+
+1) Go to https://render.com
+2) New +  -> Web Service
+3) Connect your GitHub repo.
+4) Root Directory: backend
+5) Environment: Node
+
+6) Build Command (copy/paste):
+   npm install && npx prisma generate && npx prisma migrate deploy && npm run seed
+
+7) Start Command:
+   npm run start
+
+8) Add Environment Variables (Render dashboard -> Environment):
+   - DATABASE_URL = (from Neon)
+   - PORT = 4000   (Render will often provide PORT automatically; if so, you can remove this)
+   - CORS_ORIGIN = https://YOUR_VERCEL_DOMAIN
+   - JWT_ACCESS_SECRET = any long random text
+   - JWT_REFRESH_SECRET = any long random text
+   - JWT_ACCESS_TTL = 15m
+   - JWT_REFRESH_TTL = 7d
+   - SEED_ADMIN_EMAIL = admin@example.com (or your email)
+   - SEED_ADMIN_PASSWORD = Admin12345! (change this)
+
+   Optional (only if you will use these features in production):
+   - PAYSTACK_SECRET_KEY = your real key
+   - HUBNET_ENABLED = true/false
+   - HUBNET_API_KEY = your Hubnet key
+   - HUBNET_BASE_URL = (leave default unless Hubnet tells you)
+   - HUBNET_WEBHOOK_URL = https://YOUR_BACKEND_DOMAIN/api/hubnet/webhook
+   - HUBNET_WEBHOOK_SECRET = (set a secret to protect the webhook)
+
+9) Deploy.
+
+10) Test backend health:
+   Open:
+   https://YOUR_BACKEND_DOMAIN/api/health
+   You must see:
+   {"ok":true}
+
+------------------------------------------------------------
+STEP 3 — Deploy the FRONTEND to Vercel
+1) Go to https://vercel.com
+2) New Project -> Import your GitHub repo.
+3) IMPORTANT: set the Root Directory to: frontend
+4) Framework: Next.js (auto)
+
+5) Environment Variables (Vercel -> Settings -> Environment Variables):
+   - NEXT_PUBLIC_API_URL = https://YOUR_BACKEND_DOMAIN
+
+   Example:
+   NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+
+6) Deploy.
+
+------------------------------------------------------------
+STEP 4 — Final checks
+1) Open your Vercel URL.
+2) Try loading the store page.
+3) Login using the seeded admin:
+   - SEED_ADMIN_EMAIL
+   - SEED_ADMIN_PASSWORD
+
+------------------------------------------------------------
+COMMON PROBLEMS (quick fix)
+1) Frontend shows “Failed to load products”:
+   - Backend is down OR
+   - NEXT_PUBLIC_API_URL is wrong OR
+   - CORS_ORIGIN does not include your Vercel domain
+
+2) Prisma errors on deploy:
+   - DATABASE_URL is wrong OR
+   - Database user has no permission OR
+   - You didn’t run: npx prisma migrate deploy
+
+3) Hubnet delivered but app still shows pending:
+   - HUBNET_WEBHOOK_URL must be a PUBLIC URL (NOT localhost)
+
+Done.

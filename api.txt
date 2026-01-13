@@ -1,0 +1,98 @@
+Hubnet Business API – Developer Guide
+
+Base URL
+
+https://console.hubnet.app/live/api/context/business/transaction
+
+
+⚠️ Rate Limit:
+All endpoints allow a maximum of 5 requests per minute.
+
+Authentication
+
+All requests must include the following headers:
+
+Header	Value
+token	Bearer YOUR_API_KEY
+Content-Type	application/json
+1. Check Account Balance
+
+Method: GET
+Endpoint:
+
+/check_balance
+
+
+Full URL
+
+https://console.hubnet.app/live/api/context/business/transaction/check_balance
+
+2. Make a Data Transaction
+
+Method: POST
+Endpoint:
+
+/{network}-new-transaction
+
+
+Full URL Example
+
+https://console.hubnet.app/live/api/context/business/transaction/mtn-new-transaction
+
+Allowed Networks
+Network
+mtn
+at
+big-time
+Request Payload
+{
+  "phone": "0241234567",
+  "volume": "2000",
+  "reference": "ABEDC-BBADE-ABBCDD-AABCE",
+  "referrer": "0300123456",
+  "webhook": "https://your-webhook-url.com"
+}
+
+Payload Fields
+Field	Type	Required	Rules	Description
+network	String	Yes	3–10 chars	Network identifier (mtn, at, big-time)
+volume	String	Yes	1 – 100	Amount of data in MB
+phone	String	Yes	Exactly 10 digits	Recipient phone number (e.g. 0241234567)
+reference	String	Yes	6 – 25 chars	Unique transaction reference
+referrer	String	Optional	Exactly 10 digits	Buyer’s number to receive alerts
+webhook	String	Optional	Valid URL	Endpoint to receive transaction status updates
+Sample cURL Request
+curl https://console.hubnet.app/live/api/context/business/transaction/mtn-new-transaction \
+  -H "token: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -X POST \
+  -d '{
+      "phone": "0241234567",
+      "volume": "2000",
+      "reference": "ABEDC-BBADE-ABBCDD-AABCE",
+      "referrer": "0300123456",
+      "webhook": "https://your-webhook-url.com"
+  }'
+
+Sample Response
+{
+  "status": true,
+  "reason": "Successful",
+  "code": "transaction initiated successfully.",
+  "message": "0000",
+  "transaction_id": "TXN-TEST",
+  "payment_id": "PSH-TEST",
+  "ip_address": "192.278.321.001",
+  "reference": "TEST",
+  "data": {
+    "status": true,
+    "code": "0000",
+    "message": "Order successfully placed."
+  }
+}
+
+Status Codes
+Code	Meaning
+0000	Transaction initialized successfully
+1001	Invalid network
+1002	Invalid volume

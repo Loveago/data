@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+}
+
+enum WalletTransactionType {
+  DEPOSIT
+  SPEND
+}
+
+enum HubnetFulfillmentStatus {
+  PENDING
+  SENDING
+  SUBMITTED
+  DELIVERED
+  FAILED
+}
+
+model User {
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  passwordHash        String
+  name                String?
+  phone               String?
+  role                Role     @default(USER)
+  walletBalance        Decimal  @default(0) @db.Decimal(12, 2)
+  refreshTokenHash    String?
+  refreshTokenExpiresAt DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  orders              Order[]
+  walletTransactions  WalletTransaction[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String
+  price       Decimal  @db.Decimal(12, 2)
+  stock       Int      @default(0)
+  imageUrls   String[]
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  orderCode     String?     @unique
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  status        OrderStatus @default(PENDING)
+
+  paymentProvider  String?
+  paymentReference String?
+  paymentStatus    String      @default("UNPAID")
+
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  customerAddress String
+
+  subtotal Decimal @db.Decimal(12, 2)
+  total    Decimal @db.Decimal(12, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+
+  quantity  Int
+  recipientPhone String?
+  unitPrice Decimal @db.Decimal(12, 2)
+  lineTotal Decimal @db.Decimal(12, 2)
+
+  hubnetSkip          Boolean @default(false)
+  hubnetStatus        HubnetFulfillmentStatus?
+  hubnetNetwork       String?
+  hubnetVolumeMb      Int?
+  hubnetReference     String? @unique
+  hubnetTransactionId String?
+  hubnetPaymentId     String?
+  hubnetAttempts      Int     @default(0)
+  hubnetLastError     String?
+  hubnetLastAttemptAt DateTime?
+  hubnetDeliveredAt   DateTime?
+
+  fulfillmentProvider String?
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model WalletTransaction {
+  id        String                 @id @default(cuid())
+  userId    String
+  user      User                   @relation(fields: [userId], references: [id])
+  type      WalletTransactionType
+  amount    Decimal                @db.Decimal(12, 2)
+  reference String?
+
+  createdAt DateTime @default(now())
+}

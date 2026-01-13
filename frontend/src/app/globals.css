@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(html.dark, html.dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --primary: #2563eb;
+  --primary-2: #06b6d4;
+  --accent: #22c55e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@layer utilities {
+  .bg-dot-grid {
+    background-image: radial-gradient(rgba(15, 23, 42, 0.10) 1px, transparent 1px);
+    background-size: 18px 18px;
+    background-position: 0 0;
+  }
+
+  .hero-wash {
+    background-image:
+      radial-gradient(900px 500px at 20% 20%, rgba(37, 99, 235, 0.16), transparent 55%),
+      radial-gradient(800px 520px at 80% 30%, rgba(6, 182, 212, 0.16), transparent 55%),
+      radial-gradient(900px 520px at 65% 85%, rgba(34, 197, 94, 0.12), transparent 55%);
+  }
+
+  .text-gradient-blue {
+    background-image: linear-gradient(90deg, #2563eb, #06b6d4);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .shadow-soft {
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+  }
+}
+
+@keyframes floaty {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes floaty2 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, 12px, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@layer utilities {
+  .animate-floaty {
+    animation: floaty 6s ease-in-out infinite;
+  }
+
+  .animate-floaty2 {
+    animation: floaty2 7s ease-in-out infinite;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-floaty,
+  .animate-floaty2 {
+    animation: none !important;
+  }
+
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

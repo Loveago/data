@@ -1,0 +1,58 @@
+<svg width="840" height="620" viewBox="0 0 840 620" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="840" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E0F2FE"/>
+      <stop offset="0.55" stop-color="#EEF2FF"/>
+      <stop offset="1" stop-color="#ECFDF5"/>
+    </linearGradient>
+    <linearGradient id="blob" x1="120" y1="110" x2="680" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60A5FA" stop-opacity="0.40"/>
+      <stop offset="0.55" stop-color="#A78BFA" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#34D399" stop-opacity="0.30"/>
+    </linearGradient>
+    <filter id="s" x="0" y="0" width="840" height="620" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="840" height="620" rx="36" fill="url(#bg)"/>
+
+  <path d="M562 89C646 108 740 196 736 287C732 378 631 442 554 497C477 552 424 610 337 592C250 574 164 480 140 389C116 298 154 228 225 172C296 116 478 70 562 89Z" fill="url(#blob)"/>
+
+  <g filter="url(#s)">
+    <rect x="460" y="180" width="210" height="320" rx="28" fill="white"/>
+    <rect x="485" y="210" width="160" height="30" rx="12" fill="#E2E8F0"/>
+    <rect x="485" y="252" width="120" height="18" rx="9" fill="#E2E8F0"/>
+    <rect x="485" y="286" width="150" height="18" rx="9" fill="#E2E8F0"/>
+    <rect x="485" y="320" width="90" height="18" rx="9" fill="#E2E8F0"/>
+    <rect x="485" y="362" width="160" height="92" rx="18" fill="#F1F5F9"/>
+    <circle cx="560" cy="408" r="26" fill="#60A5FA"/>
+    <path d="M548 410L557 419L573 397" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <g filter="url(#s)">
+    <circle cx="625" cy="135" r="46" fill="#FDE047"/>
+    <text x="625" y="144" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800" fill="#111827">MTN</text>
+  </g>
+
+  <g filter="url(#s)">
+    <circle cx="720" cy="185" r="44" fill="#EF4444"/>
+    <text x="720" y="196" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="900" fill="white">t</text>
+  </g>
+
+  <g filter="url(#s)">
+    <circle cx="520" cy="135" r="44" fill="#2563EB"/>
+    <text x="520" y="145" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="900" fill="white">at</text>
+  </g>
+
+  <g filter="url(#s)">
+    <circle cx="740" cy="305" r="32" fill="#22C55E"/>
+    <path d="M732 307C736 298 744 298 748 307C752 316 744 322 740 330C736 322 728 316 732 307Z" fill="white"/>
+  </g>
+
+  <g filter="url(#s)">
+    <circle cx="660" cy="70" r="30" fill="#F59E0B"/>
+    <path d="M660 50L669 68H651L660 50Z" fill="#111827"/>
+    <rect x="651" y="68" width="18" height="10" fill="#111827"/>
+  </g>
+</svg>

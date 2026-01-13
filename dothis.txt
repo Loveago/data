@@ -1,0 +1,167 @@
+
+
+> **Create a full-stack production-ready e-commerce platform modeled visually and functionally on the frontend of `gigshub.store`.**
+> This must include a complete user-facing store, backend API, database, authentication system, and a powerful admin panel.
+
+---
+
+
+## 🧱 TECH STACK
+
+* **Frontend:** Next.js 14, TailwindCSS, Axios
+* **Backend:** Node.js, Express
+* **Database:** PostgreSQL + Prisma ORM
+* **Auth:** JWT (access + refresh tokens), bcrypt
+* **Roles:** `USER` and `ADMIN`
+* **Folder structure:**
+
+  ```
+  /frontend
+  /backend
+  ```
+
+---
+
+## 🎨 FRONTEND – STORE CLONE
+
+### Pages
+
+1. **Homepage**
+
+   * Top navigation: Logo, Home, Store, Cart, Login/Register
+   * Hero banner: “Buy Data Bundles Instantly”
+   * Featured products grid
+   * Footer with Privacy, Terms, Contact
+
+2. **Store / Product Listing**
+
+   * Product cards: image, name, price, category, Add to Cart
+   * Search bar + category filter
+   * Mobile responsive grid
+
+3. **Product Details**
+
+   * Image gallery
+   * Price, quantity selector, Add to Cart
+   * Description & features
+
+4. **Cart Page**
+
+   * Cart items list
+   * Subtotal calculation
+   * Proceed to Checkout
+
+5. **Checkout**
+
+   * Name, email, phone, address
+   * Order summary
+   * Submit order
+
+6. **Auth**
+
+   * Register & Login pages
+   * Token-based authentication
+   * Persist user session
+
+7. **User Dashboard**
+
+   * Profile info
+   * Order history
+
+---
+
+## 🧠 BACKEND – EXPRESS API
+
+### Models (Prisma)
+
+* User
+* Product
+* Category
+* Order
+* OrderItem
+
+### Routes
+
+```
+POST   /api/auth/register
+POST   /api/auth/login
+GET    /api/products
+GET    /api/products/:id
+POST   /api/products        (ADMIN)
+PUT    /api/products/:id    (ADMIN)
+DELETE /api/products/:id    (ADMIN)
+POST   /api/orders
+GET    /api/orders/my
+GET    /api/admin/orders    (ADMIN)
+```
+
+---
+
+## 🛡️ AUTH SYSTEM
+
+* JWT access token + refresh token
+* Middleware for `requireAuth`
+* Middleware for `requireAdmin`
+
+---
+
+## 🧰 ADMIN PANEL – `/admin`
+
+### Layout
+
+Sidebar navigation:
+
+* Dashboard
+* Products
+* Orders
+* Users
+* Categories
+
+### Features
+
+#### Dashboard
+
+* Total users
+* Total orders
+* Total revenue
+
+#### Products
+
+* Create / Edit / Delete products
+* Upload images
+* Set price, stock, category
+
+#### Orders
+
+* View all orders
+* Change status: pending / processing / completed
+
+#### Users
+
+* List users
+* Change role USER ↔ ADMIN
+
+#### Categories
+
+* Add / Edit / Delete categories
+
+---
+
+## 🔗 FRONTEND ↔ BACKEND
+
+* Axios instance with base API URL
+* Auth token stored securely
+* Protect admin routes
+
+---
+
+## 🚀 DELIVERABLES
+
+* Fully functional frontend store
+* Backend API with PostgreSQL + Prisma
+* Admin panel with full control
+* `.env.example` files
+* Local dev instructions
+
+---
+

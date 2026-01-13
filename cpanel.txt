@@ -1,0 +1,169 @@
+CPANEL.TXT (super simple deploy guide)
+
+Goal:
+- Run BACKEND (Express API) as a Node.js app
+- Run FRONTEND (Next.js) as a second Node.js app
+- Use PostgreSQL database
+
+This project has 2 folders:
+- backend/
+- frontend/
+
+Recommended easiest setup on cPanel:
+- Use 2 subdomains:
+  - https://yourdomain.com  -> FRONTEND
+  - https://api.yourdomain.com -> BACKEND
+
+Why?
+- It avoids complicated “/api reverse proxy” rules.
+
+------------------------------------------------------------
+STEP 1 — Create the database (PostgreSQL)
+
+Option A: Your cPanel supports PostgreSQL
+1) cPanel -> PostgreSQL Databases
+2) Create database: gigshub_clone
+3) Create user + password
+4) Add user to database with ALL privileges
+5) Copy these details (host, db, user, password, port)
+
+Option B: Your cPanel does NOT support PostgreSQL
+Use a managed Postgres provider:
+- Neon (https://neon.tech)
+- Supabase (https://supabase.com)
+- Railway (https://railway.app)
+
+Copy the DATABASE_URL.
+Example format:
+postgresql://USER:PASSWORD@HOST:5432/DBNAME?schema=public
+
+------------------------------------------------------------
+STEP 2 — Upload your project
+1) Zip your project folder (it must contain backend/ and frontend/)
+2) cPanel -> File Manager
+3) Upload the ZIP to your home folder
+4) Extract it
+
+You should end up with something like:
+/home/YOURUSER/gigshub/
+  backend/
+  frontend/
+
+------------------------------------------------------------
+STEP 3 — Create the BACKEND Node app (api subdomain)
+
+1) In cPanel open: Setup Node.js App
+2) Click: Create Application
+3) Fill it like this:
+   - Node version: 18+ (or latest available)
+   - Application mode: Production
+   - Application root: gigshub/backend
+   - Application URL: https://api.yourdomain.com
+   - Application startup file: src/server.js
+
+4) Click Create.
+
+5) Set Environment Variables (very important)
+In the same Node app screen, add these env vars:
+
+REQUIRED:
+- DATABASE_URL = your postgres URL
+- CORS_ORIGIN = https://yourdomain.com,https://www.yourdomain.com
+- JWT_ACCESS_SECRET = random long text
+- JWT_REFRESH_SECRET = random long text
+- SEED_ADMIN_EMAIL = admin@example.com (use your email)
+- SEED_ADMIN_PASSWORD = Admin12345! (change it)
+
+OPTIONAL:
+- PAYSTACK_SECRET_KEY = your real Paystack secret (if using Paystack)
+- HUBNET_ENABLED = true/false
+- HUBNET_API_KEY = your Hubnet key
+- HUBNET_WEBHOOK_URL = https://api.yourdomain.com/api/hubnet/webhook
+- HUBNET_WEBHOOK_SECRET = set any secret text (recommended)
+
+Notes:
+- If cPanel gives you its own PORT, do NOT force PORT=4000.
+  (If you set PORT and it fails, remove PORT.)
+
+6) Install backend dependencies
+In the Node app screen:
+- Click “Run NPM Install” (or run command):
+  npm install
+
+7) Run Prisma migration + seed
+If cPanel has Terminal:
+- Go to Terminal
+- Run these commands inside backend folder:
+  npx prisma generate
+  npx prisma migrate deploy
+  npm run seed
+
+If you can only run ONE command at a time, run in this order:
+1) npx prisma generate
+2) npx prisma migrate deploy
+3) npm run seed
+
+8) Start/Restart the backend app.
+
+9) Test backend:
+Open:
+https://api.yourdomain.com/api/health
+It must show:
+{"ok":true}
+
+------------------------------------------------------------
+STEP 4 — Create the FRONTEND Node app (main domain)
+
+IMPORTANT:
+- Next.js reads NEXT_PUBLIC_* variables at BUILD TIME.
+- So set env vars BEFORE you build.
+
+1) cPanel -> Setup Node.js App
+2) Create Application
+3) Fill:
+   - Node version: same as backend
+   - Application mode: Production
+   - Application root: gigshub/frontend
+   - Application URL: https://yourdomain.com
+
+4) Set Environment Variables:
+- NODE_ENV = production
+- NEXT_PUBLIC_API_URL = https://api.yourdomain.com
+
+5) Install frontend deps:
+- npm install
+
+6) Build frontend:
+- npm run build
+
+7) Start frontend:
+- npm run start
+
+------------------------------------------------------------
+STEP 5 — Check everything
+1) Open: https://yourdomain.com
+2) Go to /store and confirm products load
+3) Login at /login using seeded admin:
+   - SEED_ADMIN_EMAIL
+   - SEED_ADMIN_PASSWORD
+4) Open /admin
+
+------------------------------------------------------------
+COMMON PROBLEMS (and easy fixes)
+
+1) Frontend cannot fetch products
+- Check backend is running
+- Check NEXT_PUBLIC_API_URL is correct
+- Check CORS_ORIGIN includes your frontend domain
+
+2) Prisma migrate fails
+- DATABASE_URL is wrong
+- Database user has no permissions
+- You forgot: npx prisma migrate deploy
+
+3) Hubnet delivered but app still pending
+- Hubnet must call your webhook
+- HUBNET_WEBHOOK_URL must be PUBLIC (not localhost)
+- If you set HUBNET_WEBHOOK_SECRET, Hubnet must send the secret
+
+Done.
