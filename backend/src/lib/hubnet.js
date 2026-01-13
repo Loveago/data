@@ -34,8 +34,9 @@ function getHubnetConfig() {
 async function dispatchOneDatahubnetItem(intervalMs) {
   const cutoff = new Date(Date.now() - intervalMs);
   const datahubnetCapacityMap = getDatahubnetCapacityMap();
+  const telecelNetwork = getDatahubnetTelecelNetwork();
 
-  const item = await prisma.orderItem.findFirst({
+  const candidate = await prisma.orderItem.findFirst({
     where: {
       order: { paymentStatus: 'PAID' },
       hubnetSkip: false,
@@ -46,11 +47,40 @@ async function dispatchOneDatahubnetItem(intervalMs) {
         { OR: [{ hubnetLastAttemptAt: null }, { hubnetLastAttemptAt: { lte: cutoff } }] },
       ],
     },
-    include: { order: true, product: { include: { category: true } } },
+    select: { id: true },
     orderBy: { updatedAt: 'asc' },
   });
 
-  if (!item) return false;
+  if (!candidate) return false;
+
+  const claimed = await prisma.orderItem.updateMany({
+    where: {
+      id: candidate.id,
+      hubnetSkip: false,
+      hubnetAttempts: { lt: 6 },
+      fulfillmentProvider: 'datahubnet',
+      AND: [
+        { OR: [{ hubnetStatus: null }, { hubnetStatus: 'PENDING' }, { hubnetStatus: 'FAILED' }] },
+        { OR: [{ hubnetLastAttemptAt: null }, { hubnetLastAttemptAt: { lte: cutoff } }] },
+      ],
+    },
+    data: {
+      hubnetStatus: 'SENDING',
+      hubnetAttempts: { increment: 1 },
+      hubnetLastAttemptAt: new Date(),
+      hubnetLastError: null,
+      hubnetNetwork: telecelNetwork,
+    },
+  });
+
+  if (!claimed || claimed.count !== 1) return true;
+
+  const item = await prisma.orderItem.findUnique({
+    where: { id: candidate.id },
+    include: { order: true, product: { include: { category: true } } },
+  });
+
+  if (!item) return true;
 
   const phone = item.recipientPhone || item.order?.customerPhone;
   const volumeMb = item.hubnetVolumeMb || parseVolumeMbFromProduct(item.product);
@@ -62,10 +92,8 @@ async function dispatchOneDatahubnetItem(intervalMs) {
       where: { id: item.id },
       data: {
         hubnetStatus: 'FAILED',
-        hubnetAttempts: { increment: 1 },
-        hubnetLastAttemptAt: new Date(),
         hubnetLastError: !phone ? 'Missing recipient phone' : 'Unable to determine bundle size (capacity)',
-        hubnetNetwork: 'telecel',
+        hubnetNetwork: telecelNetwork,
         hubnetReference: reference,
       },
     });
@@ -75,11 +103,7 @@ async function dispatchOneDatahubnetItem(intervalMs) {
   await prisma.orderItem.update({
     where: { id: item.id },
     data: {
-      hubnetStatus: 'SENDING',
-      hubnetAttempts: { increment: 1 },
-      hubnetLastAttemptAt: new Date(),
-      hubnetLastError: null,
-      hubnetNetwork: 'telecel',
+      hubnetNetwork: telecelNetwork,
       hubnetVolumeMb: volumeMb,
       hubnetReference: reference,
     },
@@ -88,7 +112,7 @@ async function dispatchOneDatahubnetItem(intervalMs) {
   try {
     const res = await datahubnetPlaceOrder({
       phone,
-      network: 'telecel',
+      network: telecelNetwork,
       capacity,
       reference,
       express: true,
@@ -583,7 +607,7 @@ async function dispatchOneHubnetItem() {
 
   const cutoff = new Date(Date.now() - intervalMs);
 
-  const item = await prisma.orderItem.findFirst({
+  const candidate = await prisma.orderItem.findFirst({
     where: {
       order: { paymentStatus: 'PAID' },
       hubnetSkip: false,
@@ -594,8 +618,37 @@ async function dispatchOneHubnetItem() {
         { OR: [{ fulfillmentProvider: null }, { fulfillmentProvider: 'hubnet' }] },
       ],
     },
-    include: { order: true, product: { include: { category: true } } },
+    select: { id: true },
     orderBy: { updatedAt: 'asc' },
+  });
+
+  if (!candidate) return;
+
+  const claimed = await prisma.orderItem.updateMany({
+    where: {
+      id: candidate.id,
+      order: { paymentStatus: 'PAID' },
+      hubnetSkip: false,
+      hubnetAttempts: { lt: 6 },
+      AND: [
+        { OR: [{ hubnetStatus: null }, { hubnetStatus: 'PENDING' }, { hubnetStatus: 'FAILED' }] },
+        { OR: [{ hubnetLastAttemptAt: null }, { hubnetLastAttemptAt: { lte: cutoff } }] },
+        { OR: [{ fulfillmentProvider: null }, { fulfillmentProvider: 'hubnet' }] },
+      ],
+    },
+    data: {
+      hubnetStatus: 'SENDING',
+      hubnetAttempts: { increment: 1 },
+      hubnetLastAttemptAt: new Date(),
+      hubnetLastError: null,
+    },
+  });
+
+  if (!claimed || claimed.count !== 1) return;
+
+  const item = await prisma.orderItem.findUnique({
+    where: { id: candidate.id },
+    include: { order: true, product: { include: { category: true } } },
   });
 
   if (!item) return;
@@ -623,8 +676,6 @@ async function dispatchOneHubnetItem() {
         hubnetStatus: 'FAILED',
         hubnetNetwork: network,
         hubnetReference: reference,
-        hubnetAttempts: { increment: 1 },
-        hubnetLastAttemptAt: new Date(),
         hubnetLastError: 'Unable to determine bundle size (volumeMb)',
       },
     });
@@ -634,13 +685,9 @@ async function dispatchOneHubnetItem() {
   await prisma.orderItem.update({
     where: { id: item.id },
     data: {
-      hubnetStatus: 'SENDING',
       hubnetNetwork: network,
       hubnetVolumeMb: volumeMb,
       hubnetReference: reference,
-      hubnetAttempts: { increment: 1 },
-      hubnetLastAttemptAt: new Date(),
-      hubnetLastError: null,
     },
   });
 

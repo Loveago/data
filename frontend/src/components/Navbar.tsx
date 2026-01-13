@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
@@ -39,6 +40,7 @@ export function Navbar() {
   const { isAuthenticated, user, logout } = useAuth();
   const { count } = useCart();
   const { theme, setTheme } = useTheme();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const themeLabel = theme === "system" ? "System" : theme === "dark" ? "Dark" : "Light";
   function cycleTheme() {
@@ -65,6 +67,20 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMobileOpen((v) => !v)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900 md:hidden"
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileOpen}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M4 12h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                <path d="M4 17h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+
             <div className="hidden items-center gap-2 sm:flex">
               <IconButton title="Search">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -134,16 +150,64 @@ export function Navbar() {
                 >
                   Login
                 </Link>
-                <Link
-                  href="/register"
-                  className="inline-flex h-10 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-sm hover:opacity-95"
-                >
-                  Join Community
-                </Link>
               </>
             )}
+            <a
+              href="https://chat.whatsapp.com/DU930JTfukeH4aDoDq2et4"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-sm hover:opacity-95"
+            >
+              Join Community
+            </a>
           </div>
         </div>
+
+        {mobileOpen ? (
+          <div className="mt-3 rounded-2xl border border-zinc-200 bg-white/95 p-2 shadow-soft backdrop-blur dark:border-zinc-800 dark:bg-black/60 md:hidden">
+            <div className="flex flex-col">
+              <Link
+                href="/"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              >
+                Home
+              </Link>
+              <Link
+                href="/store"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              >
+                Stores
+              </Link>
+              <Link
+                href="/cart"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              >
+                Cart ({count})
+              </Link>
+              <a
+                href="https://chat.whatsapp.com/DU930JTfukeH4aDoDq2et4"
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setMobileOpen(false)}
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              >
+                Join Community
+              </a>
+              {user?.role === "ADMIN" ? (
+                <Link
+                  href="/admin"
+                  onClick={() => setMobileOpen(false)}
+                  className="rounded-xl px-3 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                >
+                  Agent Dashboard
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </div>
     </header>
   );

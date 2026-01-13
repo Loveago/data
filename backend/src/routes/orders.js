@@ -26,7 +26,9 @@ router.post(
     const userId = req.user.sub;
     const { customerName, customerEmail, customerPhone, customerAddress, items } = req.body || {};
 
-    if (!customerName || !customerEmail || !customerPhone || !customerAddress) {
+    const normalizedCustomerAddress = customerAddress ? String(customerAddress) : '';
+
+    if (!customerName || !customerEmail || !customerPhone) {
       return res.status(400).json({ error: 'Missing customer fields' });
     }
 
@@ -95,7 +97,7 @@ router.post(
           customerName,
           customerEmail,
           customerPhone,
-          customerAddress,
+          customerAddress: normalizedCustomerAddress,
           subtotal,
           total,
           items: { create: orderItemsData },
@@ -116,7 +118,9 @@ router.post(
     const userId = req.user.sub;
     const { customerName, customerEmail, customerPhone, customerAddress, items } = req.body || {};
 
-    if (!customerName || !customerEmail || !customerPhone || !customerAddress) {
+    const normalizedCustomerAddress = customerAddress ? String(customerAddress) : '';
+
+    if (!customerName || !customerEmail || !customerPhone) {
       return res.status(400).json({ error: 'Missing customer fields' });
     }
 
@@ -196,7 +200,7 @@ router.post(
           customerName,
           customerEmail,
           customerPhone,
-          customerAddress,
+          customerAddress: normalizedCustomerAddress,
           subtotal,
           total,
           paymentProvider: 'wallet',

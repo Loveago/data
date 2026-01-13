@@ -128,8 +128,9 @@ router.post(
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
     const { customerName, customerEmail, customerPhone, customerAddress, items, callbackUrl } = req.body || {};
+    const normalizedCustomerAddress = customerAddress ? String(customerAddress) : '';
 
-    if (!customerName || !customerEmail || !customerPhone || !customerAddress) {
+    if (!customerName || !customerEmail || !customerPhone) {
       return res.status(400).json({ error: 'Missing customer fields' });
     }
 
@@ -189,7 +190,7 @@ router.post(
         customerName,
         customerEmail,
         customerPhone,
-        customerAddress,
+        customerAddress: normalizedCustomerAddress,
         subtotal,
         total: pesewasToDecimal(grossAmountPesewas),
         paymentProvider: 'paystack',
@@ -228,6 +229,7 @@ router.post(
       customerAddress: bodyCustomerAddress,
       items: bodyItems,
     } = req.body || {};
+    const normalizedBodyCustomerAddress = bodyCustomerAddress ? String(bodyCustomerAddress) : '';
     if (!reference) {
       return res.status(400).json({ error: 'Missing reference' });
     }
@@ -262,7 +264,8 @@ router.post(
       const customerName = verifiedMeta.customerName ?? bodyCustomerName;
       const customerEmail = verifiedMeta.customerEmail ?? bodyCustomerEmail;
       const customerPhone = verifiedMeta.customerPhone ?? bodyCustomerPhone;
-      const customerAddress = verifiedMeta.customerAddress ?? bodyCustomerAddress;
+      const customerAddressRaw = verifiedMeta.customerAddress ?? bodyCustomerAddress;
+      const customerAddress = customerAddressRaw ? String(customerAddressRaw) : '';
 
       if (!userId) {
         return res.status(400).json({ error: 'Missing userId metadata' });
@@ -276,7 +279,7 @@ router.post(
         return res.status(400).json({ error: 'Missing order items' });
       }
 
-      if (!customerName || !customerEmail || !customerPhone || !customerAddress) {
+      if (!customerName || !customerEmail || !customerPhone) {
         return res.status(400).json({ error: 'Missing customer fields' });
       }
 
@@ -310,7 +313,7 @@ router.post(
             customerName: String(customerName),
             customerEmail: String(customerEmail),
             customerPhone: String(customerPhone),
-            customerAddress: String(customerAddress),
+            customerAddress,
             subtotal,
             total: pesewasToDecimal(grossAmountPesewas),
             paymentProvider: 'paystack',
@@ -395,12 +398,13 @@ router.post(
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
     const { reference, customerName, customerEmail, customerPhone, customerAddress, items } = req.body || {};
+    const normalizedCustomerAddress = customerAddress ? String(customerAddress) : '';
 
     if (!reference) {
       return res.status(400).json({ error: 'Missing reference' });
     }
 
-    if (!customerName || !customerEmail || !customerPhone || !customerAddress) {
+    if (!customerName || !customerEmail || !customerPhone) {
       return res.status(400).json({ error: 'Missing customer fields' });
     }
 
@@ -459,7 +463,7 @@ router.post(
           customerName,
           customerEmail,
           customerPhone,
-          customerAddress,
+          customerAddress: normalizedCustomerAddress,
           subtotal,
           total: pesewasToDecimal(grossAmountPesewas),
           paymentProvider: 'paystack',
