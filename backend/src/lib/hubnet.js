@@ -338,6 +338,7 @@ function getHubnetNetworkForCategorySlug(categorySlug, mapping) {
   if (slug === 'mtn') return 'mtn';
   if (slug === 'airteltigo') return 'at';
   if (slug === 'big-time') return 'big-time';
+  if (slug === 'at-bigtime') return 'big-time';
 
   if (mapping && mapping[slug]) return String(mapping[slug]);
 

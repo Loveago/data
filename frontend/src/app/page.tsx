@@ -21,13 +21,13 @@ export default function Home() {
                 Fast Delivery
               </div>
 
-              <h1 className="mt-6 text-5xl font-extrabold leading-[1.02] tracking-tight text-slate-900 sm:text-6xl">
+              <h1 className="mt-6 text-5xl font-extrabold leading-[1.02] tracking-tight text-slate-900 dark:text-white sm:text-6xl">
                 Instant Data
                 <br />
                 <span className="text-gradient-blue">Services 4U</span>
               </h1>
 
-              <p className="mt-5 max-w-xl text-base leading-7 text-slate-600">
+              <p className="mt-5 max-w-xl text-base leading-7 text-slate-600 dark:text-zinc-300">
                 Buy data bundles, AFA registration, and more in minutes with smooth checkout and 24/7 support.
               </p>
 
@@ -40,7 +40,7 @@ export default function Home() {
                 </Link>
                 <Link
                   href="/register"
-                  className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-slate-900 ring-1 ring-zinc-200 hover:bg-zinc-50"
+                  className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-slate-900 ring-1 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-950 dark:text-white dark:ring-zinc-800 dark:hover:bg-zinc-900"
                 >
                   Join Community
                 </Link>

@@ -2,10 +2,11 @@ const express = require('express');
 
 const bcrypt = require('bcrypt');
 
-const { Prisma } = require('@prisma/client');
+const { Prisma, NotificationLevel } = require('@prisma/client');
 const { prisma } = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { sanitizeHtml } = require('./notifications');
 
 const router = express.Router();
 
@@ -203,6 +204,55 @@ router.post(
     await prisma.user.update({ where: { id }, data: { passwordHash } });
 
     return res.json({ ok: true });
+  })
+);
+
+router.get(
+  '/notifications',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const limitRaw = typeof req.query.limit === 'string' ? req.query.limit : '';
+    const limit = Math.min(200, Math.max(1, Number(limitRaw || 50) || 50));
+
+    const items = await prisma.notification.findMany({
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return res.json({ items });
+  })
+);
+
+router.post(
+  '/notifications',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { title, body, level } = req.body || {};
+
+    const t = typeof title === 'string' ? title.trim() : '';
+    if (!t) return res.status(400).json({ error: 'Title is required' });
+    if (t.length > 120) return res.status(400).json({ error: 'Title is too long' });
+
+    const rawBody = typeof body === 'string' ? body : '';
+    const cleanedBody = sanitizeHtml(rawBody);
+    if (!cleanedBody.trim()) return res.status(400).json({ error: 'Body is required' });
+    if (cleanedBody.length > 5000) return res.status(400).json({ error: 'Body is too long' });
+
+    const lvl = typeof level === 'string' ? level.trim().toUpperCase() : 'INFO';
+    const allowed = NotificationLevel ? Object.values(NotificationLevel) : ['INFO', 'SUCCESS', 'WARNING', 'ERROR'];
+    const finalLevel = allowed.includes(lvl) ? lvl : 'INFO';
+
+    const created = await prisma.notification.create({
+      data: {
+        title: t,
+        body: cleanedBody,
+        level: finalLevel,
+      },
+    });
+
+    return res.status(201).json(created);
   })
 );
 

@@ -31,6 +31,13 @@ enum HubnetFulfillmentStatus {
   FAILED
 }
 
+enum NotificationLevel {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
 model User {
   id                  String   @id @default(cuid())
   email               String   @unique
@@ -41,11 +48,20 @@ model User {
   walletBalance        Decimal  @default(0) @db.Decimal(12, 2)
   refreshTokenHash    String?
   refreshTokenExpiresAt DateTime?
+  notificationsClearedAt DateTime?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   orders              Order[]
   walletTransactions  WalletTransaction[]
+}
+
+model Notification {
+  id        String            @id @default(cuid())
+  title     String
+  body      String
+  level     NotificationLevel @default(INFO)
+  createdAt DateTime          @default(now())
 }
 
 model Category {

@@ -59,8 +59,8 @@ export default function CartPage() {
           </Link>
         </div>
       ) : (
-        <div className="mt-8 grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px] lg:items-start">
+          <div>
             <div className="space-y-4">
               {items.map((it) => (
                 <div
@@ -126,7 +126,7 @@ export default function CartPage() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="h-fit rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950 lg:sticky lg:top-24">
             <h2 className="text-lg font-semibold">Order summary</h2>
             <div className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between">

@@ -18,7 +18,10 @@ type CartContextValue = {
 const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(() => {
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [loadedOnce, setLoadedOnce] = useState(false);
+
+  useEffect(() => {
     const loaded = loadCart();
     const makeId = (productId: string) => {
       const cryptoObj = globalThis.crypto as unknown as { randomUUID?: () => string } | undefined;
@@ -26,15 +29,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       return `${productId}-${Date.now()}-${Math.random()}`;
     };
 
-    return loaded.map((it) => ({
-      ...it,
-      id: typeof it.id === "string" && it.id ? it.id : makeId(it.productId),
-    }));
-  });
+    setTimeout(() => {
+      setItems(
+        loaded.map((it) => ({
+          ...it,
+          id: typeof it.id === "string" && it.id ? it.id : makeId(it.productId),
+        }))
+      );
+      setLoadedOnce(true);
+    }, 0);
+  }, []);
 
   useEffect(() => {
+    if (!loadedOnce) return;
     saveCart(items);
-  }, [items]);
+  }, [items, loadedOnce]);
 
   const value = useMemo<CartContextValue>(() => {
     const addItem: CartContextValue["addItem"] = (product, quantity = 1, recipientPhone) => {

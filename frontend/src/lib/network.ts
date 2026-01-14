@@ -12,6 +12,7 @@ export function getNetworkMeta(input?: { slug?: string; name?: string }): Networ
   if (slug === "mtn") return { label: "MTN", initials: "MTN", icon: "/networks/mtn.svg", badgeClass: "bg-yellow-500 text-black" };
   if (slug === "telecel") return { label: "Telecel", initials: "TC", icon: "/networks/telecel-logo.svg", badgeClass: "bg-red-600 text-white" };
   if (slug === "airteltigo") return { label: "AirtelTigo", initials: "AT", icon: "/networks/airteltigo.svg", badgeClass: "bg-rose-600 text-white" };
+  if (slug === "at-bigtime") return { label: "AT BigTime", initials: "AT", icon: "/networks/airteltigo.svg", badgeClass: "bg-sky-600 text-white" };
 
   const fallbackLabel = name || "Network";
   const parts = fallbackLabel.split(/\s+/).filter(Boolean);
@@ -22,7 +23,7 @@ export function getNetworkMeta(input?: { slug?: string; name?: string }): Networ
 export function getNetworkPrefixes(slug?: string) {
   const s = (slug || "").toLowerCase();
   if (s === "mtn") return ["024", "054", "055", "059"];
-  if (s === "airteltigo") return ["026", "056", "027", "057"];
+  if (s === "airteltigo" || s === "at-bigtime") return ["026", "056", "027", "057"];
   if (s === "telecel") return ["020", "050"];
   return [] as string[];
 }

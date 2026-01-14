@@ -19,10 +19,10 @@ const DEMO_PRODUCTS: Product[] = [
   },
   {
     id: "demo-2",
-    name: "Telecel 2GB Data Bundle",
-    slug: "telecel-2gb",
-    description: "Telecel 2GB data bundle.",
-    price: "9.00",
+    name: "Telecel 5GB Data Bundle",
+    slug: "telecel-5gb",
+    description: "Telecel 5GB data bundle.",
+    price: "23.00",
     stock: 120,
     imageUrls: ["/product-placeholder.svg"],
     category: { id: "c2", name: "Telecel", slug: "telecel" },
@@ -36,6 +36,16 @@ const DEMO_PRODUCTS: Product[] = [
     stock: 999,
     imageUrls: ["/product-placeholder.svg"],
     category: { id: "c3", name: "AT iShare", slug: "airteltigo" },
+  },
+  {
+    id: "demo-4",
+    name: "AT - BigTime 20GB Data Bundle",
+    slug: "at-bigtime-20gb",
+    description: "AT - BigTime 20GB data bundle.",
+    price: "70.00",
+    stock: 999,
+    imageUrls: ["/product-placeholder.svg"],
+    category: { id: "c4", name: "AT BigTime", slug: "at-bigtime" },
   },
 ];
 
@@ -98,11 +108,18 @@ export default function StorePage() {
         name: "MTN",
         logo: "/networks/mtn.svg",
         gradient: "bg-gradient-to-r from-yellow-400 to-amber-600",
-        accent: "text-yellow-900",
+        accent: "text-yellow-900 dark:text-yellow-50",
       },
       {
         slug: "airteltigo",
         name: "AT iShare",
+        logo: "/networks/airteltigo.svg",
+        gradient: "bg-gradient-to-r from-sky-500 to-blue-700",
+        accent: "text-blue-50",
+      },
+      {
+        slug: "at-bigtime",
+        name: "AT BigTime",
         logo: "/networks/airteltigo.svg",
         gradient: "bg-gradient-to-r from-sky-500 to-blue-700",
         accent: "text-blue-50",
@@ -223,7 +240,7 @@ export default function StorePage() {
                 idx % 2 === 0 ? "animate-floaty" : "animate-floaty2"
               }`}
             >
-              <div className="relative rounded-3xl bg-white/15 p-6 backdrop-blur dark:bg-black/15">
+              <div className="relative rounded-3xl bg-white/20 p-6 backdrop-blur dark:bg-black/25">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
@@ -232,8 +249,7 @@ export default function StorePage() {
                     <div>
                       <div className={`text-lg font-semibold ${n.accent}`}>{n.name}</div>
                       <div className={`mt-1 text-xs ${n.accent} opacity-90`}>60 Days</div>
-                      <div className={`mt-2 inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs ${n.accent}`}
-                      >
+                      <div className={`mt-2 inline-flex items-center rounded-full bg-white/25 px-3 py-1 text-xs ${n.accent} dark:bg-black/20`}>
                         {(networkCounts[n.slug] || 0) + " packages"}
                       </div>
                     </div>
@@ -246,7 +262,7 @@ export default function StorePage() {
                       const el = document.getElementById("packages");
                       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
-                    className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-black/5 transition hover:bg-zinc-50"
+                    className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-black/5 transition hover:bg-zinc-50 dark:bg-zinc-950/70 dark:text-white dark:ring-white/10 dark:hover:bg-zinc-900"
                   >
                     View
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

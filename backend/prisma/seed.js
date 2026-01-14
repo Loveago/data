@@ -37,6 +37,7 @@ async function main() {
     { name: 'MTN', slug: 'mtn' },
     { name: 'Telecel', slug: 'telecel' },
     { name: 'AT iShare', slug: 'airteltigo' },
+    { name: 'AT BigTime', slug: 'at-bigtime' },
     { name: 'Subscription', slug: 'subscription' },
   ];
 
@@ -57,6 +58,21 @@ async function main() {
     },
   });
 
+  await prisma.product.deleteMany({
+    where: {
+      slug: { in: ['telecel-1gb', 'telecel-2gb', 'telecel-3gb'] },
+    },
+  });
+
+  await prisma.product.deleteMany({
+    where: {
+      OR: [
+        { slug: { in: ['at-bigtime-20gb'] } },
+        { name: { contains: 'BigTime 20GB', mode: 'insensitive' } },
+      ],
+    },
+  });
+
   const bundles = [
     { networkSlug: 'mtn', networkName: 'MTN', size: '1GB', price: '4.50' },
     { networkSlug: 'mtn', networkName: 'MTN', size: '2GB', price: '9.00' },
@@ -74,11 +90,21 @@ async function main() {
     { networkSlug: 'mtn', networkName: 'MTN', size: '50GB', price: '197.00' },
     { networkSlug: 'mtn', networkName: 'MTN', size: '100GB', price: '375.00' },
 
-    { networkSlug: 'telecel', networkName: 'Telecel', size: '1GB', price: '5.50' },
-    { networkSlug: 'telecel', networkName: 'Telecel', size: '2GB', price: '10.00' },
-    { networkSlug: 'telecel', networkName: 'Telecel', size: '3GB', price: '14.00' },
-    { networkSlug: 'telecel', networkName: 'Telecel', size: '5GB', price: '22.00' },
+    { networkSlug: 'telecel', networkName: 'Telecel', size: '5GB', price: '23.00' },
     { networkSlug: 'telecel', networkName: 'Telecel', size: '10GB', price: '40.00' },
+    { networkSlug: 'telecel', networkName: 'Telecel', size: '15GB', price: '60.00' },
+    { networkSlug: 'telecel', networkName: 'Telecel', size: '20GB', price: '79.00' },
+    { networkSlug: 'telecel', networkName: 'Telecel', size: '25GB', price: '95.00' },
+    { networkSlug: 'telecel', networkName: 'Telecel', size: '30GB', price: '115.00' },
+    { networkSlug: 'telecel', networkName: 'Telecel', size: '40GB', price: '150.00' },
+    { networkSlug: 'telecel', networkName: 'Telecel', size: '50GB', price: '185.00' },
+    { networkSlug: 'telecel', networkName: 'Telecel', size: '100GB', price: '360.00' },
+
+    { networkSlug: 'at-bigtime', networkName: 'AT - BigTime', size: '30GB', price: '80.00' },
+    { networkSlug: 'at-bigtime', networkName: 'AT - BigTime', size: '40GB', price: '90.00' },
+    { networkSlug: 'at-bigtime', networkName: 'AT - BigTime', size: '50GB', price: '105.00' },
+    { networkSlug: 'at-bigtime', networkName: 'AT - BigTime', size: '100GB', price: '190.00' },
+    { networkSlug: 'at-bigtime', networkName: 'AT - BigTime', size: '200GB', price: '350.00' },
 
     { networkSlug: 'airteltigo', networkName: 'AT - iShare', size: '1GB', price: '4.30' },
     { networkSlug: 'airteltigo', networkName: 'AT - iShare', size: '2GB', price: '8.30' },

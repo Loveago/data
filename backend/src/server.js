@@ -11,6 +11,7 @@ const categoriesRoutes = require('./routes/categories');
 const ordersRoutes = require('./routes/orders');
 const paymentsRoutes = require('./routes/payments');
 const productsRoutes = require('./routes/products');
+const { router: notificationsRoutes } = require('./routes/notifications');
 const walletRoutes = require('./routes/wallet');
 const hubnetRoutes = require('./routes/hubnet');
 
@@ -36,6 +37,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/hubnet', hubnetRoutes);
 

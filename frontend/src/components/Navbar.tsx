@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useTheme } from "@/context/ThemeContext";
+import { api } from "@/lib/api";
 
 function NavLink({ href, children }: { href: string; children: ReactNode }) {
   return (
@@ -22,20 +23,31 @@ function NavLink({ href, children }: { href: string; children: ReactNode }) {
 function IconButton({
   title,
   children,
+  onClick,
 }: {
   title: string;
   children: ReactNode;
+  onClick?: () => void;
 }) {
   return (
     <button
       type="button"
       title={title}
+      onClick={onClick}
       className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
     >
       {children}
     </button>
   );
 }
+
+type NotificationItem = {
+  id: string;
+  title: string;
+  body: string;
+  level: "INFO" | "SUCCESS" | "WARNING" | "ERROR";
+  createdAt: string;
+};
 
 function TabIcon({ name, active }: { name: "home" | "store" | "cart" | "user"; active: boolean }) {
   const cls = active ? "text-blue-600 dark:text-blue-300" : "text-zinc-500 dark:text-zinc-400";
@@ -116,6 +128,15 @@ export function Navbar() {
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
 
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifError, setNotifError] = useState<string | null>(null);
+  const [notifItems, setNotifItems] = useState<NotificationItem[]>([]);
+  const [notifClearedAt, setNotifClearedAt] = useState<string | null>(null);
+  const notifDesktopRef = useRef<HTMLDivElement | null>(null);
+  const notifMobileRef = useRef<HTMLDivElement | null>(null);
+  const notifReqVersion = useRef(0);
+
   const themeLabel = theme === "system" ? "System" : theme === "dark" ? "Dark" : "Light";
   function cycleTheme() {
     if (theme === "system") setTheme("light");
@@ -130,6 +151,81 @@ export function Navbar() {
     if (href === "/") return pathname === "/";
     return pathname === href || pathname.startsWith(`${href}/`);
   }
+
+  const unreadCount = useMemo(() => {
+    const clearedMs = notifClearedAt ? new Date(notifClearedAt).getTime() : 0;
+    return notifItems.filter((n) => new Date(n.createdAt).getTime() > clearedMs).length;
+  }, [notifClearedAt, notifItems]);
+
+  const visibleNotifItems = useMemo(() => {
+    const clearedMs = notifClearedAt ? new Date(notifClearedAt).getTime() : 0;
+    return notifItems.filter((n) => new Date(n.createdAt).getTime() > clearedMs);
+  }, [notifClearedAt, notifItems]);
+
+  const loadNotifications = useCallback(async () => {
+    if (!isAuthenticated) return;
+    const myVersion = ++notifReqVersion.current;
+    setNotifLoading(true);
+    setNotifError(null);
+    try {
+      const res = await api.get<{ items: NotificationItem[]; clearedAt: string | null }>("/notifications", {
+        params: { limit: 30 },
+      });
+      if (myVersion !== notifReqVersion.current) return;
+      setNotifItems(res.data.items || []);
+      setNotifClearedAt(res.data.clearedAt);
+    } catch {
+      if (myVersion !== notifReqVersion.current) return;
+      setNotifError("Failed to load notifications.");
+    } finally {
+      if (myVersion !== notifReqVersion.current) return;
+      setNotifLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  async function clearNotifications() {
+    if (!isAuthenticated) return;
+    const myVersion = ++notifReqVersion.current;
+    setNotifError(null);
+    try {
+      const res = await api.post<{ ok: true; clearedAt: string }>("/notifications/clear");
+      if (myVersion !== notifReqVersion.current) return;
+      setNotifClearedAt(res.data.clearedAt);
+      setNotifOpen(true);
+    } catch {
+      if (myVersion !== notifReqVersion.current) return;
+      setNotifError("Failed to clear notifications.");
+    }
+  }
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setNotifOpen(false);
+      setNotifItems([]);
+      setNotifClearedAt(null);
+      return;
+    }
+    void loadNotifications();
+  }, [isAuthenticated, loadNotifications]);
+
+  useEffect(() => {
+    function onDocMouseDown(e: MouseEvent) {
+      if (!notifOpen) return;
+      if (!(e.target instanceof Node)) return;
+      const desktopEl = notifDesktopRef.current;
+      const mobileEl = notifMobileRef.current;
+
+      if (desktopEl && desktopEl.contains(e.target)) return;
+      if (mobileEl && mobileEl.contains(e.target)) return;
+
+      setNotifOpen(false);
+    }
+
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+    };
+  }, [notifOpen]);
 
   return (
     <>
@@ -157,12 +253,77 @@ export function Navbar() {
                     <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                 </IconButton>
-                <IconButton title="Notifications">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M18 8A6 6 0 1 0 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                    <path d="M13.73 21C13.5542 21.3031 13.3011 21.5547 12.9972 21.7295C12.6933 21.9044 12.349 21.9965 11.9985 21.9965C11.648 21.9965 11.3037 21.9044 10.9998 21.7295C10.6959 21.5547 10.4428 21.3031 10.267 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </IconButton>
+                <div className="relative" ref={notifDesktopRef}>
+                  <div className="relative">
+                    <IconButton
+                      title="Notifications"
+                      onClick={() => {
+                        const next = !notifOpen;
+                        setNotifOpen(next);
+                        if (next) void loadNotifications();
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 8A6 6 0 1 0 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                        <path d="M13.73 21C13.5542 21.3031 13.3011 21.5547 12.9972 21.7295C12.6933 21.9044 12.349 21.9965 11.9985 21.9965C11.648 21.9965 11.3037 21.9044 10.9998 21.7295C10.6959 21.5547 10.4428 21.3031 10.267 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    </IconButton>
+                    {isAuthenticated && unreadCount > 0 ? (
+                      <span className="pointer-events-none absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-semibold text-white">
+                        {unreadCount}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {notifOpen ? (
+                    <div className="absolute right-0 top-12 z-50 w-[340px] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-950">
+                      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+                        <div className="text-sm font-semibold">Notifications</div>
+                        <button
+                          type="button"
+                          onClick={() => void clearNotifications()}
+                          className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                        >
+                          Clear all
+                        </button>
+                      </div>
+
+                      <div className="max-h-[360px] overflow-y-auto">
+                        {notifLoading ? (
+                          <div className="p-4 text-sm text-zinc-600 dark:text-zinc-400">Loading...</div>
+                        ) : notifError ? (
+                          <div className="p-4 text-sm text-red-700 dark:text-red-300">{notifError}</div>
+                        ) : visibleNotifItems.length === 0 ? (
+                          <div className="p-4 text-sm text-zinc-600 dark:text-zinc-400">No notifications.</div>
+                        ) : (
+                          <div className="divide-y divide-zinc-100 dark:divide-zinc-900">
+                            {visibleNotifItems.map((n) => {
+                              const clearedMs = notifClearedAt ? new Date(notifClearedAt).getTime() : 0;
+                              const isUnread = new Date(n.createdAt).getTime() > clearedMs;
+                              return (
+                                <div key={n.id} className="px-4 py-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        {isUnread ? <span className="h-2 w-2 rounded-full bg-blue-600" /> : null}
+                                        <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{n.title}</div>
+                                      </div>
+                                      <div
+                                        className="mt-1 text-xs text-zinc-600 dark:text-zinc-300"
+                                        dangerouslySetInnerHTML={{ __html: n.body }}
+                                      />
+                                      <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">{new Date(n.createdAt).toLocaleString()}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
 
                 <button
                   type="button"
@@ -259,12 +420,70 @@ export function Navbar() {
                 )}
               </button>
 
-              <IconButton title="Notifications">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M18 8A6 6 0 1 0 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                  <path d="M13.73 21C13.5542 21.3031 13.3011 21.5547 12.9972 21.7295C12.6933 21.9044 12.349 21.9965 11.9985 21.9965C11.648 21.9965 11.3037 21.9044 10.9998 21.7295C10.6959 21.5547 10.4428 21.3031 10.267 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </IconButton>
+              <div className="relative" ref={notifMobileRef}>
+                <div className="relative">
+                  <IconButton
+                    title="Notifications"
+                    onClick={() => {
+                      const next = !notifOpen;
+                      setNotifOpen(next);
+                      if (next) void loadNotifications();
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M18 8A6 6 0 1 0 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                      <path d="M13.73 21C13.5542 21.3031 13.3011 21.5547 12.9972 21.7295C12.6933 21.9044 12.349 21.9965 11.9985 21.9965C11.648 21.9965 11.3037 21.9044 10.9998 21.7295C10.6959 21.5547 10.4428 21.3031 10.267 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </IconButton>
+                  {isAuthenticated && unreadCount > 0 ? (
+                    <span className="pointer-events-none absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-semibold text-white">
+                      {unreadCount}
+                    </span>
+                  ) : null}
+                </div>
+
+                {notifOpen ? (
+                  <div className="fixed left-1/2 top-16 z-50 w-[min(92vw,360px)] -translate-x-1/2 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-950">
+                    <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+                      <div className="text-sm font-semibold">Notifications</div>
+                      <button
+                        type="button"
+                        onClick={() => void clearNotifications()}
+                        className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                      >
+                        Clear all
+                      </button>
+                    </div>
+
+                    <div className="max-h-[320px] overflow-y-auto">
+                      {notifLoading ? (
+                        <div className="p-4 text-sm text-zinc-600 dark:text-zinc-400">Loading...</div>
+                      ) : notifError ? (
+                        <div className="p-4 text-sm text-red-700 dark:text-red-300">{notifError}</div>
+                      ) : visibleNotifItems.length === 0 ? (
+                        <div className="p-4 text-sm text-zinc-600 dark:text-zinc-400">No notifications.</div>
+                      ) : (
+                        <div className="divide-y divide-zinc-100 dark:divide-zinc-900">
+                          {visibleNotifItems.map((n) => {
+                            const clearedMs = notifClearedAt ? new Date(notifClearedAt).getTime() : 0;
+                            const isUnread = new Date(n.createdAt).getTime() > clearedMs;
+                            return (
+                              <div key={n.id} className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  {isUnread ? <span className="h-2 w-2 rounded-full bg-blue-600" /> : null}
+                                  <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{n.title}</div>
+                                </div>
+                                <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-300" dangerouslySetInnerHTML={{ __html: n.body }} />
+                                <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">{new Date(n.createdAt).toLocaleString()}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
 
               <a
                 href={joinCommunityHref}

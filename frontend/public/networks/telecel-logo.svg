@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <rect x="12" y="12" width="232" height="232" rx="56" fill="#E31B23"/>
-  <path d="M56 96c0-28 22-52 50-52h44c12 0 22 10 22 22 0 12-10 22-22 22h-44c-12 0-22 10-22 22v76c0 12-10 22-22 22s-22-10-22-22V96z" fill="#FFFFFF" opacity="0.96"/>
-  <path d="M150 66c0-9 7-16 16-16h18c9 0 16 7 16 16s-7 16-16 16h-2v46c0 9-7 16-16 16s-16-7-16-16V66z" fill="#E31B23"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300" fill="none">
+  <circle cx="150" cy="120" r="78" fill="#E31B23" />
+  <rect x="136" y="86" width="28" height="110" rx="14" fill="#FFFFFF" />
+  <rect x="118" y="86" width="64" height="28" rx="14" fill="#FFFFFF" />
+  <text x="150" y="270" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700" fill="#E31B23">telecel</text>
 </svg>

@@ -57,15 +57,15 @@ export default function AdminDashboardPage() {
       ) : (
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-            <p className="text-sm text-zinc-500">Total users</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Total users</p>
             <p className="mt-2 text-3xl font-semibold">{stats.totalUsers}</p>
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-            <p className="text-sm text-zinc-500">Total orders</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Total orders</p>
             <p className="mt-2 text-3xl font-semibold">{stats.totalOrders}</p>
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-            <p className="text-sm text-zinc-500">Total revenue</p>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">Total revenue</p>
             <p className="mt-2 text-3xl font-semibold">{formatMoney(stats.totalRevenue)}</p>
           </div>
         </div>

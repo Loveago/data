@@ -63,7 +63,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-sm font-semibold">Admin</p>
-              <p className="mt-1 text-xs text-zinc-500">{user.email}</p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{user.email}</p>
             </div>
 
             <button
@@ -95,6 +95,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <SideLink href="/admin" label="Dashboard" />
             <SideLink href="/admin/products" label="Products" />
             <SideLink href="/admin/orders" label="Orders" />
+            <SideLink href="/admin/notifications" label="Notifications" />
             <SideLink href="/admin/users" label="Users" />
             <SideLink href="/admin/categories" label="Categories" />
           </div>

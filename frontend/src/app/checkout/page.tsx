@@ -348,14 +348,22 @@ export default function CheckoutPage() {
               <span className="text-zinc-700 dark:text-zinc-200">{formatMoney(subtotal)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-zinc-600 dark:text-zinc-400">Service Fee (2%)</span>
-              <span className="text-zinc-700 dark:text-zinc-200">{formatMoney(paystackFee)}</span>
+              <span className="text-zinc-600 dark:text-zinc-400">Wallet Total</span>
+              <span className="text-base font-semibold text-zinc-900 dark:text-white">{formatMoney(subtotal)}</span>
             </div>
             <div className="h-px bg-zinc-200 dark:bg-zinc-800" />
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-900 dark:text-white">Total</span>
-              <span className="text-base font-semibold text-zinc-900 dark:text-white">{formatMoney(paystackTotal)}</span>
-            </div>
+            {paystackFee > 0 ? (
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-600 dark:text-zinc-400">Paystack Fee</span>
+                <span className="text-zinc-700 dark:text-zinc-200">{formatMoney(paystackFee)}</span>
+              </div>
+            ) : null}
+            {paystackTotal !== subtotal ? (
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-900 dark:text-white">Paystack Total</span>
+                <span className="text-base font-semibold text-zinc-900 dark:text-white">{formatMoney(paystackTotal)}</span>
+              </div>
+            ) : null}
           </div>
 
           {error ? (
@@ -405,7 +413,7 @@ export default function CheckoutPage() {
             </svg>
             {submitting ? "Redirecting..." : "Paystack MoMo"}
           </button>
-          <div className="mt-2 text-center text-[11px] text-zinc-500">+ {formatMoney(paystackFee)} fee</div>
+          {paystackFee > 0 ? <div className="mt-2 text-center text-[11px] text-zinc-500">+ {formatMoney(paystackFee)} fee</div> : null}
 
           <div className="mt-5 text-center text-xs font-semibold text-zinc-500">
             MTN MoMo <span className="mx-2">•</span> Telecel Cash <span className="mx-2">•</span> AT-Money
