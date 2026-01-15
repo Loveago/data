@@ -39,10 +39,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!ready || !isAuthenticated) {
     return (
-      <div className="min-h-dvh bg-white text-zinc-950 dark:bg-black dark:text-zinc-50">
-        <div className="mx-auto max-w-6xl px-4 py-10">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-            Loading...
+      <div className="relative overflow-hidden min-h-dvh bg-white text-zinc-950 dark:bg-black dark:text-zinc-50">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-70 dark:opacity-[0.18]" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hero-wash" />
+        <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-gradient-to-br from-blue-600/25 via-cyan-500/20 to-emerald-400/15 blur-3xl animate-floaty" />
+        <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 via-blue-500/16 to-cyan-400/12 blur-3xl animate-floaty2" />
+
+        <div className="flex flex-col items-center justify-center min-h-dvh px-4">
+          <div className="flex flex-col items-center gap-4 rounded-3xl border border-zinc-200/70 bg-white/80 p-8 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70 animate-fade-up">
+            <div className="relative h-12 w-12">
+              <div className="absolute inset-0 h-12 w-12 rounded-full border-[3px] border-t-transparent border-b-transparent border-l-blue-600/30 border-r-cyan-500/30 animate-spin" />
+              <div className="absolute inset-0 h-12 w-12 rounded-full border-[3px] border-t-transparent border-b-transparent border-l-blue-600 border-r-cyan-500 animate-spin" style={{ animationDirection: 'reverse' }} />
+            </div>
+            <div className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Loading...</div>
           </div>
         </div>
       </div>
