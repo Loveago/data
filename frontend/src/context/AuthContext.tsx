@@ -16,6 +16,7 @@ type AuthContextValue = {
   user: User | null;
   accessToken: string | null;
   refreshToken: string | null;
+  ready: boolean;
   isAuthenticated: boolean;
   login: (payload: { email: string; password: string }) => Promise<void>;
   register: (payload: { email: string; password: string; name?: string; phone?: string }) => Promise<void>;
@@ -26,16 +27,29 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function setAuthCookie(authed: boolean) {
+  if (typeof document === "undefined") return;
+  if (authed) {
+    document.cookie = "gigshub_authed=1; path=/; max-age=31536000; samesite=lax";
+  } else {
+    document.cookie = "gigshub_authed=; path=/; max-age=0; samesite=lax";
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({ user: null, accessToken: null, refreshToken: null });
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setState(loadAuth());
+    const loaded = loadAuth();
+    setState(loaded);
+    setReady(true);
   }, []);
 
   useEffect(() => {
     function sync() {
       setState(loadAuth());
+      setReady(true);
     }
 
     window.addEventListener("gigshub_auth_updated", sync);
@@ -45,20 +59,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!ready) return;
     saveAuth(state);
-  }, [state]);
+  }, [ready, state]);
+
+  useEffect(() => {
+    if (!ready) return;
+    setAuthCookie(Boolean(state.accessToken && state.user));
+  }, [ready, state.accessToken, state.user]);
 
   const value = useMemo<AuthContextValue>(() => {
     const login: AuthContextValue["login"] = async ({ email, password }) => {
       const res = await api.post("/auth/login", { email, password });
       const data = res.data as { user: User; accessToken: string; refreshToken: string };
       setState({ user: data.user, accessToken: data.accessToken, refreshToken: data.refreshToken });
+      setAuthCookie(true);
     };
 
     const register: AuthContextValue["register"] = async ({ email, password, name, phone }) => {
       const res = await api.post("/auth/register", { email, password, name, phone });
       const data = res.data as { user: User; accessToken: string; refreshToken: string };
       setState({ user: data.user, accessToken: data.accessToken, refreshToken: data.refreshToken });
+      setAuthCookie(true);
     };
 
     const refresh: AuthContextValue["refresh"] = async () => {
@@ -71,10 +93,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const logout: AuthContextValue["logout"] = async () => {
       try {
         if (state.refreshToken) {
-          await api.post("/auth/logout", { refreshToken: state.refreshToken });
+          try {
+            await api.post("/auth/logout", { refreshToken: state.refreshToken });
+          } catch {
+            void 0;
+          }
         }
       } finally {
         clearAuth();
+        setAuthCookie(false);
         setState({ user: null, accessToken: null, refreshToken: null });
       }
     };
@@ -91,6 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: state.user,
       accessToken: state.accessToken,
       refreshToken: state.refreshToken,
+      ready,
       isAuthenticated: Boolean(state.accessToken && state.user),
       login,
       register,
@@ -98,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refresh,
       updateSession,
     };
-  }, [state.accessToken, state.refreshToken, state.user]);
+  }, [ready, state.accessToken, state.refreshToken, state.user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

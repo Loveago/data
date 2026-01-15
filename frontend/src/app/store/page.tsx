@@ -206,13 +206,17 @@ export default function StorePage() {
   }, [params]);
 
   return (
-    <div className="relative">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-70" />
+    <div className="relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-70 dark:opacity-[0.18]" />
       <div className="pointer-events-none absolute inset-0 -z-10 hero-wash" />
+      <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-gradient-to-br from-blue-600/25 via-cyan-500/20 to-emerald-400/15 blur-3xl animate-floaty" />
+      <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 via-blue-500/16 to-cyan-400/12 blur-3xl animate-floaty2" />
 
       <div className="mx-auto w-full max-w-6xl px-4 py-10">
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Stores</h1>
+        <div className="text-center animate-fade-up">
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+            <span className="text-gradient-blue">Store</span>
+          </h1>
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
             Browse premium data packages from Ghana&apos;s leading telecom providers
           </p>
@@ -289,12 +293,12 @@ export default function StorePage() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search packages..."
-                className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none ring-0 focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600"
+                className="h-11 w-full rounded-2xl border border-zinc-200 bg-white/80 px-4 text-sm outline-none ring-0 backdrop-blur transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-zinc-800 dark:bg-zinc-950/70 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
               />
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600"
+                className="h-11 w-full rounded-2xl border border-zinc-200 bg-white/80 px-4 text-sm outline-none backdrop-blur transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-zinc-800 dark:bg-zinc-950/70 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
               >
                 <option value="">All networks</option>
                 {categories

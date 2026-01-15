@@ -407,20 +407,39 @@ function DashboardInner() {
 
   if (!isAuthenticated) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
-        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-          Please <Link href="/login" className="underline">login</Link> to view your dashboard.
+      <div className="relative overflow-hidden">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-70 dark:opacity-[0.18]" />
+        <div className="pointer-events-none absolute inset-0 -z-10 hero-wash" />
+        <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-gradient-to-br from-blue-600/25 via-cyan-500/20 to-emerald-400/15 blur-3xl animate-floaty" />
+        <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 via-blue-500/16 to-cyan-400/12 blur-3xl animate-floaty2" />
+
+        <div className="mx-auto max-w-6xl px-4 py-10">
+          <h1 className="text-3xl font-extrabold tracking-tight">
+            <span className="text-gradient-blue">Dashboard</span>
+          </h1>
+          <div className="mt-6 rounded-3xl border border-zinc-200/70 bg-white/80 p-6 text-sm text-zinc-600 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70 dark:text-zinc-400 animate-fade-up">
+            Please{" "}
+            <Link href="/login" className="font-semibold text-blue-700 hover:underline dark:text-blue-300">
+              login
+            </Link>{" "}
+            to view your dashboard.
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+    <div className="relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-70 dark:opacity-[0.18]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 hero-wash" />
+      <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-gradient-to-br from-blue-600/25 via-cyan-500/20 to-emerald-400/15 blur-3xl animate-floaty" />
+      <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 via-blue-500/16 to-cyan-400/12 blur-3xl animate-floaty2" />
+
+      <div className="mx-auto max-w-7xl px-4 py-8">
+        <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside
-          className={`hidden rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950 lg:block ${
+          className={`hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-4 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70 lg:block ${
             sidebarCollapsed ? "lg:w-[88px]" : "lg:w-[280px]"
           }`}
         >
@@ -434,7 +453,7 @@ function DashboardInner() {
             <button
               type="button"
               onClick={() => setSidebarCollapsed((v) => !v)}
-              className="hidden h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900 lg:flex"
+              className="hidden h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white/70 text-zinc-500 backdrop-blur transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-400 dark:hover:bg-zinc-900 lg:flex"
               aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               title={sidebarCollapsed ? "Expand" : "Collapse"}
             >
@@ -452,13 +471,17 @@ function DashboardInner() {
                   onClick={() => pushTab(tab)}
                   className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left font-medium transition-colors ${
                     isActive
-                      ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100"
-                      : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                      ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-soft"
+                      : "text-zinc-600 hover:bg-white/60 dark:text-zinc-400 dark:hover:bg-zinc-900"
                   } ${sidebarCollapsed ? "justify-center" : "justify-start"}`}
                   aria-current={isActive ? "page" : undefined}
                   title={sidebarCollapsed ? tabLabel(tab) : undefined}
                 >
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200">
+                  <span
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white/80 text-zinc-700 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-200 ${
+                      isActive ? "border-white/20 bg-white/15 text-white" : ""
+                    }`}
+                  >
                     {tabIcon(tab)}
                   </span>
                   <span className={sidebarCollapsed ? "hidden" : "block"}>{tabLabel(tab)}</span>
@@ -476,18 +499,18 @@ function DashboardInner() {
                   router.push("/login");
                 })();
               }}
-              className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-left text-sm font-medium text-red-600 hover:bg-red-50 dark:border-zinc-800 dark:text-red-400 dark:hover:bg-red-950/30"
+              className="w-full rounded-xl border border-zinc-200 bg-white/60 px-3 py-2 text-left text-sm font-semibold text-red-600 backdrop-blur transition hover:bg-red-50 dark:border-zinc-800 dark:bg-zinc-950/50 dark:text-red-400 dark:hover:bg-red-950/30"
             >
               Sign out
             </button>
           </div>
         </aside>
 
-        <main className="relative animate-fade-up">
+        <main className="relative min-w-0 animate-fade-up">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.06)_1px,transparent_0)] [background-size:24px_24px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)]" />
 
           <div className="lg:hidden">
-            <div className="mb-4 rounded-2xl border border-zinc-200 bg-white/80 p-3 shadow-soft backdrop-blur dark:border-zinc-800 dark:bg-black/50">
+            <div className="mb-4 rounded-3xl border border-zinc-200/70 bg-white/80 p-3 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-semibold">Dashboard</div>
                 <button
@@ -498,7 +521,7 @@ function DashboardInner() {
                       router.push("/login");
                     })();
                   }}
-                  className="inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200 px-3 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-zinc-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                  className="inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200/70 bg-white/60 px-3 text-xs font-semibold text-red-600 backdrop-blur transition hover:bg-red-50 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-red-400 dark:hover:bg-red-950/30"
                 >
                   Sign out
                 </button>
@@ -514,8 +537,8 @@ function DashboardInner() {
                       onClick={() => pushTab(tab)}
                       className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
                         isActive
-                          ? "bg-blue-600 text-white"
-                          : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                          ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-soft"
+                          : "border border-zinc-200/70 bg-white/60 text-zinc-700 backdrop-blur hover:bg-white/80 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
                       }`}
                       aria-current={isActive ? "page" : undefined}
                     >
@@ -536,22 +559,22 @@ function DashboardInner() {
             </div>
             <Link
               href="/store"
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white hover:bg-blue-500"
+              className="inline-flex h-10 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95"
             >
               New Order
             </Link>
           </div>
 
-      {recentOrder ? (
-        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200">
-          Order placed successfully: <span className="font-semibold">{recentOrder}</span>
-        </div>
-      ) : null}
+          {recentOrder ? (
+            <div className="mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900 shadow-soft dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 animate-fade-up">
+              Order placed successfully: <span className="font-semibold">{recentOrder}</span>
+            </div>
+          ) : null}
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             {activeTab === "overview" ? (
               <>
-                <div className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800/70 dark:bg-zinc-950/70">
                   <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gradient-to-br from-blue-500/25 via-cyan-400/20 to-emerald-400/15 blur-2xl transition-transform duration-500 group-hover:scale-110 dark:from-blue-500/20 dark:via-cyan-400/15 dark:to-emerald-400/10" />
                   <div className="pointer-events-none absolute -bottom-12 left-10 h-28 w-28 rounded-full bg-gradient-to-br from-blue-600/18 to-cyan-400/10 blur-2xl animate-floaty" />
                   <div className="flex items-start justify-between gap-4">
@@ -560,7 +583,7 @@ function DashboardInner() {
                       <div className="mt-2 text-2xl font-semibold text-gradient-blue">{formatMoney(walletBalance)}</div>
                       <div className="mt-1 text-xs text-zinc-500">Top up and pay faster at checkout.</div>
                     </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-blue-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-blue-300">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200/70 bg-white/70 text-blue-600 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-blue-300">
                       <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
                         <path d="M3 7a3 3 0 013-3h12a3 3 0 013 3v10a3 3 0 01-3 3H6a3 3 0 01-3-3V7z" stroke="currentColor" strokeWidth="2" />
                         <path d="M17 12h4v4h-4a2 2 0 110-4z" stroke="currentColor" strokeWidth="2" />
@@ -573,13 +596,13 @@ function DashboardInner() {
                         value={depositAmount}
                         onChange={(e) => setDepositAmount(e.target.value)}
                         placeholder="Top up amount (GHS)"
-                        className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-blue-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-blue-500"
+                        className="h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
                       />
                       <button
                         type="button"
                         disabled={depositBusy}
                         onClick={() => depositWithPaystack()}
-                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition-all hover:bg-zinc-800 hover:shadow-soft disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
                       >
                         {depositBusy ? "..." : "Top up"}
                       </button>
@@ -607,7 +630,7 @@ function DashboardInner() {
                   </div>
                 </div>
 
-                <div className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800/70 dark:bg-zinc-950/70">
                   <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-emerald-500/18 via-lime-400/12 to-cyan-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110 dark:from-emerald-500/14 dark:via-lime-400/10 dark:to-cyan-400/8" />
                   <div className="pointer-events-none absolute -bottom-14 right-10 h-28 w-28 rounded-full bg-gradient-to-br from-emerald-600/16 to-cyan-400/10 blur-2xl animate-floaty2" />
                   <div className="flex items-start justify-between gap-4">
@@ -620,7 +643,7 @@ function DashboardInner() {
                         {loading ? "" : `${orders.filter((o) => String(o.status).toUpperCase() === "COMPLETED").length} successful`}
                       </div>
                     </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-emerald-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-emerald-300">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200/70 bg-white/70 text-emerald-700 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-emerald-300">
                       <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
                         <path d="M7 7h14M7 12h14M7 17h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                         <path d="M3 7h.01M3 12h.01M3 17h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -632,7 +655,8 @@ function DashboardInner() {
             ) : null}
 
             {activeTab === "profile" ? (
-              <div className="lg:col-span-2 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+              <div className="group relative overflow-hidden lg:col-span-2 rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-blue-500/18 via-cyan-400/12 to-emerald-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
                 <div className="text-sm font-semibold">Profile</div>
                 <div className="mt-4 grid gap-3 text-sm">
                   <div className="flex items-center justify-between gap-4">
@@ -652,7 +676,8 @@ function DashboardInner() {
             ) : null}
 
             {activeTab === "wallet" ? (
-              <div className="lg:col-span-2 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+              <div className="group relative overflow-hidden lg:col-span-2 rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                <div className="pointer-events-none absolute -left-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-emerald-500/18 via-lime-400/12 to-cyan-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-sm font-semibold">Wallet</div>
@@ -667,13 +692,13 @@ function DashboardInner() {
                       value={depositAmount}
                       onChange={(e) => setDepositAmount(e.target.value)}
                       placeholder="Top up amount (GHS)"
-                      className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600"
+                      className="h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
                     />
                     <button
                       type="button"
                       disabled={depositBusy}
                       onClick={() => depositWithPaystack()}
-                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
                     >
                       {depositBusy ? "..." : "Top up"}
                     </button>
@@ -703,7 +728,8 @@ function DashboardInner() {
 
             {activeTab === "settings" ? (
               <div className="lg:col-span-2 space-y-4">
-                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                  <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-blue-500/18 via-cyan-400/12 to-emerald-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="text-sm font-semibold">Account Settings</div>
@@ -713,7 +739,7 @@ function DashboardInner() {
                       type="button"
                       disabled={profileBusy}
                       onClick={() => saveProfile()}
-                      className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-500 disabled:opacity-60"
+                      className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
                     >
                       {profileBusy ? "Saving..." : "Save"}
                     </button>
@@ -726,7 +752,7 @@ function DashboardInner() {
                         value={profileName}
                         onChange={(e) => setProfileName(e.target.value)}
                         placeholder="Your name"
-                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-blue-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-blue-500"
+                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
                       />
                     </div>
 
@@ -736,7 +762,7 @@ function DashboardInner() {
                         value={profilePhone}
                         onChange={(e) => setProfilePhone(e.target.value)}
                         placeholder="e.g. 0551234567"
-                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-blue-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-blue-500"
+                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
                       />
                     </div>
 
@@ -746,7 +772,7 @@ function DashboardInner() {
                         value={profileEmail}
                         onChange={(e) => setProfileEmail(e.target.value)}
                         placeholder="you@example.com"
-                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-blue-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-blue-500"
+                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -763,7 +789,8 @@ function DashboardInner() {
                   ) : null}
                 </div>
 
-                <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-soft dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                  <div className="pointer-events-none absolute -left-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-emerald-500/18 via-lime-400/12 to-cyan-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="text-sm font-semibold">Change Password</div>
@@ -773,7 +800,7 @@ function DashboardInner() {
                       type="button"
                       disabled={passwordBusy}
                       onClick={() => changePassword()}
-                      className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                      className="inline-flex h-10 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
                     >
                       {passwordBusy ? "Saving..." : "Update"}
                     </button>
@@ -786,7 +813,7 @@ function DashboardInner() {
                         type="password"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600"
+                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-zinc-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-zinc-600"
                       />
                     </div>
 
@@ -796,7 +823,7 @@ function DashboardInner() {
                         type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600"
+                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-zinc-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-zinc-600"
                       />
                     </div>
 
@@ -806,7 +833,7 @@ function DashboardInner() {
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none transition-colors focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600"
+                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-zinc-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-zinc-600"
                       />
                     </div>
                   </div>
@@ -827,10 +854,11 @@ function DashboardInner() {
           </div>
 
           <div
-            className={`mt-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950 ${
+            className={`group relative mt-6 overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70 ${
               activeTab === "orders" || activeTab === "overview" ? "block" : "hidden"
             }`}
           >
+            <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-blue-500/18 via-cyan-400/12 to-emerald-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
             <div className="flex items-center justify-between gap-4">
               <h2 className="text-base font-semibold">{activeTab === "orders" ? "Orders" : "Recent Orders"}</h2>
               {activeTab !== "orders" ? (
@@ -852,7 +880,7 @@ function DashboardInner() {
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full min-w-[820px] text-left text-sm">
                   <thead>
-                    <tr className="border-b border-zinc-200 text-xs font-semibold text-zinc-500 dark:border-zinc-800">
+                    <tr className="border-b border-zinc-200/70 text-xs font-semibold text-zinc-500 dark:border-zinc-800/70">
                       <th className="py-3">Order ID</th>
                       <th className="py-3">Recipient</th>
                       <th className="py-3">Product</th>
@@ -868,7 +896,7 @@ function DashboardInner() {
                       const productName = firstItem?.product?.name;
                       const recipient = firstItem?.recipientPhone || "-";
                       return (
-                        <tr key={o.id} className="border-b border-zinc-100 dark:border-zinc-900">
+                        <tr key={o.id} className="border-b border-zinc-100/70 transition-colors hover:bg-white/60 dark:border-zinc-900/70 dark:hover:bg-zinc-900/40">
                           <td className="py-3 font-medium">{formatOrderLabel(o.orderCode, o.id)}</td>
                           <td className="py-3 text-zinc-600 dark:text-zinc-400">{recipient}</td>
                           <td className="py-3 text-zinc-600 dark:text-zinc-400">{productName || "-"}</td>
@@ -891,6 +919,7 @@ function DashboardInner() {
         </main>
       </div>
     </div>
+    </div>
   );
 }
 
@@ -898,9 +927,16 @@ export default function DashboardPage() {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-7xl px-4 py-8">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-            Loading...
+        <div className="relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-70 dark:opacity-[0.18]" />
+          <div className="pointer-events-none absolute inset-0 -z-10 hero-wash" />
+          <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-gradient-to-br from-blue-600/25 via-cyan-500/20 to-emerald-400/15 blur-3xl animate-floaty" />
+          <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 via-blue-500/16 to-cyan-400/12 blur-3xl animate-floaty2" />
+
+          <div className="mx-auto max-w-7xl px-4 py-8">
+            <div className="rounded-3xl border border-zinc-200/70 bg-white/80 p-6 text-sm text-zinc-600 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70 dark:text-zinc-400 animate-fade-up">
+              Loading...
+            </div>
           </div>
         </div>
       }
