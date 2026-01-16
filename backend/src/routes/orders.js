@@ -106,7 +106,9 @@ router.post(
       });
     });
 
-    queueHubnetForOrder(order.id).catch((e) => console.error(e));
+    if (order.paymentStatus === 'PAID') {
+      queueHubnetForOrder(order.id).catch((e) => console.error(e));
+    }
     return res.status(201).json(order);
   })
 );
@@ -212,7 +214,9 @@ router.post(
       });
     });
 
-    queueHubnetForOrder(order.id).catch((e) => console.error(e));
+    if (order.paymentStatus === 'PAID') {
+      queueHubnetForOrder(order.id).catch((e) => console.error(e));
+    }
 
     return res.status(201).json(order);
   })

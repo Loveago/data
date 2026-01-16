@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 
@@ -180,7 +180,28 @@ function DashboardInner() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [orderSearch, setOrderSearch] = useState("");
 
+  const filteredOrders = useMemo(() => {
+    if (!orderSearch) return orders;
+    const q = orderSearch.toLowerCase();
+    return orders.filter((o) => {
+      const firstItem = o.items?.[0];
+      const recipient = firstItem?.recipientPhone || "";
+      const productName = firstItem?.product?.name || "";
+      const provider = inferProviderFromProductName(productName);
+      const status = String(o.status);
+      return (
+        o.id.toLowerCase().includes(q) ||
+        recipient.toLowerCase().includes(q) ||
+        productName.toLowerCase().includes(q) ||
+        provider.toLowerCase().includes(q) ||
+        status.toLowerCase().includes(q)
+      );
+    });
+  }, [orders, orderSearch]);
+  const displayOrders = activeTab === "orders" ? filteredOrders : orders;
+  const tableOrders = activeTab === "orders" ? displayOrders : displayOrders.slice(0, 6);
   const [profileName, setProfileName] = useState<string>(user?.name || "");
   const [profilePhone, setProfilePhone] = useState<string>(user?.phone || "");
   const [profileEmail, setProfileEmail] = useState<string>(user?.email || "");
@@ -872,10 +893,24 @@ function DashboardInner() {
               ) : null}
             </div>
 
+            {activeTab === "orders" && (
+              <div className="mt-3">
+                <input
+                  type="text"
+                  placeholder="Search orders by ID, recipient, product, or status..."
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200/70 bg-white/80 px-4 py-2 text-sm placeholder:text-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700/70 dark:bg-zinc-900/80 dark:placeholder:text-zinc-400 dark:focus:border-blue-400"
+                />
+              </div>
+            )}
+
             {loading ? (
               <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">Loading...</div>
-            ) : orders.length === 0 ? (
-              <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">No orders yet.</div>
+            ) : displayOrders.length === 0 ? (
+              <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
+                {activeTab === "orders" && orderSearch ? "No orders match your search." : "No orders yet."}
+              </div>
             ) : (
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full min-w-[820px] text-left text-sm">
@@ -891,7 +926,7 @@ function DashboardInner() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(activeTab === "orders" ? orders : orders.slice(0, 6)).map((o) => {
+                    {tableOrders.map((o) => {
                       const firstItem = o.items?.[0];
                       const productName = firstItem?.product?.name;
                       const recipient = firstItem?.recipientPhone || "-";
