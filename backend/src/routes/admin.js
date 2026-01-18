@@ -105,7 +105,7 @@ router.patch(
   asyncHandler(async (req, res) => {
     const id = req.params.id;
     const { role } = req.body || {};
-    if (!role || !['USER', 'ADMIN'].includes(role)) {
+    if (!role || !['USER', 'ADMIN', 'AGENT'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
 

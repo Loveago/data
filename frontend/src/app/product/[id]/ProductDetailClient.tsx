@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import type { Product } from "@/lib/types";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import { RecipientPhoneModal } from "@/components/RecipientPhoneModal";
 
 function formatPrice(value: string) {
@@ -17,6 +18,7 @@ function formatPrice(value: string) {
 export default function ProductDetailClient({ id }: { id: string }) {
   const router = useRouter();
   const { addItem } = useCart();
+  const { user } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -71,6 +73,8 @@ export default function ProductDetailClient({ id }: { id: string }) {
   }
 
   const img = product.imageUrls?.[0];
+  const resolvedPrice = user?.role === "AGENT" && product.agentPrice != null ? product.agentPrice : product.price;
+  const resolvedPriceNum = Number(resolvedPrice);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -88,7 +92,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
         <div>
           <p className="text-sm text-zinc-500">{product.category?.name}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">{product.name}</h1>
-          <p className="mt-3 text-xl font-semibold">{formatPrice(product.price)}</p>
+          <p className="mt-3 text-xl font-semibold">{formatPrice(String(resolvedPrice))}</p>
 
           <div className="mt-6 flex items-center gap-3">
             <label className="text-sm text-zinc-600 dark:text-zinc-400">Quantity</label>
@@ -112,9 +116,10 @@ export default function ProductDetailClient({ id }: { id: string }) {
           <RecipientPhoneModal
             open={phoneOpen}
             product={product}
+            priceOverride={resolvedPrice}
             onCancel={() => setPhoneOpen(false)}
             onConfirm={(recipientPhone) => {
-              addItem(product, safeQty, recipientPhone);
+              addItem(product, safeQty, recipientPhone, Number.isFinite(resolvedPriceNum) ? resolvedPriceNum : undefined);
               setPhoneOpen(false);
               router.push("/cart");
             }}

@@ -39,7 +39,9 @@ export default function Home() {
                   Shop Now
                 </Link>
                 <Link
-                  href="/register"
+                  href="https://chat.whatsapp.com/DU930JTfukeH4aDoDq2et4"
+                  target="_blank"
+                  rel="noreferrer"
                   className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-slate-900 ring-1 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-950 dark:text-white dark:ring-zinc-800 dark:hover:bg-zinc-900"
                 >
                   Join Community

@@ -9,7 +9,7 @@ type AdminUser = {
   email: string;
   name: string | null;
   phone: string | null;
-  role: "USER" | "ADMIN";
+  role: "USER" | "ADMIN" | "AGENT";
   walletBalance?: string;
   createdAt: string;
 };
@@ -183,6 +183,7 @@ export default function AdminUsersPage() {
                       >
                         <option value="USER">USER</option>
                         <option value="ADMIN">ADMIN</option>
+                        <option value="AGENT">AGENT</option>
                       </select>
                     </td>
                     <td className="py-3">

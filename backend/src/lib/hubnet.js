@@ -729,7 +729,9 @@ let dispatcherInFlight = false;
 
 function startHubnetDispatcher() {
   const { enabled, apiKey, intervalMs } = getHubnetConfig();
-  const datahubnetConfigured = Boolean(process.env.DATAHUBNET_API_KEY);
+  const datahubnetEnabledRaw = process.env.DATAHUBNET_ENABLED;
+  const datahubnetEnabled = datahubnetEnabledRaw == null ? true : String(datahubnetEnabledRaw).toLowerCase() === 'true';
+  const datahubnetConfigured = datahubnetEnabled && Boolean(process.env.DATAHUBNET_API_KEY);
   if ((!enabled || !apiKey) && !datahubnetConfigured) return;
   if (dispatcherTimer) return;
 
@@ -738,9 +740,9 @@ function startHubnetDispatcher() {
     dispatcherInFlight = true;
     Promise.resolve()
       .then(async () => {
-        const dispatchedDatahubnet = await dispatchOneDatahubnetItem(intervalMs);
+        const dispatchedDatahubnet = datahubnetConfigured ? await dispatchOneDatahubnetItem(intervalMs) : false;
         if (dispatchedDatahubnet) return;
-        const polledDatahubnet = await pollOneDatahubnetItem(intervalMs);
+        const polledDatahubnet = datahubnetConfigured ? await pollOneDatahubnetItem(intervalMs) : false;
         if (polledDatahubnet) return;
         await dispatchOneHubnetItem();
       })

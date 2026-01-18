@@ -9,7 +9,7 @@ type CartContextValue = {
   items: CartItem[];
   count: number;
   subtotal: number;
-  addItem: (product: Product, quantity?: number, recipientPhone?: string) => void;
+  addItem: (product: Product, quantity?: number, recipientPhone?: string, priceOverride?: number) => void;
   removeItem: (itemId: string) => void;
   setQuantity: (itemId: string, quantity: number) => void;
   clear: () => void;
@@ -46,12 +46,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [items, loadedOnce]);
 
   const value = useMemo<CartContextValue>(() => {
-    const addItem: CartContextValue["addItem"] = (product, quantity = 1, recipientPhone) => {
+    const addItem: CartContextValue["addItem"] = (product, quantity = 1, recipientPhone, priceOverride) => {
       setItems((prev) => {
         const next = [...prev];
         const keyPhone = recipientPhone?.trim() || undefined;
         const existing = next.find((x) => x.productId === product.id && (x.recipientPhone || undefined) === keyPhone);
-        const priceNum = Number(product.price);
+        const priceNum = Number(priceOverride ?? product.price);
         if (existing) {
           existing.quantity += quantity;
           return next;

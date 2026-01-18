@@ -164,6 +164,7 @@ function DashboardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const recentOrder = searchParams.get("order");
+  const agentUpgradeStatus = searchParams.get("agentUpgrade");
 
   const [activeTab, setActiveTab] = useState<DashboardTab>(() => normalizeTab(searchParams.get("tab")));
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -177,6 +178,10 @@ function DashboardInner() {
   const [depositError, setDepositError] = useState<string | null>(null);
   const [depositFee, setDepositFee] = useState<number>(0);
   const [depositTotal, setDepositTotal] = useState<number>(0);
+  const [upgradeBusy, setUpgradeBusy] = useState(false);
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
+
+  const isAgent = user?.role === "AGENT";
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -426,6 +431,39 @@ function DashboardInner() {
     }
   }
 
+  async function upgradeToAgent() {
+    if (user?.role === "AGENT") return;
+    setUpgradeBusy(true);
+    setUpgradeError(null);
+    try {
+      const callbackUrl = `${window.location.origin}/dashboard/agent-upgrade/paystack`;
+      const res = await api.post("/payments/agent-upgrade/initialize", {
+        callbackUrl,
+        email: user?.email,
+      });
+
+      const authorizationUrl = res.data?.authorizationUrl;
+      const reference = res.data?.reference;
+      if (!authorizationUrl) throw new Error("Missing authorizationUrl");
+
+      if (reference) {
+        window.sessionStorage.setItem(
+          "gigshub_agent_upgrade_pending",
+          JSON.stringify({
+            reference,
+          })
+        );
+      }
+
+      window.location.href = authorizationUrl;
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setUpgradeError(maybeError?.response?.data?.error || "Failed to start agent upgrade.");
+    } finally {
+      setUpgradeBusy(false);
+    }
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="relative overflow-hidden">
@@ -530,8 +568,8 @@ function DashboardInner() {
         <main className="relative min-w-0 animate-fade-up">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.06)_1px,transparent_0)] [background-size:24px_24px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)]" />
 
-          <div className="lg:hidden">
-            <div className="mb-4 rounded-3xl border border-zinc-200/70 bg-white/80 p-3 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+          <div className="lg:hidden sticky top-20 z-30">
+            <div className="mb-4 rounded-3xl border border-zinc-200/70 bg-white/90 p-3 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/80">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-semibold">Dashboard</div>
                 <button
@@ -589,6 +627,16 @@ function DashboardInner() {
           {recentOrder ? (
             <div className="mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900 shadow-soft dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 animate-fade-up">
               Order placed successfully: <span className="font-semibold">{recentOrder}</span>
+            </div>
+          ) : null}
+
+          {agentUpgradeStatus === "success" ? (
+            <div className="mt-6 rounded-3xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900 shadow-soft dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 animate-fade-up">
+              Your account has been upgraded to <span className="font-semibold">Agent</span> status.
+            </div>
+          ) : agentUpgradeStatus === "error" ? (
+            <div className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-soft dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 animate-fade-up">
+              We couldn&apos;t confirm your agent upgrade. Please try again.
             </div>
           ) : null}
 
@@ -671,6 +719,57 @@ function DashboardInner() {
                       </svg>
                     </div>
                   </div>
+                </div>
+
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800/70 dark:bg-zinc-950/70 lg:col-span-2">
+                  <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-gradient-to-br from-purple-500/20 via-indigo-400/15 to-blue-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110 dark:from-purple-500/20 dark:via-indigo-400/12 dark:to-blue-400/10" />
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs font-semibold tracking-wide text-zinc-500">Agent Account</div>
+                      <div className="mt-2 text-lg font-semibold">
+                        {isAgent ? "Agent status active" : "Upgrade to agent"}
+                      </div>
+                      <div className="mt-1 text-xs text-zinc-500">
+                        {isAgent
+                          ? "You now access agent pricing across all bundles."
+                          : "Unlock agent-only pricing with a one-time GHS 40 upgrade fee."}
+                      </div>
+                    </div>
+                    {!isAgent ? (
+                      <button
+                        type="button"
+                        disabled={upgradeBusy}
+                        onClick={() => upgradeToAgent()}
+                        className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
+                      >
+                        {upgradeBusy ? "Redirecting..." : "Upgrade for GHS 40"}
+                      </button>
+                    ) : (
+                      <div className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-100 px-4 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
+                        Active
+                      </div>
+                    )}
+                  </div>
+
+                  {!isAgent ? (
+                    <div className="mt-4 flex flex-wrap gap-3 text-xs text-zinc-500">
+                      <span className="inline-flex items-center rounded-full border border-zinc-200/70 bg-white/70 px-3 py-1 dark:border-zinc-800/70 dark:bg-zinc-950/60">
+                        One-time fee
+                      </span>
+                      <span className="inline-flex items-center rounded-full border border-zinc-200/70 bg-white/70 px-3 py-1 dark:border-zinc-800/70 dark:bg-zinc-950/60">
+                        Faster margins
+                      </span>
+                      <span className="inline-flex items-center rounded-full border border-zinc-200/70 bg-white/70 px-3 py-1 dark:border-zinc-800/70 dark:bg-zinc-950/60">
+                        Agent pricing
+                      </span>
+                    </div>
+                  ) : null}
+
+                  {upgradeError ? (
+                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                      {upgradeError}
+                    </div>
+                  ) : null}
                 </div>
               </>
             ) : null}

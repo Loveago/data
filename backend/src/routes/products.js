@@ -72,11 +72,13 @@ router.post(
   requireAuth,
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { name, slug, description, price, stock, categoryId, imageUrls } = req.body || {};
+    const { name, slug, description, price, agentPrice, stock, categoryId, imageUrls } = req.body || {};
 
     if (!name || !slug || !description || price == null || !categoryId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+
+    const agentPriceValue = agentPrice == null || agentPrice === '' ? null : new Prisma.Decimal(String(agentPrice));
 
     const created = await prisma.product.create({
       data: {
@@ -84,6 +86,7 @@ router.post(
         slug,
         description,
         price: new Prisma.Decimal(String(price)),
+        agentPrice: agentPriceValue,
         stock: stock == null ? 0 : Number(stock),
         categoryId,
         imageUrls: Array.isArray(imageUrls) ? imageUrls.map(String) : [],
@@ -101,7 +104,10 @@ router.put(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const id = req.params.id;
-    const { name, slug, description, price, stock, categoryId, imageUrls } = req.body || {};
+    const { name, slug, description, price, agentPrice, stock, categoryId, imageUrls } = req.body || {};
+
+    const agentPriceValue =
+      agentPrice === undefined ? undefined : agentPrice === '' || agentPrice == null ? null : new Prisma.Decimal(String(agentPrice));
 
     const updated = await prisma.product.update({
       where: { id },
@@ -110,6 +116,7 @@ router.put(
         ...(slug != null ? { slug } : {}),
         ...(description != null ? { description } : {}),
         ...(price != null ? { price: new Prisma.Decimal(String(price)) } : {}),
+        ...(agentPriceValue !== undefined ? { agentPrice: agentPriceValue } : {}),
         ...(stock != null ? { stock: Number(stock) } : {}),
         ...(categoryId != null ? { categoryId } : {}),
         ...(imageUrls != null ? { imageUrls: Array.isArray(imageUrls) ? imageUrls.map(String) : [] } : {}),

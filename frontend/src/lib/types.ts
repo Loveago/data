@@ -1,4 +1,4 @@
-export type Role = "USER" | "ADMIN";
+export type Role = "USER" | "ADMIN" | "AGENT";
 
 export type User = {
   id: string;
@@ -17,6 +17,7 @@ export type Product = {
   slug: string;
   description: string;
   price: string;
+  agentPrice?: string | null;
   stock: number;
   imageUrls: string[];
   category: {

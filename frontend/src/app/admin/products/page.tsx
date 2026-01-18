@@ -37,6 +37,7 @@ export default function AdminProductsPage() {
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [agentPrice, setAgentPrice] = useState("");
   const [stock, setStock] = useState("0");
   const [categoryId, setCategoryId] = useState("");
   const [imageUrls, setImageUrls] = useState("");
@@ -86,6 +87,7 @@ export default function AdminProductsPage() {
     setSlug(p.slug);
     setDescription(p.description);
     setPrice(String(p.price));
+    setAgentPrice(p.agentPrice != null ? String(p.agentPrice) : "");
     setStock(String(p.stock));
     setCategoryId(p.category?.id || "");
     setImageUrls(Array.isArray(p.imageUrls) ? p.imageUrls.join(", ") : "");
@@ -98,6 +100,7 @@ export default function AdminProductsPage() {
     setSlug("");
     setDescription("");
     setPrice("");
+    setAgentPrice("");
     setStock("0");
     setImageUrls("");
   }
@@ -131,6 +134,7 @@ export default function AdminProductsPage() {
           slug,
           description,
           price,
+          agentPrice,
           stock: Number(stock),
           categoryId,
           imageUrls: parsedImages,
@@ -142,6 +146,7 @@ export default function AdminProductsPage() {
           slug,
           description,
           price,
+          agentPrice,
           stock: Number(stock),
           categoryId,
           imageUrls: parsedImages,
@@ -151,6 +156,7 @@ export default function AdminProductsPage() {
         setSlug("");
         setDescription("");
         setPrice("");
+        setAgentPrice("");
         setStock("0");
         setImageUrls("");
       }
@@ -229,6 +235,12 @@ export default function AdminProductsPage() {
             className="h-11 rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600"
           />
           <input
+            value={agentPrice}
+            onChange={(e) => setAgentPrice(e.target.value)}
+            placeholder="Agent price (optional)"
+            className="h-11 rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600"
+          />
+          <input
             value={stock}
             onChange={(e) => setStock(e.target.value)}
             placeholder="Stock"
@@ -301,6 +313,7 @@ export default function AdminProductsPage() {
                   <th className="py-3">Name</th>
                   <th className="py-3">Category</th>
                   <th className="py-3">Price</th>
+                  <th className="py-3">Agent price</th>
                   <th className="py-3">Stock</th>
                   <th className="py-3"></th>
                 </tr>
@@ -311,6 +324,7 @@ export default function AdminProductsPage() {
                     <td className="py-3 font-medium">{p.name}</td>
                     <td className="py-3 text-zinc-600 dark:text-zinc-400">{p.category?.name}</td>
                     <td className="py-3">{p.price}</td>
+                    <td className="py-3">{p.agentPrice ?? "-"}</td>
                     <td className="py-3">{p.stock}</td>
                     <td className="py-3 text-right">
                       <div className="flex justify-end gap-3">

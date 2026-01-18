@@ -11,6 +11,8 @@ const { asyncHandler } = require('../utils/asyncHandler');
 
 const router = express.Router();
 
+const AGENT_UPGRADE_FEE_GHS = 40;
+
 function generateOrderCode() {
   const d = new Date();
   const yyyy = String(d.getFullYear());
@@ -42,7 +44,31 @@ function pesewasToDecimal(pesewas) {
   return new Prisma.Decimal((n / 100).toFixed(2));
 }
 
-async function computeOrderFromItems(items) {
+function resolveUnitPrice(product, role) {
+  if (role === 'AGENT' && product.agentPrice != null) return product.agentPrice;
+  return product.price;
+}
+
+function publicUser(user) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    phone: user.phone,
+    role: user.role,
+    walletBalance: user.walletBalance != null ? String(user.walletBalance) : '0',
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+}
+
+async function getUserRole(userId, fallbackRole) {
+  if (!userId) return fallbackRole || 'USER';
+  const user = await prisma.user.findUnique({ where: { id: String(userId) }, select: { role: true } });
+  return user?.role || fallbackRole || 'USER';
+}
+
+async function computeOrderFromItems(items, role = 'USER') {
   if (!Array.isArray(items) || items.length === 0) {
     const err = new Error('Order items are required');
     err.statusCode = 400;
@@ -72,7 +98,7 @@ async function computeOrderFromItems(items) {
     throw err;
   }
 
-  const priceById = new Map(products.map((p) => [p.id, p.price]));
+  const priceById = new Map(products.map((p) => [p.id, resolveUnitPrice(p, role)]));
   const stockById = new Map(products.map((p) => [p.id, p.stock]));
 
   for (const it of normalized) {
@@ -109,7 +135,8 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { items } = req.body || {};
-    const { subtotal, total } = await computeOrderFromItems(items);
+    const role = await getUserRole(req.user?.sub, req.user?.role);
+    const { subtotal, total } = await computeOrderFromItems(items, role);
 
     const netPesewas = toPesewas(total);
     const { feePesewas, grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
@@ -138,7 +165,8 @@ router.post(
       return res.status(400).json({ error: 'Missing callbackUrl' });
     }
 
-    const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items);
+    const role = await getUserRole(userId, req.user?.role);
+    const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role);
 
     const netPesewas = toPesewas(total);
     const { feePesewas, grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
@@ -283,7 +311,8 @@ router.post(
         return res.status(400).json({ error: 'Missing customer fields' });
       }
 
-      const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items);
+      const role = await getUserRole(userId, verifiedMeta.role);
+      const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role);
 
       const netPesewas = toPesewas(total);
       const { grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
@@ -408,7 +437,8 @@ router.post(
       return res.status(400).json({ error: 'Missing customer fields' });
     }
 
-    const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items);
+    const role = await getUserRole(userId, req.user?.role);
+    const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role);
 
     const netPesewas = toPesewas(total);
     const { grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
@@ -483,6 +513,141 @@ router.post(
 
     queueHubnetForOrder(order.id).catch((e) => console.error(e));
     return res.status(201).json(order);
+  })
+);
+
+router.post(
+  '/agent-upgrade/initialize',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const userId = req.user.sub;
+    const { callbackUrl, email } = req.body || {};
+
+    if (!callbackUrl) {
+      return res.status(400).json({ error: 'Missing callbackUrl' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, role: true } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (user.role === 'AGENT') {
+      return res.status(400).json({ error: 'You are already an agent' });
+    }
+
+    const contactEmail = email || user.email;
+    if (!contactEmail) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const netAmountPesewas = toPesewas(AGENT_UPGRADE_FEE_GHS);
+    const { feePesewas, grossAmountPesewas } = computePaystackGrossAmountPesewas(netAmountPesewas);
+
+    const secretKey = assertPaystackKey();
+
+    const payload = {
+      email: contactEmail,
+      amount: grossAmountPesewas,
+      callback_url: callbackUrl,
+      metadata: {
+        type: 'agent_upgrade',
+        userId,
+        amount: AGENT_UPGRADE_FEE_GHS,
+        netAmountPesewas,
+        grossAmountPesewas,
+        feePesewas,
+      },
+    };
+
+    const r = await fetch('https://api.paystack.co/transaction/initialize', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await r.json();
+
+    if (!r.ok || !data?.status) {
+      return res.status(502).json({ error: data?.message || 'Failed to initialize payment' });
+    }
+
+    const reference = data?.data?.reference ? String(data.data.reference) : '';
+    if (!reference) {
+      return res.status(502).json({ error: 'Missing payment reference' });
+    }
+
+    return res.json({
+      authorizationUrl: data.data.authorization_url,
+      reference,
+      amount: AGENT_UPGRADE_FEE_GHS,
+      fee: (feePesewas / 100).toFixed(2),
+      total: (grossAmountPesewas / 100).toFixed(2),
+    });
+  })
+);
+
+router.post(
+  '/agent-upgrade/complete-public',
+  asyncHandler(async (req, res) => {
+    const { reference } = req.body || {};
+    if (!reference) {
+      return res.status(400).json({ error: 'Missing reference' });
+    }
+
+    const secretKey = assertPaystackKey();
+    const vr = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(String(reference))}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${secretKey}` },
+    });
+
+    const vdata = await vr.json();
+    if (!vr.ok || !vdata?.status) {
+      return res.status(502).json({ error: vdata?.message || 'Failed to verify payment' });
+    }
+
+    const status = vdata?.data?.status;
+    const paidAmount = Number(vdata?.data?.amount);
+    const meta = vdata?.data?.metadata || {};
+    const userId = meta.userId;
+    const netAmountPesewas = meta.netAmountPesewas != null ? Number(meta.netAmountPesewas) : toPesewas(AGENT_UPGRADE_FEE_GHS);
+    const { grossAmountPesewas } = computePaystackGrossAmountPesewas(netAmountPesewas);
+
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId metadata' });
+    }
+    if (meta.type && String(meta.type) !== 'agent_upgrade') {
+      return res.status(400).json({ error: 'Invalid upgrade metadata' });
+    }
+    if (status !== 'success') {
+      return res.status(400).json({ error: 'Payment not successful' });
+    }
+    if (paidAmount !== grossAmountPesewas) {
+      return res.status(400).json({ error: 'Payment amount mismatch' });
+    }
+
+    const current = await prisma.user.findUnique({
+      where: { id: String(userId) },
+      select: { id: true, email: true, name: true, phone: true, role: true, walletBalance: true, createdAt: true, updatedAt: true },
+    });
+
+    if (!current) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (current.role === 'AGENT') {
+      return res.json({ user: publicUser(current), alreadyAgent: true });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: current.id },
+      data: { role: 'AGENT' },
+      select: { id: true, email: true, name: true, phone: true, role: true, walletBalance: true, createdAt: true, updatedAt: true },
+    });
+
+    return res.json({ user: publicUser(updated) });
   })
 );
 

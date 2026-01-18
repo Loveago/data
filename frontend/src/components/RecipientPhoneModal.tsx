@@ -25,10 +25,12 @@ function RecipientPhoneModalInner({
   product,
   onCancel,
   onConfirm,
+  priceOverride,
 }: {
   product: Product;
   onCancel: () => void;
   onConfirm: (recipientPhone: string) => void;
+  priceOverride?: string | number;
 }) {
   const [value, setValue] = useState("");
   const [iconFailed, setIconFailed] = useState(false);
@@ -70,6 +72,9 @@ function RecipientPhoneModalInner({
 
   const gb = /(\d+(?:\.\d+)?)\s*gb/i.exec(product.name)?.[0]?.toUpperCase();
   const packageLabel = `${gb || "BUNDLE"} - ${network.name} ${gb || ""}`.trim();
+  const displayPriceRaw = priceOverride ?? product.price;
+  const displayPriceNum = Number(displayPriceRaw);
+  const displayPrice = Number.isFinite(displayPriceNum) ? displayPriceNum.toFixed(2) : String(displayPriceRaw);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -158,7 +163,7 @@ function RecipientPhoneModalInner({
             <div className="text-xs text-zinc-500">Package:</div>
             <div className="mt-1 font-semibold">{packageLabel}</div>
             <div className="mt-2 text-xs text-zinc-500">Price:</div>
-            <div className="mt-1 font-semibold text-emerald-600 dark:text-emerald-400">GHS {Number(product.price).toFixed(2)}</div>
+            <div className="mt-1 font-semibold text-emerald-600 dark:text-emerald-400">GHS {displayPrice}</div>
           </div>
         </div>
 
@@ -189,11 +194,13 @@ export function RecipientPhoneModal({
   product,
   onCancel,
   onConfirm,
+  priceOverride,
 }: {
   open: boolean;
   product: Product | null;
   onCancel: () => void;
   onConfirm: (recipientPhone: string) => void;
+  priceOverride?: string | number;
 }) {
   const [mounted] = useState(() => typeof document !== "undefined");
 
@@ -202,7 +209,13 @@ export function RecipientPhoneModal({
   const resetKey = `${String(product.category?.slug || "")}-${open ? "open" : "closed"}`;
 
   return createPortal(
-    <RecipientPhoneModalInner key={resetKey} product={product} onCancel={onCancel} onConfirm={onConfirm} />, 
+    <RecipientPhoneModalInner
+      key={resetKey}
+      product={product}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+      priceOverride={priceOverride}
+    />,
     document.body
   );
 }

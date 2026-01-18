@@ -19,6 +19,11 @@ function generateOrderCode() {
   return `GH-${yyyy}${mm}${dd}-${rand}`;
 }
 
+function resolveUnitPrice(product, role) {
+  if (role === 'AGENT' && product.agentPrice != null) return product.agentPrice;
+  return product.price;
+}
+
 router.post(
   '/',
   requireAuth,
@@ -55,7 +60,9 @@ router.post(
       return res.status(400).json({ error: 'One or more products not found' });
     }
 
-    const priceById = new Map(products.map((p) => [p.id, p.price]));
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    const role = user?.role || 'USER';
+    const priceById = new Map(products.map((p) => [p.id, resolveUnitPrice(p, role)]));
     const stockById = new Map(products.map((p) => [p.id, p.stock]));
 
     for (const it of normalized) {
@@ -149,7 +156,9 @@ router.post(
       return res.status(400).json({ error: 'One or more products not found' });
     }
 
-    const priceById = new Map(products.map((p) => [p.id, p.price]));
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { walletBalance: true, role: true } });
+    const role = user?.role || 'USER';
+    const priceById = new Map(products.map((p) => [p.id, resolveUnitPrice(p, role)]));
     const stockById = new Map(products.map((p) => [p.id, p.stock]));
 
     for (const it of normalized) {
@@ -176,7 +185,6 @@ router.post(
 
     const total = subtotal;
 
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { walletBalance: true } });
     const walletBalance = user?.walletBalance || new Prisma.Decimal('0');
     if (walletBalance.lt(total)) {
       return res.status(400).json({ error: 'Insufficient wallet balance' });

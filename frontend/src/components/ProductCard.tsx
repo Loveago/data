@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import type { Product } from "@/lib/types";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import { RecipientPhoneModal } from "@/components/RecipientPhoneModal";
 
 function formatGhs(value: string) {
@@ -99,13 +100,15 @@ function networkMeta(slug?: string) {
 
 export function ProductCard({ product }: { product: Product }) {
   const { addItem } = useCart();
+  const { user } = useAuth();
   const router = useRouter();
   const [phoneOpen, setPhoneOpen] = useState(false);
 
   const amount = extractDataAmountGb(product.name) || "";
   const net = networkMeta(product.category?.slug);
 
-  const priceNum = Number(product.price);
+  const resolvedPrice = user?.role === "AGENT" && product.agentPrice != null ? product.agentPrice : product.price;
+  const priceNum = Number(resolvedPrice);
   const hasPrice = Number.isFinite(priceNum);
   const oldPrice = hasPrice ? (amount === "100GB" ? 390 : priceNum * 1.18) : null;
   const saveAmount = hasPrice && oldPrice ? oldPrice - priceNum : null;
@@ -133,7 +136,7 @@ export function ProductCard({ product }: { product: Product }) {
         <Link href={`/product/${product.slug || product.id}`} className="block">
           <div className="rounded-2xl border border-zinc-100 bg-white p-3 pt-10 dark:border-zinc-900 dark:bg-zinc-950">
             <div className={`text-xs font-medium ${net.saveText}`}>Save</div>
-            <div className={`mt-1 text-lg font-extrabold tracking-tight ${net.priceText}`}>{formatGhs(product.price)}</div>
+            <div className={`mt-1 text-lg font-extrabold tracking-tight ${net.priceText}`}>{formatGhs(String(resolvedPrice))}</div>
             <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
               {oldPrice != null ? (
                 <span className="line-through">{formatGhs(String(oldPrice.toFixed(2)))}</span>
@@ -166,9 +169,10 @@ export function ProductCard({ product }: { product: Product }) {
       <RecipientPhoneModal
         open={phoneOpen}
         product={product}
+        priceOverride={resolvedPrice}
         onCancel={() => setPhoneOpen(false)}
         onConfirm={(recipientPhone) => {
-          addItem(product, 1, recipientPhone);
+          addItem(product, 1, recipientPhone, Number.isFinite(priceNum) ? priceNum : undefined);
           setPhoneOpen(false);
           router.push("/cart");
         }}
