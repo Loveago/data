@@ -568,11 +568,11 @@ function DashboardInner() {
         <main className="relative min-w-0 animate-fade-up">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.06)_1px,transparent_0)] [background-size:24px_24px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)]" />
 
-          <div className="lg:hidden fixed left-0 right-0 top-[72px] z-30 px-3">
+          <div className="lg:hidden fixed left-0 right-0 top-[72px] z-30 px-4">
             <div className="w-full">
-              <div className="rounded-3xl border border-zinc-200/70 bg-white p-4 shadow-soft dark:border-zinc-800/70 dark:bg-zinc-950">
+              <div className="rounded-3xl border border-zinc-200/70 bg-white/90 p-3 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/90">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-base font-semibold">Dashboard</div>
+                  <div className="text-sm font-semibold">Dashboard</div>
                   <button
                     type="button"
                     onClick={() => {
@@ -581,7 +581,7 @@ function DashboardInner() {
                         router.push("/login");
                       })();
                     }}
-                    className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200/70 bg-white/60 px-3.5 text-sm font-semibold text-red-600 backdrop-blur transition hover:bg-red-50 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    className="inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200/70 bg-white/60 px-3 text-xs font-semibold text-red-600 backdrop-blur transition hover:bg-red-50 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-red-400 dark:hover:bg-red-950/30"
                   >
                     Sign out
                   </button>
@@ -595,7 +595,7 @@ function DashboardInner() {
                         key={tab}
                         type="button"
                         onClick={() => pushTab(tab)}
-                        className={`shrink-0 whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-semibold transition-colors min-w-[110px] text-center ${
+                        className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                           isActive
                             ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-soft"
                             : "border border-zinc-200/70 bg-white/60 text-zinc-700 backdrop-blur hover:bg-white/80 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
