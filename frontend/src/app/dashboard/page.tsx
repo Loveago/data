@@ -595,7 +595,7 @@ function DashboardInner() {
                         key={tab}
                         type="button"
                         onClick={() => pushTab(tab)}
-                        className={`shrink-0 whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-semibold transition-colors ${
+                        className={`shrink-0 whitespace-nowrap rounded-full px-5 py-2.5 text-sm font-semibold transition-colors min-w-[110px] text-center ${
                           isActive
                             ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-soft"
                             : "border border-zinc-200/70 bg-white/60 text-zinc-700 backdrop-blur hover:bg-white/80 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
