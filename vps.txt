@@ -1,0 +1,161 @@
+VPS DEPLOYMENT (data.lofaq.com + api.lofaq.com)
+===============================================
+
+Assumptions
+- Ubuntu 22.04+ VPS
+- Cloudflare DNS points data.lofaq.com and api.lofaq.com to this VPS
+- Repo: https://github.com/Loveago/data.git
+
+IMPORTANT: Replace ALL_CAPS values before running.
+
+1) SSH
+-------
+ssh root@YOUR_VPS_IP
+
+2) Update + base packages
+-------------------------
+sudo apt update && sudo apt -y upgrade
+sudo apt install -y git curl nginx build-essential
+# Optional: only if you want local psql
+# sudo apt install -y postgresql postgresql-contrib
+
+3) Node.js 20 (NVM)
+-------------------
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+nvm install 20
+nvm use 20
+nvm alias default 20
+
+4) Clone repo
+--------------
+mkdir -p /var/www
+cd /var/www
+git clone https://github.com/Loveago/data.git lofaq
+
+5) Backend (api.lofaq.com)
+--------------------------
+cd /var/www/lofaq/backend
+
+# .env (use Neon URL if applicable)
+cat <<'EOF' > .env
+PORT=4000
+CORS_ORIGIN=https://data.lofaq.uk
+# For Neon (recommended):
+# DATABASE_URL=postgresql://USER:PASSWORD@HOST.neon.tech/DBNAME?sslmode=require
+# For local Postgres (if installed):
+# DATABASE_URL=postgresql://lofaq_user:YOUR_DB_PASSWORD@localhost:5432/lofaq_db?schema=public
+JWT_ACCESS_SECRET=YOUR_LONG_RANDOM_ACCESS_SECRET
+JWT_REFRESH_SECRET=YOUR_LONG_RANDOM_REFRESH_SECRET
+JWT_ACCESS_TTL=15m
+JWT_REFRESH_TTL=7d
+SEED_ADMIN_EMAIL=admin@example.com
+SEED_ADMIN_PASSWORD=Admin12345!
+PAYSTACK_SECRET_KEY=YOUR_PAYSTACK_SECRET
+HUBNET_API_KEY=YOUR_HUBNET_KEY
+DATAHUBNET_API_KEY=YOUR_DATAHUBNET_KEY
+EOF
+
+npm install
+npx prisma generate
+npx prisma migrate deploy
+# Optional: seed admin
+node prisma/seed.js
+
+# PM2 (install once globally)
+npm install -g pm2
+pm2 start src/server.js --name lofaq-api
+pm2 save
+pm2 startup systemd -u $USER --hp $HOME
+
+6) Frontend (data.lofaq.com)
+----------------------------
+cd /var/www/lofaq/frontend
+
+cat <<'EOF' > .env.production
+NEXT_PUBLIC_API_URL=https://api.lofaq.uk
+EOF
+
+npm install
+npm run build
+
+# Serve with PM2
+PORT=3000 pm2 start npm --name lofaq-web -- start
+pm2 save
+
+7) Nginx reverse proxy
+----------------------
+sudo tee /etc/nginx/sites-available/lofaq <<'NGINX'
+server {
+  listen 80;
+  server_name data.lofaq.uk;
+
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_cache_bypass $http_upgrade;
+  }
+}
+
+server {
+  listen 80;
+  server_name api.lofaq.uk;
+
+  location / {
+    proxy_pass http://127.0.0.1:4000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+NGINX
+
+sudo ln -sf /etc/nginx/sites-available/lofaq /etc/nginx/sites-enabled/lofaq
+sudo nginx -t
+sudo systemctl reload nginx
+
+8) HTTPS (Certbot)
+------------------
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d data.lofaq.com -d api.lofaq.com
+
+9) Firewall
+------------
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw --force enable
+
+10) Verify
+-----------
+curl https://api.lofaq.uk/api/health
+# open https://data.lofaq.uk in browser
+
+Notes
+- Cloudflare: set SSL/TLS to “Full (strict)”.
+- After env changes: pm2 restart lofaq-api lofaq-web && pm2 save
+- Logs: pm2 logs lofaq-api | pm2 logs lofaq-we
+
+FOR Update
+# 1) Pull latest code
+cd /var/www/lofaq
+git pull origin main
+
+# 2) Backend update
+cd /var/www/lofaq/backend
+npm install
+npx prisma generate
+npx prisma migrate deploy
+pm2 restart lofaq-api --update-env
+pm2 save
+
+# 3) Frontend update
+cd /var/www/lofaq/frontend
+npm install
+npm run build
+pm2 restart lofaq-web --update-env
+pm2 save

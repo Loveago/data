@@ -73,7 +73,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
   }
 
   const img = product.imageUrls?.[0];
-  const resolvedPrice = user?.role === "AGENT" && product.agentPrice != null ? product.agentPrice : product.price;
+  const resolvedPrice = user?.role === "AGENT" && product.agentPrice ? product.agentPrice : product.price;
   const resolvedPriceNum = Number(resolvedPrice);
 
   return (
