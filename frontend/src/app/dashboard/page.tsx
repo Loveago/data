@@ -568,9 +568,9 @@ function DashboardInner() {
         <main className="relative min-w-0 animate-fade-up">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.06)_1px,transparent_0)] [background-size:24px_24px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)]" />
 
-          <div className="lg:hidden fixed left-0 right-0 top-20 z-30 px-4">
+          <div className="lg:hidden fixed left-0 right-0 top-[72px] z-30 px-4">
             <div className="mx-auto max-w-7xl">
-              <div className="rounded-3xl border border-zinc-200/70 bg-white/90 p-3 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/80">
+              <div className="rounded-3xl border border-zinc-200/70 bg-white p-3 shadow-soft dark:border-zinc-800/70 dark:bg-zinc-950">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-semibold">Dashboard</div>
                   <button
@@ -610,7 +610,7 @@ function DashboardInner() {
               </div>
             </div>
           </div>
-          <div className="lg:hidden h-[112px]" aria-hidden="true" />
+          <div className="lg:hidden h-[184px]" aria-hidden="true" />
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
