@@ -107,6 +107,10 @@ function RecipientPhoneModalInner({
         <div className="mt-5">
           <label className="text-sm font-medium">Phone Number</label>
           <input
+            type="tel"
+            name="recipient-phone"
+            inputMode="tel"
+            autoComplete="tel"
             autoFocus
             value={value}
             onChange={(e) => setValue(e.target.value)}

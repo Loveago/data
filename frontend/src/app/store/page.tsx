@@ -290,6 +290,12 @@ export default function StorePage() {
 
             <div className="flex w-full flex-col gap-3 md:max-w-xl md:flex-row">
               <input
+                type="search"
+                name="package-search"
+                autoComplete="off"
+                inputMode="search"
+                autoCapitalize="none"
+                autoCorrect="off"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search packages..."
