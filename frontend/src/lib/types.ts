@@ -39,6 +39,22 @@ export type CartItem = {
   recipientPhone?: string;
 };
 
+export type AgentStorefront = {
+  id: string;
+  slug: string;
+  title: string;
+  welcomeMessage?: string | null;
+  heroEmoji?: string | null;
+  accentColor?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type StorefrontProduct = {
+  product: Product;
+  sellPrice: string | null;
+};
+
 export type OrderItemInput = {
   productId: string;
   quantity: number;

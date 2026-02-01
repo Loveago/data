@@ -49,6 +49,18 @@ function resolveUnitPrice(product, role) {
   return product.price;
 }
 
+function computeAgentProfit(items) {
+  let profit = new Prisma.Decimal('0');
+  for (const it of items) {
+    if (!it.agentCostPrice) continue;
+    const margin = it.unitPrice.sub(it.agentCostPrice);
+    const lineProfit = margin.mul(new Prisma.Decimal(String(it.quantity)));
+    profit = profit.add(lineProfit);
+  }
+  if (profit.isNegative()) return new Prisma.Decimal('0');
+  return profit;
+}
+
 function publicUser(user) {
   return {
     id: user.id,
@@ -130,6 +142,121 @@ async function computeOrderFromItems(items, role = 'USER') {
   return { normalized, subtotal, total, orderItemsData };
 }
 
+async function computeStorefrontOrderFromItems(items, storefrontId) {
+  if (!storefrontId) {
+    const err = new Error('Missing storefront');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    const err = new Error('Order items are required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const normalized = items
+    .map((it) => ({
+      productId: it.productId,
+      quantity: Number(it.quantity),
+      recipientPhone: it.recipientPhone ? String(it.recipientPhone) : null,
+    }))
+    .filter((it) => it.productId && Number.isFinite(it.quantity) && it.quantity > 0);
+
+  if (normalized.length === 0) {
+    const err = new Error('Invalid order items');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
+  const [products, prices] = await Promise.all([
+    prisma.product.findMany({ where: { id: { in: productIds } } }),
+    prisma.agentStorefrontPrice.findMany({ where: { storefrontId, productId: { in: productIds } } }),
+  ]);
+
+  if (products.length !== productIds.length) {
+    const err = new Error('One or more products not found');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const priceById = new Map(prices.map((p) => [p.productId, p.sellPrice]));
+  const productById = new Map(products.map((p) => [p.id, p]));
+  const stockById = new Map(products.map((p) => [p.id, p.stock]));
+
+  for (const it of normalized) {
+    const stock = stockById.get(it.productId);
+    if (stock == null || stock < it.quantity) {
+      const err = new Error('Insufficient stock for one or more items');
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
+  let subtotal = new Prisma.Decimal('0');
+
+  const orderItemsData = normalized.map((it) => {
+    const sellPrice = priceById.get(it.productId);
+    if (!sellPrice) {
+      const err = new Error('Missing storefront price for one or more items');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const product = productById.get(it.productId);
+    if (!product) {
+      const err = new Error('Product not found');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (sellPrice.lt(product.price)) {
+      const err = new Error('Storefront price cannot be lower than base price');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const lineTotal = sellPrice.mul(new Prisma.Decimal(String(it.quantity)));
+    subtotal = subtotal.add(lineTotal);
+    return {
+      productId: it.productId,
+      quantity: it.quantity,
+      recipientPhone: it.recipientPhone,
+      unitPrice: sellPrice,
+      lineTotal,
+      agentCostPrice: product.price,
+    };
+  });
+
+  const total = subtotal;
+  return { normalized, subtotal, total, orderItemsData };
+}
+
+async function creditAgentProfitForOrder(tx, order) {
+  if (!order?.agentStorefrontId || order?.agentProfitCreditedAt) return order;
+
+  const profit = computeAgentProfit(order.items || []);
+  if (profit.isZero()) {
+    return tx.order.update({ where: { id: order.id }, data: { agentProfitCreditedAt: new Date() } });
+  }
+
+  await tx.user.update({
+    where: { id: order.userId },
+    data: { walletBalance: { increment: profit } },
+  });
+  await tx.walletTransaction.create({
+    data: {
+      userId: order.userId,
+      type: 'DEPOSIT',
+      amount: profit,
+      reference: `AGENT_PROFIT:${order.orderCode || order.id}`,
+    },
+  });
+
+  return tx.order.update({ where: { id: order.id }, data: { agentProfitCreditedAt: new Date() } });
+}
+
 router.post(
   '/paystack/quote',
   requireAuth,
@@ -137,6 +264,102 @@ router.post(
     const { items } = req.body || {};
     const role = await getUserRole(req.user?.sub, req.user?.role);
     const { subtotal, total } = await computeOrderFromItems(items, role);
+
+    const netPesewas = toPesewas(total);
+    const { feePesewas, grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
+
+    return res.json({
+      subtotal: String(subtotal),
+      fee: (feePesewas / 100).toFixed(2),
+      total: (grossAmountPesewas / 100).toFixed(2),
+    });
+  })
+);
+
+router.post(
+  '/paystack/initialize-storefront',
+  asyncHandler(async (req, res) => {
+    const { customerName, customerEmail, customerPhone, customerAddress, items, callbackUrl, storefrontSlug } = req.body || {};
+    const normalizedCustomerAddress = customerAddress ? String(customerAddress) : '';
+
+    if (!storefrontSlug) return res.status(400).json({ error: 'Missing storefront slug' });
+    if (!customerName || !customerEmail || !customerPhone) {
+      return res.status(400).json({ error: 'Missing customer fields' });
+    }
+    if (!callbackUrl) {
+      return res.status(400).json({ error: 'Missing callbackUrl' });
+    }
+
+    const storefront = await prisma.agentStorefront.findUnique({ where: { slug: String(storefrontSlug) } });
+    if (!storefront) return res.status(404).json({ error: 'Storefront not found' });
+
+    const { normalized, subtotal, total } = await computeStorefrontOrderFromItems(items, storefront.id);
+
+    const netPesewas = toPesewas(total);
+    const { feePesewas, grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
+
+    const secretKey = assertPaystackKey();
+
+    const payload = {
+      email: customerEmail,
+      amount: grossAmountPesewas,
+      callback_url: callbackUrl,
+      metadata: {
+        type: 'storefront_order',
+        storefrontSlug: storefront.slug,
+        storefrontId: storefront.id,
+        agentUserId: storefront.userId,
+        customerName,
+        customerEmail,
+        customerPhone,
+        customerAddress: normalizedCustomerAddress,
+        items: normalized,
+        netAmountPesewas: netPesewas,
+        grossAmountPesewas,
+        feePesewas,
+      },
+    };
+
+    const r = await fetch('https://api.paystack.co/transaction/initialize', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secretKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await r.json();
+
+    if (!r.ok || !data?.status) {
+      return res.status(502).json({ error: data?.message || 'Failed to initialize payment' });
+    }
+
+    const reference = data?.data?.reference ? String(data.data.reference) : '';
+    if (!reference) {
+      return res.status(502).json({ error: 'Missing payment reference' });
+    }
+
+    return res.json({
+      authorizationUrl: data.data.authorization_url,
+      reference,
+      subtotal: String(subtotal),
+      fee: (feePesewas / 100).toFixed(2),
+      total: (grossAmountPesewas / 100).toFixed(2),
+    });
+  })
+);
+
+router.post(
+  '/paystack/quote-storefront',
+  asyncHandler(async (req, res) => {
+    const { items, storefrontSlug } = req.body || {};
+    if (!storefrontSlug) return res.status(400).json({ error: 'Missing storefront slug' });
+
+    const storefront = await prisma.agentStorefront.findUnique({ where: { slug: String(storefrontSlug) } });
+    if (!storefront) return res.status(404).json({ error: 'Storefront not found' });
+
+    const { subtotal, total } = await computeStorefrontOrderFromItems(items, storefront.id);
 
     const netPesewas = toPesewas(total);
     const { feePesewas, grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
@@ -256,8 +479,8 @@ router.post(
       customerPhone: bodyCustomerPhone,
       customerAddress: bodyCustomerAddress,
       items: bodyItems,
+      storefrontSlug: bodyStorefrontSlug,
     } = req.body || {};
-    const normalizedBodyCustomerAddress = bodyCustomerAddress ? String(bodyCustomerAddress) : '';
     if (!reference) {
       return res.status(400).json({ error: 'Missing reference' });
     }
@@ -287,7 +510,7 @@ router.post(
     });
 
     if (!existing) {
-      const userId = verifiedMeta.userId;
+      const isStorefrontOrder = String(verifiedMeta.type || '') === 'storefront_order';
       const items = verifiedMeta.items ?? bodyItems;
       const customerName = verifiedMeta.customerName ?? bodyCustomerName;
       const customerEmail = verifiedMeta.customerEmail ?? bodyCustomerEmail;
@@ -295,20 +518,102 @@ router.post(
       const customerAddressRaw = verifiedMeta.customerAddress ?? bodyCustomerAddress;
       const customerAddress = customerAddressRaw ? String(customerAddressRaw) : '';
 
-      if (!userId) {
-        return res.status(400).json({ error: 'Missing userId metadata' });
-      }
-
-      if (verifiedMeta.type && String(verifiedMeta.type) !== 'order') {
-        return res.status(400).json({ error: 'Invalid order metadata' });
-      }
-
       if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'Missing order items' });
       }
 
       if (!customerName || !customerEmail || !customerPhone) {
         return res.status(400).json({ error: 'Missing customer fields' });
+      }
+
+      if (isStorefrontOrder) {
+        const storefrontSlug = verifiedMeta.storefrontSlug ?? bodyStorefrontSlug;
+        if (!storefrontSlug) {
+          return res.status(400).json({ error: 'Missing storefront slug' });
+        }
+
+        const storefront = await prisma.agentStorefront.findUnique({ where: { slug: String(storefrontSlug) } });
+        if (!storefront) return res.status(404).json({ error: 'Storefront not found' });
+
+        const { normalized, subtotal, total, orderItemsData } = await computeStorefrontOrderFromItems(items, storefront.id);
+        const netPesewas = toPesewas(total);
+        const { grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
+
+        if (paidAmount !== grossAmountPesewas) {
+          return res.status(400).json({ error: 'Payment amount mismatch' });
+        }
+
+        const created = await prisma.$transaction(async (tx) => {
+          const already = await tx.order.findFirst({
+            where: { paymentProvider: 'paystack', paymentReference: String(reference) },
+            include: { items: { include: { product: true } } },
+          });
+          if (already) return already;
+
+          for (const it of normalized) {
+            await tx.product.update({
+              where: { id: it.productId },
+              data: { stock: { decrement: it.quantity } },
+            });
+          }
+
+          const profit = computeAgentProfit(orderItemsData);
+
+          const order = await tx.order.create({
+            data: {
+              orderCode: generateOrderCode(),
+              userId: storefront.userId,
+              agentStorefrontId: storefront.id,
+              agentProfitCreditedAt: new Date(),
+              customerName: String(customerName),
+              customerEmail: String(customerEmail),
+              customerPhone: String(customerPhone),
+              customerAddress,
+              subtotal,
+              total: pesewasToDecimal(grossAmountPesewas),
+              paymentProvider: 'paystack',
+              paymentReference: String(reference),
+              paymentStatus: 'PAID',
+              items: {
+                create: orderItemsData.map((d) => ({
+                  productId: d.productId,
+                  quantity: d.quantity,
+                  unitPrice: d.unitPrice,
+                  lineTotal: d.lineTotal,
+                  recipientPhone: d.recipientPhone,
+                  agentCostPrice: d.agentCostPrice,
+                })),
+              },
+            },
+            include: { items: { include: { product: true } } },
+          });
+
+          if (!profit.isZero()) {
+            await tx.user.update({ where: { id: storefront.userId }, data: { walletBalance: { increment: profit } } });
+            await tx.walletTransaction.create({
+              data: {
+                userId: storefront.userId,
+                type: 'DEPOSIT',
+                amount: profit,
+                reference: `AGENT_PROFIT:${order.orderCode || order.id}`,
+              },
+            });
+          }
+
+          return order;
+        });
+
+        queueHubnetForOrder(created.id).catch((e) => console.error(e));
+        return res.status(201).json(created);
+      }
+
+      const userId = verifiedMeta.userId;
+      if (!userId) {
+        return res.status(400).json({ error: 'Missing userId metadata' });
+      }
+
+      if (verifiedMeta.type && String(verifiedMeta.type) !== 'order') {
+        return res.status(400).json({ error: 'Invalid order metadata' });
       }
 
       const role = await getUserRole(userId, verifiedMeta.role);
@@ -367,6 +672,15 @@ router.post(
     }
 
     if (existing.paymentStatus === 'PAID') {
+      if (existing.agentStorefrontId && !existing.agentProfitCreditedAt) {
+        await prisma.$transaction(async (tx) => {
+          const order = await tx.order.findUnique({
+            where: { id: existing.id },
+            include: { items: true },
+          });
+          if (order) await creditAgentProfitForOrder(tx, order);
+        });
+      }
       return res.json(existing);
     }
 
@@ -406,7 +720,7 @@ router.post(
         });
       }
 
-      return tx.order.update({
+      const updatedOrder = await tx.order.update({
         where: { id: order.id },
         data: {
           paymentStatus: 'PAID',
@@ -414,6 +728,8 @@ router.post(
         },
         include: { items: { include: { product: true } } },
       });
+      await creditAgentProfitForOrder(tx, updatedOrder);
+      return updatedOrder;
     });
 
     queueHubnetForOrder(updated.id).catch((e) => console.error(e));

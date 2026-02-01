@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
-import type { User } from "@/lib/types";
+import type { AgentStorefront, StorefrontProduct, User } from "@/lib/types";
 
 type Order = {
   id: string;
@@ -65,11 +65,18 @@ function inferProviderFromProductName(name: string | undefined | null) {
   return "-";
 }
 
-type DashboardTab = "overview" | "profile" | "wallet" | "orders" | "settings";
+function extractGbValue(name: string) {
+  const m = /(\d+(?:\.\d+)?)\s*gb/i.exec(String(name || ""));
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) ? n : null;
+}
+
+type DashboardTab = "overview" | "profile" | "wallet" | "orders" | "storefront" | "settings";
 
 function normalizeTab(value: string | null): DashboardTab {
   const v = String(value || "").toLowerCase();
-  if (v === "profile" || v === "wallet" || v === "orders" || v === "settings") return v;
+  if (v === "profile" || v === "wallet" || v === "orders" || v === "settings" || v === "storefront") return v;
   return "overview";
 }
 
@@ -77,6 +84,7 @@ function tabLabel(tab: DashboardTab) {
   if (tab === "profile") return "Profile";
   if (tab === "wallet") return "Wallet";
   if (tab === "orders") return "Orders";
+  if (tab === "storefront") return "Storefront";
   if (tab === "settings") return "Settings";
   return "Overview";
 }
@@ -98,6 +106,16 @@ function tabIcon(tab: DashboardTab) {
           strokeWidth="2"
           strokeLinecap="round"
         />
+      </svg>
+    );
+  }
+
+  if (tab === "storefront") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className={common} aria-hidden="true">
+        <path d="M4 7h16v12H4V7z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M3 7l1-3h16l1 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 11h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>
     );
   }
@@ -183,6 +201,21 @@ function DashboardInner() {
 
   const isAgent = user?.role === "AGENT";
 
+  const [storefront, setStorefront] = useState<AgentStorefront | null>(null);
+  const [storefrontItems, setStorefrontItems] = useState<StorefrontProduct[]>([]);
+  const [storefrontPrices, setStorefrontPrices] = useState<Record<string, string>>({});
+  const [storefrontTitle, setStorefrontTitle] = useState<string>("");
+  const [storefrontWelcome, setStorefrontWelcome] = useState<string>("");
+  const [storefrontEmoji, setStorefrontEmoji] = useState<string>("");
+  const [storefrontAccent, setStorefrontAccent] = useState<string>("#1d4ed8");
+  const [storefrontSlug, setStorefrontSlug] = useState<string>("");
+  const [storefrontLoading, setStorefrontLoading] = useState(false);
+  const [storefrontError, setStorefrontError] = useState<string | null>(null);
+  const [storefrontInfoSaving, setStorefrontInfoSaving] = useState(false);
+  const [storefrontPricesSaving, setStorefrontPricesSaving] = useState(false);
+  const [storefrontSuccess, setStorefrontSuccess] = useState<string | null>(null);
+  const [storefrontSearch, setStorefrontSearch] = useState<string>("");
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [orderSearch, setOrderSearch] = useState("");
@@ -214,6 +247,34 @@ function DashboardInner() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
+  const dashboardTabs: DashboardTab[] = isAgent
+    ? ["overview", "profile", "wallet", "orders", "storefront", "settings"]
+    : ["overview", "profile", "wallet", "orders", "settings"];
+
+  const filteredStorefrontItems = useMemo(() => {
+    const q = storefrontSearch.trim().toLowerCase();
+    const items = [...storefrontItems];
+    items.sort((a, b) => {
+      const ga = extractGbValue(a.product.name || "");
+      const gb = extractGbValue(b.product.name || "");
+      if (ga != null && gb != null && ga !== gb) return ga - gb;
+      if (ga != null && gb == null) return -1;
+      if (ga == null && gb != null) return 1;
+      return String(a.product.name || "").localeCompare(String(b.product.name || ""));
+    });
+    if (!q) return items;
+    return items.filter((item) => {
+      const hay = `${item.product.name} ${item.product.slug} ${item.product.category?.name}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [storefrontItems, storefrontSearch]);
+
+  const storefrontLink = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    if (!storefrontSlug) return "";
+    return `${window.location.origin}/storefront/${storefrontSlug}`;
+  }, [storefrontSlug]);
+
   const [currentPassword, setCurrentPassword] = useState<string>("");
   const [newPassword, setNewPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
@@ -230,6 +291,57 @@ function DashboardInner() {
     setProfilePhone(user?.phone || "");
     setProfileEmail(user?.email || "");
   }, [user?.email, user?.name, user?.phone]);
+
+  useEffect(() => {
+    if (!isAgent) {
+      setStorefront(null);
+      setStorefrontItems([]);
+      setStorefrontPrices({});
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadStorefront() {
+      setStorefrontLoading(true);
+      setStorefrontError(null);
+      try {
+        const [storeRes, productsRes] = await Promise.all([
+          api.get<{ storefront: AgentStorefront }>("/agent-storefront/me"),
+          api.get<{ items: StorefrontProduct[] }>("/agent-storefront/me/products"),
+        ]);
+
+        if (cancelled) return;
+        const storefrontData = storeRes.data.storefront || null;
+        setStorefront(storefrontData);
+        setStorefrontTitle(storefrontData?.title || '');
+        setStorefrontWelcome(storefrontData?.welcomeMessage || '');
+        setStorefrontEmoji(storefrontData?.heroEmoji || '');
+        setStorefrontAccent(storefrontData?.accentColor || '#1d4ed8');
+        setStorefrontSlug(storefrontData?.slug || '');
+
+        const items = productsRes.data.items || [];
+        setStorefrontItems(items);
+
+        const nextPrices: Record<string, string> = {};
+        for (const item of items) {
+          nextPrices[item.product.id] = item.sellPrice || '';
+        }
+        setStorefrontPrices(nextPrices);
+      } catch (e: unknown) {
+        if (cancelled) return;
+        const maybeError = e as { response?: { data?: { error?: string } } };
+        setStorefrontError(maybeError?.response?.data?.error || "Failed to load storefront data.");
+      } finally {
+        if (!cancelled) setStorefrontLoading(false);
+      }
+    }
+
+    loadStorefront();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAgent]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -464,6 +576,65 @@ function DashboardInner() {
     }
   }
 
+  async function saveStorefrontInfo() {
+    if (!isAgent) return;
+    setStorefrontInfoSaving(true);
+    setStorefrontError(null);
+    setStorefrontSuccess(null);
+    try {
+      const res = await api.put<{ storefront: AgentStorefront }>("/agent-storefront/me", {
+        title: storefrontTitle,
+        welcomeMessage: storefrontWelcome,
+        heroEmoji: storefrontEmoji,
+        accentColor: storefrontAccent,
+        slug: storefrontSlug,
+      });
+      const data = res.data.storefront;
+      setStorefront(data);
+      setStorefrontTitle(data?.title || '');
+      setStorefrontWelcome(data?.welcomeMessage || '');
+      setStorefrontEmoji(data?.heroEmoji || '');
+      setStorefrontAccent(data?.accentColor || '#1d4ed8');
+      setStorefrontSlug(data?.slug || '');
+      setStorefrontSuccess("Storefront details updated.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setStorefrontError(maybeError?.response?.data?.error || "Failed to update storefront.");
+    } finally {
+      setStorefrontInfoSaving(false);
+    }
+  }
+
+  async function saveStorefrontPrices() {
+    if (!isAgent) return;
+    setStorefrontPricesSaving(true);
+    setStorefrontError(null);
+    setStorefrontSuccess(null);
+    try {
+      const payload = Object.entries(storefrontPrices).map(([productId, sellPrice]) => ({
+        productId,
+        sellPrice: sellPrice.trim(),
+      }));
+      await api.put("/agent-storefront/me/prices", {
+        prices: payload,
+      });
+      const refreshed = await api.get<{ items: StorefrontProduct[] }>("/agent-storefront/me/products");
+      const items = refreshed.data.items || [];
+      setStorefrontItems(items);
+      const nextPrices: Record<string, string> = {};
+      for (const item of items) {
+        nextPrices[item.product.id] = item.sellPrice || '';
+      }
+      setStorefrontPrices(nextPrices);
+      setStorefrontSuccess("Storefront prices saved.");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setStorefrontError(maybeError?.response?.data?.error || "Failed to save storefront prices.");
+    } finally {
+      setStorefrontPricesSaving(false);
+    }
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="relative overflow-hidden">
@@ -521,7 +692,7 @@ function DashboardInner() {
           </div>
 
           <nav className="mt-5 space-y-1 text-sm">
-            {(["overview", "profile", "wallet", "orders", "settings"] as DashboardTab[]).map((tab) => {
+            {dashboardTabs.map((tab) => {
               const isActive = activeTab === tab;
               return (
                 <button
@@ -588,7 +759,7 @@ function DashboardInner() {
                 </div>
 
                 <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                  {(["overview", "profile", "wallet", "orders", "settings"] as DashboardTab[]).map((tab) => {
+                  {dashboardTabs.map((tab) => {
                     const isActive = activeTab === tab;
                     return (
                       <button
@@ -795,6 +966,217 @@ function DashboardInner() {
                     <span className="font-medium">{user?.phone || "-"}</span>
                   </div>
                 </div>
+              </div>
+            ) : null}
+
+            {activeTab === "storefront" ? (
+              <div className="lg:col-span-2 space-y-4">
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                  <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-blue-500/18 via-indigo-400/12 to-sky-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold">Agent Storefront</div>
+                      <div className="mt-1 text-xs text-zinc-500">Customize your public storefront and set bundle prices.</div>
+                    </div>
+                    {isAgent ? (
+                      <button
+                        type="button"
+                        disabled={storefrontInfoSaving}
+                        onClick={() => saveStorefrontInfo()}
+                        className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
+                      >
+                        {storefrontInfoSaving ? "Saving..." : "Save settings"}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {!isAgent ? (
+                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+                      Upgrade to Agent to unlock your personal storefront and pricing tools.
+                    </div>
+                  ) : storefrontLoading ? (
+                    <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">Loading storefront...</div>
+                  ) : (
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Store name</label>
+                        <input
+                          value={storefrontTitle}
+                          onChange={(e) => setStorefrontTitle(e.target.value)}
+                          placeholder="Emma's Data Store"
+                          className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Store slug</label>
+                        <input
+                          value={storefrontSlug}
+                          onChange={(e) => setStorefrontSlug(e.target.value)}
+                          placeholder="emma-store"
+                          className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Highlight emoji</label>
+                        <input
+                          value={storefrontEmoji}
+                          onChange={(e) => setStorefrontEmoji(e.target.value)}
+                          placeholder="🛰️"
+                          className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Welcome message</label>
+                        <input
+                          value={storefrontWelcome}
+                          onChange={(e) => setStorefrontWelcome(e.target.value)}
+                          placeholder="Welcome to Emma's data store."
+                          className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Accent color</label>
+                        <div className="mt-1 flex items-center gap-3">
+                          <input
+                            type="color"
+                            value={storefrontAccent || "#1d4ed8"}
+                            onChange={(e) => setStorefrontAccent(e.target.value)}
+                            className="h-10 w-14 rounded-xl border border-zinc-200/70 bg-white/70 p-1 dark:border-zinc-800/70 dark:bg-zinc-950/50"
+                          />
+                          <input
+                            value={storefrontAccent}
+                            onChange={(e) => setStorefrontAccent(e.target.value)}
+                            className="h-10 flex-1 rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Storefront link</label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <input
+                            value={storefrontLink || ""}
+                            readOnly
+                            className="h-10 flex-1 rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm text-zinc-600 outline-none dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-300"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!storefrontLink) return;
+                              void navigator.clipboard?.writeText(storefrontLink);
+                              setStorefrontSuccess("Storefront link copied.");
+                            }}
+                            className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white/70 px-3 text-xs font-semibold text-zinc-700 shadow-soft transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                  <div className="pointer-events-none absolute -left-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-emerald-500/14 via-cyan-400/10 to-blue-400/8 blur-2xl transition-transform duration-500 group-hover:scale-110" />
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-semibold">Bundle pricing</div>
+                      <div className="mt-1 text-xs text-zinc-500">Set your selling price (must be above base price).</div>
+                    </div>
+                    {isAgent ? (
+                      <button
+                        type="button"
+                        disabled={storefrontPricesSaving}
+                        onClick={() => saveStorefrontPrices()}
+                        className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-emerald-500 disabled:opacity-60"
+                      >
+                        {storefrontPricesSaving ? "Saving..." : "Save prices"}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {storefrontLoading ? (
+                    <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">Loading bundles...</div>
+                  ) : (
+                    <>
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <input
+                          value={storefrontSearch}
+                          onChange={(e) => setStorefrontSearch(e.target.value)}
+                          placeholder="Search bundles"
+                          className="h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-emerald-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-emerald-500"
+                        />
+                        <div className="text-xs text-zinc-500">{filteredStorefrontItems.length} bundles</div>
+                      </div>
+
+                      <div className="mt-4 overflow-x-auto">
+                        <table className="w-full min-w-[720px] text-sm">
+                          <thead>
+                            <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
+                              <th className="py-3">Bundle</th>
+                              <th className="py-3">Network</th>
+                              <th className="py-3">Base price</th>
+                              <th className="py-3">Your price</th>
+                              <th className="py-3 text-right">Profit</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredStorefrontItems.map((item) => {
+                              const base = Number(item.product.price);
+                              const priceValue = storefrontPrices[item.product.id] ?? item.sellPrice ?? "";
+                              const sell = Number(priceValue);
+                              const profit = Number.isFinite(sell) && Number.isFinite(base) ? sell - base : null;
+                              const invalid = Number.isFinite(sell) && Number.isFinite(base) ? sell < base : false;
+                              return (
+                                <tr key={item.product.id} className="border-b border-zinc-100 dark:border-zinc-900">
+                                  <td className="py-3 font-medium">{item.product.name}</td>
+                                  <td className="py-3 text-zinc-600 dark:text-zinc-400">{item.product.category?.name || "-"}</td>
+                                  <td className="py-3">GHS {Number(base).toFixed(2)}</td>
+                                  <td className="py-3">
+                                    <input
+                                      value={priceValue}
+                                      onChange={(e) =>
+                                        setStorefrontPrices((prev) => ({
+                                          ...prev,
+                                          [item.product.id]: e.target.value,
+                                        }))
+                                      }
+                                      placeholder="Set price"
+                                      className={`h-9 w-28 rounded-xl border px-3 text-sm outline-none transition-colors ${
+                                        invalid
+                                          ? "border-red-300 bg-red-50 text-red-700"
+                                          : "border-zinc-200 bg-white/70 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/50 dark:text-zinc-200"
+                                      }`}
+                                    />
+                                  </td>
+                                  <td className="py-3 text-right">
+                                    {profit == null || Number.isNaN(profit) ? (
+                                      <span className="text-zinc-400">-</span>
+                                    ) : (
+                                      <span className={profit >= 0 ? "text-emerald-600" : "text-red-600"}>
+                                        GHS {profit.toFixed(2)}
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {storefrontError ? (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                    {storefrontError}
+                  </div>
+                ) : null}
+                {storefrontSuccess ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    {storefrontSuccess}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 

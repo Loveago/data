@@ -55,6 +55,7 @@ model User {
 
   orders              Order[]
   walletTransactions  WalletTransaction[]
+  storefront          AgentStorefront?
 }
 
 model Notification {
@@ -92,6 +93,37 @@ model Product {
   updatedAt DateTime @updatedAt
 
   orderItems OrderItem[]
+  storefrontPrices AgentStorefrontPrice[]
+}
+
+model AgentStorefront {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  slug          String   @unique
+  title         String
+  welcomeMessage String?
+  heroEmoji     String?
+  accentColor   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  prices AgentStorefrontPrice[]
+  orders Order[]
+}
+
+model AgentStorefrontPrice {
+  id           String  @id @default(cuid())
+  storefrontId String
+  productId    String
+  sellPrice    Decimal @db.Decimal(12, 2)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  storefront AgentStorefront @relation(fields: [storefrontId], references: [id], onDelete: Cascade)
+  product    Product         @relation(fields: [productId], references: [id])
+
+  @@unique([storefrontId, productId])
 }
 
 model Order {
@@ -104,6 +136,9 @@ model Order {
   paymentProvider  String?
   paymentReference String?
   paymentStatus    String      @default("UNPAID")
+  agentStorefrontId    String?
+  agentStorefront      AgentStorefront? @relation(fields: [agentStorefrontId], references: [id])
+  agentProfitCreditedAt DateTime?
 
   customerName    String
   customerEmail   String
@@ -128,6 +163,7 @@ model OrderItem {
   recipientPhone String?
   unitPrice Decimal @db.Decimal(12, 2)
   lineTotal Decimal @db.Decimal(12, 2)
+  agentCostPrice Decimal? @db.Decimal(12, 2)
 
   hubnetSkip          Boolean @default(false)
   hubnetStatus        HubnetFulfillmentStatus?

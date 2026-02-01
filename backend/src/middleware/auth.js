@@ -24,4 +24,11 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-module.exports = { requireAuth, requireAdmin };
+function requireAgent(req, res, next) {
+  if (!req.user || (req.user.role !== 'AGENT' && req.user.role !== 'ADMIN')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  return next();
+}
+
+module.exports = { requireAuth, requireAdmin, requireAgent };

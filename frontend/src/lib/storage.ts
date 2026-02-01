@@ -2,6 +2,7 @@ import type { CartItem, User } from "./types";
 
 const AUTH_KEY = "gigshub_auth";
 const CART_KEY = "gigshub_cart";
+const STOREFRONT_CART_PREFIX = "gigshub_storefront_cart:";
 
 export type StoredAuth = {
   user: User | null;
@@ -52,6 +53,26 @@ export function loadCart(): CartItem[] {
 export function saveCart(items: CartItem[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(CART_KEY, JSON.stringify(items));
+}
+
+function storefrontCartKey(slug: string) {
+  return `${STOREFRONT_CART_PREFIX}${slug}`;
+}
+
+export function loadStorefrontCart(slug: string): CartItem[] {
+  if (typeof window === "undefined") return [];
+  const parsed = safeParse<CartItem[]>(window.localStorage.getItem(storefrontCartKey(slug)));
+  return parsed || [];
+}
+
+export function saveStorefrontCart(slug: string, items: CartItem[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(storefrontCartKey(slug), JSON.stringify(items));
+}
+
+export function clearStorefrontCart(slug: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(storefrontCartKey(slug));
 }
 
 export function getAccessToken(): string | null {

@@ -7,10 +7,16 @@ import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 
-const PUBLIC_PATHS = new Set(["/login", "/register"]);
+const AUTH_PUBLIC_PATHS = new Set(["/login", "/register"]);
+const PUBLIC_PREFIXES = ["/storefront"];
 
 function isPublicPath(pathname: string) {
-  return PUBLIC_PATHS.has(pathname);
+  if (AUTH_PUBLIC_PATHS.has(pathname)) return true;
+  return PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function isAuthPublicPath(pathname: string) {
+  return AUTH_PUBLIC_PATHS.has(pathname);
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -19,6 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, ready } = useAuth();
 
   const publicPath = isPublicPath(pathname);
+  const authPublicPath = isAuthPublicPath(pathname);
 
   useEffect(() => {
     if (!ready) return;
@@ -28,10 +35,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (publicPath && isAuthenticated) {
+    if (authPublicPath && isAuthenticated) {
       router.replace("/dashboard");
     }
-  }, [isAuthenticated, publicPath, ready, router]);
+  }, [authPublicPath, isAuthenticated, publicPath, ready, router]);
 
   if (publicPath) {
     return <div className="min-h-dvh bg-white text-zinc-950 dark:bg-black dark:text-zinc-50">{children}</div>;
