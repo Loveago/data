@@ -1,13 +1,13 @@
-"use client";
-
 import { StorefrontCartProvider } from "@/context/StorefrontCartContext";
 
-export default function StorefrontLayout({
-  children,
-  params,
-}: {
+type LayoutParams = Promise<{ slug: string }> | { slug: string };
+
+type StorefrontLayoutProps = {
   children: React.ReactNode;
-  params: { slug: string };
-}) {
-  return <StorefrontCartProvider slug={params.slug}>{children}</StorefrontCartProvider>;
+  params: LayoutParams;
+};
+
+export default async function StorefrontLayout({ children, params }: StorefrontLayoutProps) {
+  const resolvedParams = await Promise.resolve(params);
+  return <StorefrontCartProvider slug={resolvedParams.slug}>{children}</StorefrontCartProvider>;
 }
