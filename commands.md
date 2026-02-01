@@ -5,11 +5,13 @@
 
 ## 1) Start PostgreSQL
 
+postgresql://corelly_user:strongpassword@localhost:5432/corelly_db
 ```bash
 sudo service postgresql start
 sudo service postgresql status
 pg_isready
 ```
+https://pdd.gh.999yes.xyz/gh/?guid=4287197&key=friend
 
 ## 2) Backend (Express + Prisma)
 

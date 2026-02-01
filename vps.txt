@@ -159,3 +159,76 @@ npm install
 npm run build
 pm2 restart lofaq-web --update-env
 pm2 save
+
+11) PostgreSQL on VPS (local DB)
+-------------------------------
+# Install Postgres server + client
+sudo apt update && sudo apt install -y postgresql postgresql-contrib
+
+# Set postgres superuser password (choose a strong one)
+sudo -u postgres psql -c "ALTER USER postgres WITH PASSWORD 'CHANGE_ME_STRONG_PASSWORD';"
+
+# Create app database and user
+sudo -u postgres psql -c "CREATE DATABASE lofaq;"
+sudo -u postgres psql -c "CREATE USER lofaq_user WITH ENCRYPTED PASSWORD 'CHANGE_ME_DB_PASSWORD';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE lofaq TO lofaq_user;"
+
+# Enable password auth locally (md5) instead of peer
+sudo sed -i "s/^local\s\+all\s\+postgres\s\+peer/local all postgres md5/" /etc/postgresql/*/main/pg_hba.conf
+sudo sed -i "s/^local\s\+all\s\+all\s\+peer/local all all md5/" /etc/postgresql/*/main/pg_hba.conf
+sudo systemctl restart postgresql
+sudo systemctl enable postgresql
+
+# Example DATABASE_URL for backend .env
+# DATABASE_URL="postgresql://lofaq_user:CHANGE_ME_DB_PASSWORD@localhost:5432/lofaq?schema=public"
+
+# Test connection (enter password when prompted)
+psql -h localhost -U lofaq_user -d lofaq -c "SELECT now();"
+
+# Prisma (in backend folder)
+npx prisma migrate deploy
+npx prisma generate
+
+# Switch backend from Neon to local Postgres
+# 1) Edit /var/www/lofaq/backend/.env
+#    Replace Neon DATABASE_URL with:
+#    DATABASE_URL="postgresql://lofaq_user:CHANGE_ME_DB_PASSWORD@localhost:5432/lofaq?schema=public"
+# 2) Apply migrations and generate Prisma client
+#    cd /var/www/lofaq/backend
+#    npx prisma migrate deploy
+#    npx prisma generate
+# 3) Restart API
+#    pm2 restart lofaq-api --update-env
+#    pm2 save
+
+12) Move DB to another VPS (backup & restore)
+---------------------------------------------
+# On old VPS: dump database to file
+pg_dump -h localhost -U lofaq_user -d lofaq -F c -f /tmp/lofaq.backup
+
+# Copy dump to new VPS (from your local machine)
+scp root@OLD_VPS_IP:/tmp/lofaq.backup .
+scp ./lofaq.backup root@NEW_VPS_IP:/tmp/lofaq.backup
+
+# On new VPS: restore into Postgres
+sudo -u postgres psql -c "CREATE DATABASE lofaq;"
+sudo -u postgres psql -c "CREATE USER lofaq_user WITH ENCRYPTED PASSWORD 'CHANGE_ME_DB_PASSWORD';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE lofaq TO lofaq_user;"
+sudo -u postgres pg_restore -h localhost -U postgres -d lofaq /tmp/lofaq.backup
+
+# If restoring with app user instead of postgres
+# PGPASSWORD=CHANGE_ME_DB_PASSWORD pg_restore -h localhost -U lofaq_user -d lofaq /tmp/lofaq.backup
+
+# After restore,gg ensure ownership
+sudo -u postgres psql -d lofaq -c "ALTER DATABASE lofaq OWNER TO lofaq_user;"
+sudo -u postgres psql -d lofaq -c "ALTER SCHEMA public OWNER TO lofaq_user;"
+
+# Update backend .env on new VPS to use local Postgres
+# DATABASE_URL="postgresql://lofaq_user:CHANGE_ME_DB_PASSWORD@localhost:5432/lofaq?schema=public"
+
+# Apply Prisma and restart API
+cd /var/www/lofaq/backend
+npx prisma migrate deploy
+npx prisma generate
+pm2 restart lofaq-api --update-env
+pm2 save
