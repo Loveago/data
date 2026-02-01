@@ -62,6 +62,10 @@ async function ensureStorefrontForUser(user) {
       });
       return storefront;
     } catch (e) {
+      if (e?.code === 'P2002') {
+        const existing = await prisma.agentStorefront.findUnique({ where: { userId: user.id } });
+        if (existing) return existing;
+      }
       attempt += 1;
       if (attempt >= 5) throw e;
     }
