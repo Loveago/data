@@ -1114,14 +1114,14 @@ function DashboardInner() {
                             <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
                               <th className="py-3">Bundle</th>
                               <th className="py-3">Network</th>
-                              <th className="py-3">Base price</th>
+                              <th className="py-3">Agent price</th>
                               <th className="py-3">Your price</th>
                               <th className="py-3 text-right">Profit</th>
                             </tr>
                           </thead>
                           <tbody>
                             {filteredStorefrontItems.map((item) => {
-                              const base = Number(item.product.price);
+                              const base = Number(item.product.agentPrice ?? item.product.price);
                               const priceValue = storefrontPrices[item.product.id] ?? item.sellPrice ?? "";
                               const sell = Number(priceValue);
                               const profit = Number.isFinite(sell) && Number.isFinite(base) ? sell - base : null;

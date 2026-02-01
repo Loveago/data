@@ -207,8 +207,9 @@ router.put(
         err.statusCode = 400;
         throw err;
       }
-      if (sellPrice.lt(product.price)) {
-        const err = new Error('Sell price cannot be lower than base price');
+      const basePrice = product.agentPrice ?? product.price;
+      if (sellPrice.lt(basePrice)) {
+        const err = new Error('Sell price cannot be lower than agent price');
         err.statusCode = 400;
         throw err;
       }
