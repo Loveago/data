@@ -19,10 +19,6 @@ export default function StorefrontCheckoutPage() {
 
   const { items, subtotal, clear, removeItem, setQuantity } = useStorefrontCart();
 
-  const [customerName, setCustomerName] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [customerAddress, setCustomerAddress] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paystackFee, setPaystackFee] = useState<number>(0);
@@ -70,16 +66,8 @@ export default function StorefrontCheckoutPage() {
     setSubmitting(true);
     setError(null);
     try {
-      if (!customerName || !customerEmail || !customerPhone) {
-        setError("Please fill your name, email, and phone number.");
-        return;
-      }
       const callbackUrl = `${window.location.origin}/storefront/${slug}/paystack`;
       const res = await api.post("/payments/paystack/initialize-storefront", {
-        customerName,
-        customerEmail,
-        customerPhone,
-        customerAddress,
         items: orderItems,
         callbackUrl,
         storefrontSlug: slug,
@@ -93,10 +81,10 @@ export default function StorefrontCheckoutPage() {
           `gigshub_storefront_paystack_pending:${slug}`,
           JSON.stringify({
             reference,
-            customerName,
-            customerEmail,
-            customerPhone,
-            customerAddress,
+            customerName: res.data?.customer?.name,
+            customerEmail: res.data?.customer?.email,
+            customerPhone: res.data?.customer?.phone,
+            customerAddress: res.data?.customer?.address,
             storefrontSlug: slug,
           })
         );
@@ -128,118 +116,88 @@ export default function StorefrontCheckoutPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:py-10">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
+          <p className="uppercase text-xs font-semibold tracking-[0.35em] text-zinc-400">Storefront</p>
           <h1 className="text-3xl font-extrabold tracking-tight">Checkout</h1>
           <p className="mt-1 text-sm text-zinc-600">{items.length} item{items.length === 1 ? "" : "s"} ready to purchase</p>
         </div>
-        <Link href={`/storefront/${slug}`} className="text-sm font-semibold text-zinc-700 hover:text-zinc-950">
+        <Link href={`/storefront/${slug}`} className="text-sm font-semibold text-blue-700 hover:text-blue-900">
           Continue shopping
         </Link>
       </div>
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <div className="space-y-4">
-            {items.map((it) => {
-              const meta = getNetworkMeta({ slug: it.categorySlug, name: it.categoryName });
-              return (
-                <div key={it.id} className="rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex min-w-0 flex-1 gap-4">
-                      <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/5">
-                        {meta.icon ? <img src={meta.icon} alt="" className="h-10 w-10 object-contain" /> : <span className="text-sm font-bold">{meta.initials}</span>}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-base font-semibold text-zinc-900">{it.name}</div>
-                        <div className="mt-1 text-xs text-zinc-500">
-                          {String(it.categorySlug || meta.label).toLowerCase()} {it.recipientPhone ? `• ${it.recipientPhone}` : ""}
-                        </div>
-                        <div className="mt-4 flex flex-wrap items-center gap-3">
-                          <div className="inline-flex items-center rounded-2xl border border-zinc-200 bg-white/70 p-1">
-                            <button
-                              type="button"
-                              onClick={() => setQuantity(it.id, it.quantity - 1)}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-zinc-700 transition hover:bg-zinc-100"
-                              aria-label="Decrease quantity"
-                            >
-                              −
-                            </button>
-                            <div className="h-9 w-10 select-none text-center text-sm font-semibold leading-9 text-zinc-900">{it.quantity}</div>
-                            <button
-                              type="button"
-                              onClick={() => setQuantity(it.id, it.quantity + 1)}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-zinc-700 transition hover:bg-zinc-100"
-                              aria-label="Increase quantity"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="space-y-4">
+          {items.map((it) => {
+            const meta = getNetworkMeta({ slug: it.categorySlug, name: it.categoryName });
+            return (
+              <div key={it.id} className="rounded-3xl border border-zinc-200/70 bg-white/90 p-4 shadow-soft backdrop-blur">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 flex-1 gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/5">
+                      {meta.icon ? <img src={meta.icon} alt="" className="h-10 w-10 object-contain" /> : <span className="text-sm font-bold">{meta.initials}</span>}
                     </div>
-
-                    <div className="flex shrink-0 flex-col items-end gap-3">
-                      <div className="text-sm font-semibold text-blue-700">{formatMoney(it.price * it.quantity)}</div>
-                      <button
-                        type="button"
-                        onClick={() => removeItem(it.id)}
-                        className="inline-flex items-center gap-2 text-xs font-semibold text-red-600 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-base font-semibold text-zinc-900">{it.name}</div>
+                      <div className="mt-1 text-xs text-zinc-500">
+                        {String(it.categorySlug || meta.label).toLowerCase()} {it.recipientPhone ? `• ${it.recipientPhone}` : ""}
+                      </div>
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <div className="inline-flex items-center rounded-2xl border border-zinc-200 bg-white/70 p-1">
+                          <button
+                            type="button"
+                            onClick={() => setQuantity(it.id, it.quantity - 1)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-zinc-700 transition hover:bg-zinc-100"
+                            aria-label="Decrease quantity"
+                          >
+                            −
+                          </button>
+                          <div className="h-9 w-10 select-none text-center text-sm font-semibold leading-9 text-zinc-900">{it.quantity}</div>
+                          <button
+                            type="button"
+                            onClick={() => setQuantity(it.id, it.quantity + 1)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-zinc-700 transition hover:bg-zinc-100"
+                            aria-label="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
 
-          <details open className="mt-6 rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur">
-            <summary className="cursor-pointer select-none text-sm font-semibold text-zinc-900">Customer details</summary>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div>
-                <div className="text-xs font-semibold text-zinc-600">Full name</div>
-                <input
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Your name"
-                  className="mt-2 h-11 w-full rounded-2xl border border-zinc-200 bg-white/70 px-4 text-sm outline-none backdrop-blur transition-all focus:border-blue-400"
-                />
+                  <div className="flex shrink-0 flex-col items-end gap-3">
+                    <div className="text-sm font-semibold text-blue-700">{formatMoney(it.price * it.quantity)}</div>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(it.id)}
+                      className="inline-flex items-center gap-2 text-xs font-semibold text-red-600 hover:text-red-700"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="text-xs font-semibold text-zinc-600">Email</div>
-                <input
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="you@email.com"
-                  className="mt-2 h-11 w-full rounded-2xl border border-zinc-200 bg-white/70 px-4 text-sm outline-none backdrop-blur transition-all focus:border-blue-400"
-                />
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-zinc-600">Phone</div>
-                <input
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="0240000000"
-                  className="mt-2 h-11 w-full rounded-2xl border border-zinc-200 bg-white/70 px-4 text-sm outline-none backdrop-blur transition-all focus:border-blue-400"
-                />
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-zinc-600">Address</div>
-                <input
-                  value={customerAddress}
-                  onChange={(e) => setCustomerAddress(e.target.value)}
-                  placeholder="Optional"
-                  className="mt-2 h-11 w-full rounded-2xl border border-zinc-200 bg-white/70 px-4 text-sm outline-none backdrop-blur transition-all focus:border-blue-400"
-                />
-              </div>
-            </div>
-          </details>
+            );
+          })}
         </div>
 
-        <div className="rounded-3xl border border-zinc-200/70 bg-white/80 p-6 shadow-soft backdrop-blur lg:sticky lg:top-24">
+        <details open className="mt-6 rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur">
+          <summary className="cursor-pointer select-none text-sm font-semibold text-zinc-900">Customer details</summary>
+          <div className="rounded-3xl border border-zinc-200/70 bg-white/90 p-5 shadow-soft backdrop-blur">
+            <div className="flex flex-col gap-3 text-sm text-zinc-600">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-blue-100 text-center text-sm font-semibold leading-8 text-blue-700">1</div>
+                <span className="font-semibold text-zinc-900">Instant checkout</span>
+              </div>
+              <p>No registration needed. We’ll email an e-receipt to a guest inbox and keep you updated via SMS.</p>
+            </div>
+          </div>
+        </details>
+
+        <div className="rounded-3xl border border-zinc-200/70 bg-white/90 p-6 shadow-soft backdrop-blur lg:sticky lg:top-24">
           <h2 className="text-lg font-semibold">Order Summary</h2>
 
           <div className="mt-5 space-y-3 text-sm">
@@ -267,13 +225,28 @@ export default function StorefrontCheckoutPage() {
             type="button"
             disabled={submitting}
             onClick={() => payWithPaystack()}
-            className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-600 bg-white/80 text-sm font-semibold text-blue-700 shadow-soft transition-all hover:-translate-y-0.5 hover:bg-blue-50 disabled:opacity-60 disabled:hover:translate-y-0"
+            className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-600 bg-white text-sm font-semibold text-blue-700 shadow-soft transition-all hover:-translate-y-0.5 hover:bg-blue-50 disabled:opacity-60 disabled:hover:translate-y-0"
           >
-            {submitting ? "Redirecting..." : "Paystack MoMo"}
+            {submitting ? "Redirecting..." : "Pay with Paystack MoMo"}
           </button>
 
           <div className="mt-5 text-center text-xs font-semibold text-zinc-500">MTN MoMo • Telecel Cash • AT-Money</div>
         </div>
+      </div>
+
+      <div className="mt-6 flex flex-col gap-3 rounded-3xl border border-zinc-200/70 bg-white/90 p-5 text-sm text-zinc-600 shadow-soft backdrop-blur lg:hidden">
+        <div className="flex items-center justify-between font-semibold text-zinc-900">
+          <span>Total</span>
+          <span>{formatMoney(paystackTotal)}</span>
+        </div>
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={() => payWithPaystack()}
+          className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-blue-600 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5 disabled:opacity-60"
+        >
+          {submitting ? "Redirecting..." : "Pay now"}
+        </button>
       </div>
     </div>
   );

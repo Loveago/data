@@ -49,6 +49,24 @@ function resolveUnitPrice(product, role) {
   return product.price;
 }
 
+function normalizeString(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function generateGuestEmail(slug) {
+  const base = String(slug || 'storefront').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const safe = base || 'storefront';
+  return `${safe}-${Date.now()}@guest.lofaq.store`;
+}
+
+function ensureCustomerDetails(storefrontSlug, raw = {}) {
+  const name = normalizeString(raw.customerName) || 'Guest Buyer';
+  const email = normalizeString(raw.customerEmail) || generateGuestEmail(storefrontSlug);
+  const phone = normalizeString(raw.customerPhone) || '0000000000';
+  const address = normalizeString(raw.customerAddress);
+  return { name, email, phone, address };
+}
+
 function computeAgentProfit(items) {
   let profit = new Prisma.Decimal('0');
   for (const it of items) {
@@ -226,7 +244,7 @@ async function computeStorefrontOrderFromItems(items, storefrontId) {
       recipientPhone: it.recipientPhone,
       unitPrice: sellPrice,
       lineTotal,
-      agentCostPrice: basePrice,
+      agentCostPrice: new Prisma.Decimal(basePrice),
     };
   });
 
@@ -280,19 +298,24 @@ router.post(
 router.post(
   '/paystack/initialize-storefront',
   asyncHandler(async (req, res) => {
-    const { customerName, customerEmail, customerPhone, customerAddress, items, callbackUrl, storefrontSlug } = req.body || {};
-    const normalizedCustomerAddress = customerAddress ? String(customerAddress) : '';
+    const { items, callbackUrl, storefrontSlug, customerName, customerEmail, customerPhone, customerAddress } = req.body || {};
 
     if (!storefrontSlug) return res.status(400).json({ error: 'Missing storefront slug' });
-    if (!customerName || !customerEmail || !customerPhone) {
-      return res.status(400).json({ error: 'Missing customer fields' });
-    }
     if (!callbackUrl) {
       return res.status(400).json({ error: 'Missing callbackUrl' });
     }
 
     const storefront = await prisma.agentStorefront.findUnique({ where: { slug: String(storefrontSlug) } });
     if (!storefront) return res.status(404).json({ error: 'Storefront not found' });
+
+    const customerDetails = ensureCustomerDetails(storefront.slug, {
+      customerName,
+      customerEmail,
+      customerPhone,
+      customerAddress,
+    });
+
+    const { name, email, phone, address } = customerDetails;
 
     const { normalized, subtotal, total } = await computeStorefrontOrderFromItems(items, storefront.id);
 
@@ -302,7 +325,7 @@ router.post(
     const secretKey = assertPaystackKey();
 
     const payload = {
-      email: customerEmail,
+      email,
       amount: grossAmountPesewas,
       callback_url: callbackUrl,
       metadata: {
@@ -310,10 +333,10 @@ router.post(
         storefrontSlug: storefront.slug,
         storefrontId: storefront.id,
         agentUserId: storefront.userId,
-        customerName,
-        customerEmail,
-        customerPhone,
-        customerAddress: normalizedCustomerAddress,
+        customerName: name,
+        customerEmail: email,
+        customerPhone: phone,
+        customerAddress: address,
         items: normalized,
         netAmountPesewas: netPesewas,
         grossAmountPesewas,
@@ -347,6 +370,7 @@ router.post(
       subtotal: String(subtotal),
       fee: (feePesewas / 100).toFixed(2),
       total: (grossAmountPesewas / 100).toFixed(2),
+      customer: customerDetails,
     });
   })
 );
@@ -513,18 +537,9 @@ router.post(
     if (!existing) {
       const isStorefrontOrder = String(verifiedMeta.type || '') === 'storefront_order';
       const items = verifiedMeta.items ?? bodyItems;
-      const customerName = verifiedMeta.customerName ?? bodyCustomerName;
-      const customerEmail = verifiedMeta.customerEmail ?? bodyCustomerEmail;
-      const customerPhone = verifiedMeta.customerPhone ?? bodyCustomerPhone;
-      const customerAddressRaw = verifiedMeta.customerAddress ?? bodyCustomerAddress;
-      const customerAddress = customerAddressRaw ? String(customerAddressRaw) : '';
 
       if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'Missing order items' });
-      }
-
-      if (!customerName || !customerEmail || !customerPhone) {
-        return res.status(400).json({ error: 'Missing customer fields' });
       }
 
       if (isStorefrontOrder) {
@@ -535,6 +550,14 @@ router.post(
 
         const storefront = await prisma.agentStorefront.findUnique({ where: { slug: String(storefrontSlug) } });
         if (!storefront) return res.status(404).json({ error: 'Storefront not found' });
+
+        const customerDetails = ensureCustomerDetails(storefront.slug, {
+          customerName: verifiedMeta.customerName ?? bodyCustomerName,
+          customerEmail: verifiedMeta.customerEmail ?? bodyCustomerEmail,
+          customerPhone: verifiedMeta.customerPhone ?? bodyCustomerPhone,
+          customerAddress: verifiedMeta.customerAddress ?? bodyCustomerAddress,
+        });
+        const { name, email, phone, address } = customerDetails;
 
         const { normalized, subtotal, total, orderItemsData } = await computeStorefrontOrderFromItems(items, storefront.id);
         const netPesewas = toPesewas(total);
@@ -566,10 +589,10 @@ router.post(
               userId: storefront.userId,
               agentStorefrontId: storefront.id,
               agentProfitCreditedAt: new Date(),
-              customerName: String(customerName),
-              customerEmail: String(customerEmail),
-              customerPhone: String(customerPhone),
-              customerAddress,
+              customerName: name,
+              customerEmail: email,
+              customerPhone: phone,
+              customerAddress: address,
               subtotal,
               total: pesewasToDecimal(grossAmountPesewas),
               paymentProvider: 'paystack',
