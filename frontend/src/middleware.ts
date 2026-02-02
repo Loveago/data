@@ -17,10 +17,14 @@ export function middleware(request: NextRequest) {
 
   const authed = request.cookies.get("gigshub_authed")?.value === "1";
 
-  if (PUBLIC_PATHS.has(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+  if (PUBLIC_PATHS.has(pathname)) {
     if (authed) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
+    return NextResponse.next();
+  }
+
+  if (PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
     return NextResponse.next();
   }
 
