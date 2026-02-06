@@ -1006,29 +1006,50 @@ function DashboardInner() {
                   ) : null}
                 </div>
 
-                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800/70 dark:bg-zinc-950/70 lg:col-span-2">
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-6 shadow-soft backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800/70 dark:bg-zinc-950/70 lg:col-span-2">
                   <div className="pointer-events-none absolute -left-10 -top-10 h-36 w-36 rounded-full bg-gradient-to-br from-amber-500/20 via-orange-400/15 to-rose-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="text-xs font-semibold tracking-wide text-zinc-500">Referral Program</div>
-                      <div className="mt-2 text-lg font-semibold">Earn 3% on every purchase</div>
-                      <div className="mt-1 text-xs text-zinc-500">Share your referral code. When someone signs up and buys, you earn 3% of their order into your wallet.</div>
-                    </div>
+                  <div>
+                    <div className="text-xs font-semibold tracking-wide text-zinc-500">Referral Program</div>
+                    <div className="mt-2 text-lg font-semibold">Earn 3% on every purchase</div>
+                    <div className="mt-1 text-sm text-zinc-500">Share your affiliate link below. When someone signs up through your link and makes a purchase, you earn 3% of their order value directly into your wallet.</div>
                   </div>
+
                   {user?.referralCode ? (
-                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <div className="flex h-10 flex-1 items-center rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm font-mono font-semibold tracking-wider text-zinc-900 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-100">
-                        {user.referralCode}
+                    <div className="mt-5 space-y-4">
+                      <div>
+                        <div className="text-xs font-semibold text-zinc-500 mb-1.5">Your Referral Code</div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <div className="flex h-10 flex-1 items-center rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm font-mono font-bold tracking-widest text-zinc-900 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-100">
+                            {user.referralCode}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { void navigator.clipboard.writeText(user?.referralCode || ""); }}
+                            className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-white/70 px-4 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-zinc-50 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-200"
+                          >
+                            Copy code
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void navigator.clipboard.writeText(user?.referralCode || "");
-                        }}
-                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95"
-                      >
-                        Copy code
-                      </button>
+
+                      <div>
+                        <div className="text-xs font-semibold text-zinc-500 mb-1.5">Your Affiliate Link</div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <div className="flex h-10 flex-1 items-center overflow-x-auto rounded-xl border border-amber-200/70 bg-amber-50/50 px-3 text-sm font-medium text-zinc-800 backdrop-blur dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-zinc-100">
+                            {typeof window !== "undefined" ? `${window.location.origin}/register?ref=${user.referralCode}` : `/register?ref=${user.referralCode}`}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const link = `${window.location.origin}/register?ref=${user?.referralCode || ""}`;
+                              void navigator.clipboard.writeText(link);
+                            }}
+                            className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95"
+                          >
+                            Copy link
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ) : null}
                 </div>
