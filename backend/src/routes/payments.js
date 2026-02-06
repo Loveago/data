@@ -79,6 +79,30 @@ function computeAgentProfit(items) {
   return profit;
 }
 
+const REFERRAL_BONUS_PERCENT = new Prisma.Decimal('0.03');
+
+async function creditReferralBonus(tx, userId, subtotal, orderCode) {
+  if (!userId) return;
+  const buyer = await tx.user.findUnique({ where: { id: String(userId) }, select: { referredById: true } });
+  if (!buyer?.referredById) return;
+
+  const bonus = new Prisma.Decimal(subtotal).mul(REFERRAL_BONUS_PERCENT);
+  if (bonus.isZero() || bonus.isNegative()) return;
+
+  const rounded = new Prisma.Decimal(bonus.toFixed(2));
+  if (rounded.isZero()) return;
+
+  await tx.user.update({ where: { id: buyer.referredById }, data: { walletBalance: { increment: rounded } } });
+  await tx.walletTransaction.create({
+    data: {
+      userId: buyer.referredById,
+      type: 'REFERRAL_BONUS',
+      amount: rounded,
+      reference: `REF_BONUS:${orderCode || 'order'}`,
+    },
+  });
+}
+
 function publicUser(user) {
   return {
     id: user.id,
@@ -664,7 +688,7 @@ router.post(
           });
         }
 
-        return tx.order.create({
+        const order = await tx.order.create({
           data: {
             orderCode: generateOrderCode(),
             userId: String(userId),
@@ -689,6 +713,9 @@ router.post(
           },
           include: { items: { include: { product: true } } },
         });
+
+        await creditReferralBonus(tx, String(userId), subtotal, order.orderCode);
+        return order;
       });
 
       queueHubnetForOrder(created.id).catch((e) => console.error(e));
@@ -753,6 +780,7 @@ router.post(
         include: { items: { include: { product: true } } },
       });
       await creditAgentProfitForOrder(tx, updatedOrder);
+      await creditReferralBonus(tx, updatedOrder.userId, updatedOrder.subtotal, updatedOrder.orderCode);
       return updatedOrder;
     });
 
@@ -826,7 +854,7 @@ router.post(
         throw err;
       }
 
-      return tx.order.create({
+      const created = await tx.order.create({
         data: {
           orderCode: generateOrderCode(),
           userId,
@@ -849,6 +877,9 @@ router.post(
         },
         include: { items: { include: { product: true } } },
       });
+
+      await creditReferralBonus(tx, userId, subtotal, created.orderCode);
+      return created;
     });
 
     queueHubnetForOrder(order.id).catch((e) => console.error(e));

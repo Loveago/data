@@ -19,7 +19,7 @@ type AuthContextValue = {
   ready: boolean;
   isAuthenticated: boolean;
   login: (payload: { email: string; password: string }) => Promise<void>;
-  register: (payload: { email: string; password: string; name?: string; phone?: string }) => Promise<void>;
+  register: (payload: { email: string; password: string; name?: string; phone?: string; referralCode?: string }) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   updateSession: (payload: { user?: User | null; accessToken?: string | null; refreshToken?: string | null }) => void;
@@ -76,8 +76,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthCookie(true);
     };
 
-    const register: AuthContextValue["register"] = async ({ email, password, name, phone }) => {
-      const res = await api.post("/auth/register", { email, password, name, phone });
+    const register: AuthContextValue["register"] = async ({ email, password, name, phone, referralCode }) => {
+      const res = await api.post("/auth/register", { email, password, name, phone, referralCode });
       const data = res.data as { user: User; accessToken: string; refreshToken: string };
       setState({ user: data.user, accessToken: data.accessToken, refreshToken: data.refreshToken });
       setAuthCookie(true);

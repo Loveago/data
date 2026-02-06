@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -23,7 +24,7 @@ export default function RegisterPage() {
     setError(null);
     setSuccess(false);
     try {
-      await register({ email, password, name: name || undefined, phone: phone || undefined });
+      await register({ email, password, name: name || undefined, phone: phone || undefined, referralCode: referralCode.trim() || undefined });
       setSuccess(true);
       await new Promise((r) => setTimeout(r, 650));
       router.push("/dashboard");
@@ -58,7 +59,7 @@ export default function RegisterPage() {
             <h1 className="mt-6 text-5xl font-extrabold leading-[1.02] tracking-tight text-slate-900 dark:text-white">
               Join the
               <br />
-              <span className="text-gradient-blue">Lofaq Data Hub</span>
+              <span className="text-gradient-blue">LOFAQ DATA HUB</span>
             </h1>
 
             <p className="mt-4 max-w-xl text-base leading-7 text-slate-600 dark:text-zinc-300">
@@ -151,6 +152,16 @@ export default function RegisterPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Create a password"
+                      className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Referral Code <span className="text-zinc-400 dark:text-zinc-500">(optional)</span></label>
+                    <input
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value)}
+                      placeholder="e.g. LFQ-A1B2C3D4"
                       className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm outline-none transition-all focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20"
                     />
                   </div>

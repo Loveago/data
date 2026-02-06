@@ -23,6 +23,8 @@ enum OrderStatus {
 enum WalletTransactionType {
   DEPOSIT
   SPEND
+  WITHDRAWAL
+  REFERRAL_BONUS
 }
 
 enum HubnetFulfillmentStatus {
@@ -48,6 +50,12 @@ model User {
   phone               String?
   role                Role     @default(USER)
   walletBalance        Decimal  @default(0) @db.Decimal(12, 2)
+  referralCode        String?  @unique
+  referredById        String?
+  referredBy          User?    @relation("Referrals", fields: [referredById], references: [id])
+  referrals           User[]   @relation("Referrals")
+  passwordResetToken     String?
+  passwordResetExpiresAt DateTime?
   refreshTokenHash    String?
   refreshTokenExpiresAt DateTime?
   notificationsClearedAt DateTime?

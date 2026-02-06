@@ -196,6 +196,12 @@ function DashboardInner() {
   const [depositError, setDepositError] = useState<string | null>(null);
   const [depositFee, setDepositFee] = useState<number>(0);
   const [depositTotal, setDepositTotal] = useState<number>(0);
+  const [withdrawAmount, setWithdrawAmount] = useState<string>("");
+  const [withdrawBusy, setWithdrawBusy] = useState(false);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [withdrawSuccess, setWithdrawSuccess] = useState<string | null>(null);
+  const [withdrawFee, setWithdrawFee] = useState<string>("0");
+  const [withdrawTotal, setWithdrawTotal] = useState<string>("0");
   const [upgradeBusy, setUpgradeBusy] = useState(false);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
 
@@ -540,6 +546,60 @@ function DashboardInner() {
       setDepositError(maybeError?.response?.data?.error || "Failed to start deposit.");
     } finally {
       setDepositBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    const amount = Number(withdrawAmount);
+
+    async function loadWithdrawQuote() {
+      try {
+        const res = await api.post<{ amount: string; fee: string; totalDeducted: string }>("/wallet/withdraw/quote", { amount });
+        if (cancelled) return;
+        setWithdrawFee(res.data?.fee || "0");
+        setWithdrawTotal(res.data?.totalDeducted || "0");
+      } catch {
+        if (cancelled) return;
+        setWithdrawFee("0");
+        setWithdrawTotal("0");
+      }
+    }
+
+    if (isAuthenticated && Number.isFinite(amount) && amount >= 50) {
+      const t = window.setTimeout(() => { loadWithdrawQuote(); }, 300);
+      return () => { cancelled = true; window.clearTimeout(t); };
+    }
+
+    setWithdrawFee("0");
+    setWithdrawTotal("0");
+    return () => { cancelled = true; };
+  }, [withdrawAmount, isAuthenticated]);
+
+  async function withdrawFromWallet() {
+    setWithdrawBusy(true);
+    setWithdrawError(null);
+    setWithdrawSuccess(null);
+    try {
+      const amount = Number(withdrawAmount);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setWithdrawError("Enter a valid amount.");
+        return;
+      }
+      if (amount < 50) {
+        setWithdrawError("Minimum withdrawal is GHS 50.");
+        return;
+      }
+
+      const res = await api.post<{ walletBalance: string; withdrawn: string; fee: string; totalDeducted: string }>("/wallet/withdraw", { amount });
+      setWalletBalance(res.data.walletBalance || "0");
+      setWithdrawSuccess(`GHS ${res.data.withdrawn} withdrawn (fee: GHS ${res.data.fee}).`);
+      setWithdrawAmount("");
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setWithdrawError(maybeError?.response?.data?.error || "Withdrawal failed.");
+    } finally {
+      setWithdrawBusy(false);
     }
   }
 
@@ -945,6 +1005,33 @@ function DashboardInner() {
                     </div>
                   ) : null}
                 </div>
+
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800/70 dark:bg-zinc-950/70 lg:col-span-2">
+                  <div className="pointer-events-none absolute -left-10 -top-10 h-36 w-36 rounded-full bg-gradient-to-br from-amber-500/20 via-orange-400/15 to-rose-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs font-semibold tracking-wide text-zinc-500">Referral Program</div>
+                      <div className="mt-2 text-lg font-semibold">Earn 3% on every purchase</div>
+                      <div className="mt-1 text-xs text-zinc-500">Share your referral code. When someone signs up and buys, you earn 3% of their order into your wallet.</div>
+                    </div>
+                  </div>
+                  {user?.referralCode ? (
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <div className="flex h-10 flex-1 items-center rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm font-mono font-semibold tracking-wider text-zinc-900 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-100">
+                        {user.referralCode}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(user?.referralCode || "");
+                        }}
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95"
+                      >
+                        Copy code
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </>
             ) : null}
 
@@ -1225,6 +1312,52 @@ function DashboardInner() {
                   {depositError ? (
                     <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
                       {depositError}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-800">
+                  <div className="text-sm font-semibold">Withdraw</div>
+                  <div className="mt-1 text-xs text-zinc-500">Withdraw funds from your wallet. 2% fee applies. Minimum GHS 50.</div>
+
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      value={withdrawAmount}
+                      onChange={(e) => setWithdrawAmount(e.target.value)}
+                      placeholder="Withdrawal amount (GHS)"
+                      className="h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-orange-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-orange-500"
+                    />
+                    <button
+                      type="button"
+                      disabled={withdrawBusy}
+                      onClick={() => withdrawFromWallet()}
+                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
+                    >
+                      {withdrawBusy ? "..." : "Withdraw"}
+                    </button>
+                  </div>
+
+                  {Number(withdrawFee) > 0 ? (
+                    <>
+                      <div className="mt-2 flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+                        <span>2% fee</span>
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatMoney(withdrawFee)}</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+                        <span>Total deducted</span>
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatMoney(withdrawTotal)}</span>
+                      </div>
+                    </>
+                  ) : null}
+
+                  {withdrawError ? (
+                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+                      {withdrawError}
+                    </div>
+                  ) : null}
+                  {withdrawSuccess ? (
+                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200">
+                      {withdrawSuccess}
                     </div>
                   ) : null}
                 </div>

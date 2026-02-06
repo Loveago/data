@@ -217,4 +217,95 @@ router.post(
   })
 );
 
+const WITHDRAWAL_FEE_PERCENT = new Prisma.Decimal('0.02');
+const WITHDRAWAL_MIN_GHS = new Prisma.Decimal('50');
+
+router.post(
+  '/withdraw',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const userId = req.user.sub;
+    const { amount: rawAmount } = req.body || {};
+
+    const amount = Number(rawAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid withdrawal amount' });
+    }
+
+    const amountDec = new Prisma.Decimal(amount.toFixed(2));
+
+    if (amountDec.lt(WITHDRAWAL_MIN_GHS)) {
+      return res.status(400).json({ error: `Minimum withdrawal is GHS ${WITHDRAWAL_MIN_GHS}` });
+    }
+
+    const fee = new Prisma.Decimal(amountDec.mul(WITHDRAWAL_FEE_PERCENT).toFixed(2));
+    const totalDeducted = amountDec.add(fee);
+
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { walletBalance: true } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const balance = new Prisma.Decimal(user.walletBalance || '0');
+    if (balance.lt(totalDeducted)) {
+      return res.status(400).json({ error: 'Insufficient wallet balance (amount + 2% fee)' });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.walletTransaction.create({
+        data: {
+          userId,
+          type: 'WITHDRAWAL',
+          amount: amountDec,
+          reference: `WITHDRAW:${Date.now()}`,
+        },
+      });
+
+      if (!fee.isZero()) {
+        await tx.walletTransaction.create({
+          data: {
+            userId,
+            type: 'SPEND',
+            amount: fee,
+            reference: `WITHDRAW_FEE:${Date.now()}`,
+          },
+        });
+      }
+
+      return tx.user.update({
+        where: { id: userId },
+        data: { walletBalance: { decrement: totalDeducted } },
+        select: { walletBalance: true },
+      });
+    });
+
+    return res.json({
+      walletBalance: String(updated.walletBalance),
+      withdrawn: String(amountDec),
+      fee: String(fee),
+      totalDeducted: String(totalDeducted),
+    });
+  })
+);
+
+router.post(
+  '/withdraw/quote',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { amount: rawAmount } = req.body || {};
+    const amount = Number(rawAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    const amountDec = new Prisma.Decimal(amount.toFixed(2));
+    const fee = new Prisma.Decimal(amountDec.mul(WITHDRAWAL_FEE_PERCENT).toFixed(2));
+    const totalDeducted = amountDec.add(fee);
+
+    return res.json({
+      amount: String(amountDec),
+      fee: String(fee),
+      totalDeducted: String(totalDeducted),
+    });
+  })
+);
+
 module.exports = router;

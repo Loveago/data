@@ -7,6 +7,8 @@ export type User = {
   phone: string | null;
   role: Role;
   walletBalance?: string;
+  referralCode?: string | null;
+  referredById?: string | null;
   createdAt: string;
   updatedAt: string;
 };

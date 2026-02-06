@@ -56,7 +56,7 @@ export default function LoginPage() {
             <h1 className="mt-6 text-5xl font-extrabold leading-[1.02] tracking-tight text-slate-900 dark:text-white">
               Welcome back to
               <br />
-              <span className="text-gradient-blue">Lofaq Data Hub</span>
+              <span className="text-gradient-blue">LOFAQ DATA HUB</span>
             </h1>
 
             <p className="mt-4 max-w-xl text-base leading-7 text-slate-600 dark:text-zinc-300">
@@ -122,7 +122,12 @@ export default function LoginPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Password</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Password</label>
+                      <Link href="/forgot-password" className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-300">
+                        Forgot password?
+                      </Link>
+                    </div>
                     <input
                       type="password"
                       value={password}

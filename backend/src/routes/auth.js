@@ -1,5 +1,6 @@
 const express = require('express');
 
+const crypto = require('crypto');
 const { prisma } = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { requireAuth } = require('../middleware/auth');
@@ -7,6 +8,10 @@ const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../ut
 const { hashPassword, verifyPassword, hashToken, verifyToken } = require('../utils/password');
 
 const router = express.Router();
+
+function generateReferralCode() {
+  return 'LFQ-' + crypto.randomBytes(4).toString('hex').toUpperCase();
+}
 
 function publicUser(user) {
   return {
@@ -16,6 +21,8 @@ function publicUser(user) {
     phone: user.phone,
     role: user.role,
     walletBalance: user.walletBalance != null ? String(user.walletBalance) : '0',
+    referralCode: user.referralCode || null,
+    referredById: user.referredById || null,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
   };
@@ -53,7 +60,7 @@ async function issueTokensForUser(user) {
 router.post(
   '/register',
   asyncHandler(async (req, res) => {
-    const { email, password, name, phone } = req.body || {};
+    const { email, password, name, phone, referralCode: refCode } = req.body || {};
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
@@ -66,6 +73,19 @@ router.post(
 
     const passwordHash = await hashPassword(password);
 
+    let referredById = null;
+    if (refCode) {
+      const referrer = await prisma.user.findUnique({ where: { referralCode: String(refCode).trim() } });
+      if (referrer) referredById = referrer.id;
+    }
+
+    let referralCode = generateReferralCode();
+    for (let i = 0; i < 5; i++) {
+      const exists = await prisma.user.findUnique({ where: { referralCode } });
+      if (!exists) break;
+      referralCode = generateReferralCode();
+    }
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -73,6 +93,8 @@ router.post(
         name: name || null,
         phone: phone || null,
         role: 'USER',
+        referralCode,
+        referredById,
       },
     });
 
@@ -248,6 +270,103 @@ router.post(
     const tokens = await issueTokensForUser(updated);
 
     return res.json({ user: publicUser(updated), ...tokens });
+  })
+);
+
+router.post(
+  '/forgot-password',
+  asyncHandler(async (req, res) => {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: String(email).trim() } });
+    if (!user) {
+      return res.json({ message: 'If that email exists, a reset link has been sent.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordResetToken: token, passwordResetExpiresAt: expiresAt },
+    });
+
+    const frontendUrl = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',')[0].trim();
+    const resetLink = `${frontendUrl}/reset-password?token=${token}`;
+
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'LOFAQ DATA HUB <noreply@lofaq.store>';
+
+    if (resendApiKey) {
+      try {
+        const { Resend } = require('resend');
+        const resend = new Resend(resendApiKey);
+        await resend.emails.send({
+          from: fromEmail,
+          to: user.email,
+          subject: 'Reset your LOFAQ DATA HUB password',
+          html: `
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+              <h2 style="color:#1d4ed8">LOFAQ DATA HUB</h2>
+              <p>Hi ${user.name || 'there'},</p>
+              <p>We received a request to reset your password. Click the button below to set a new password:</p>
+              <p style="text-align:center;margin:24px 0">
+                <a href="${resetLink}" style="display:inline-block;padding:12px 28px;background:#1d4ed8;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Reset Password</a>
+              </p>
+              <p style="font-size:13px;color:#666">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+            </div>
+          `,
+        });
+      } catch (e) {
+        console.error('Failed to send reset email via Resend:', e);
+      }
+    } else {
+      console.log('RESEND_API_KEY not set. Reset link:', resetLink);
+    }
+
+    return res.json({ message: 'If that email exists, a reset link has been sent.' });
+  })
+);
+
+router.post(
+  '/reset-password',
+  asyncHandler(async (req, res) => {
+    const { token, newPassword } = req.body || {};
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: String(token),
+        passwordResetExpiresAt: { gte: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const passwordHash = await hashPassword(String(newPassword));
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+      },
+    });
+
+    return res.json({ message: 'Password has been reset successfully. You can now log in.' });
   })
 );
 
