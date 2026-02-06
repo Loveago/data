@@ -13,6 +13,17 @@ function generateReferralCode() {
   return 'LFQ-' + crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
+async function ensureReferralCodeForUser(user) {
+  if (!user || user.referralCode) return user;
+  let referralCode = generateReferralCode();
+  for (let i = 0; i < 5; i++) {
+    const exists = await prisma.user.findUnique({ where: { referralCode } });
+    if (!exists) break;
+    referralCode = generateReferralCode();
+  }
+  return prisma.user.update({ where: { id: user.id }, data: { referralCode } });
+}
+
 function publicUser(user) {
   return {
     id: user.id,
@@ -123,8 +134,9 @@ router.post(
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const tokens = await issueTokensForUser(user);
-    return res.json({ user: publicUser(user), ...tokens });
+    const ensuredUser = await ensureReferralCodeForUser(user);
+    const tokens = await issueTokensForUser(ensuredUser);
+    return res.json({ user: publicUser(ensuredUser), ...tokens });
   })
 );
 
