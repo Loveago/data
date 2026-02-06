@@ -273,6 +273,42 @@ router.post(
   })
 );
 
+router.get(
+  '/referral-info',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const userId = req.user.sub;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        referralCode: true,
+        referrals: {
+          select: { id: true, email: true, name: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const totalEarnings = await prisma.walletTransaction.aggregate({
+      where: { userId, type: 'REFERRAL_BONUS' },
+      _sum: { amount: true },
+    });
+
+    return res.json({
+      referralCode: user.referralCode,
+      referrals: user.referrals.map((r) => ({
+        id: r.id,
+        email: r.email,
+        name: r.name,
+        joinedAt: r.createdAt,
+      })),
+      totalEarnings: String(totalEarnings._sum.amount || '0'),
+    });
+  })
+);
+
 router.post(
   '/forgot-password',
   asyncHandler(async (req, res) => {

@@ -29,6 +29,12 @@ function formatMoney(value: string) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "GHS" }).format(n);
 }
 
+function formatDate(value: string) {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return value;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 function timeGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -72,11 +78,11 @@ function extractGbValue(name: string) {
   return Number.isFinite(n) ? n : null;
 }
 
-type DashboardTab = "overview" | "profile" | "wallet" | "orders" | "storefront" | "settings";
+type DashboardTab = "overview" | "profile" | "wallet" | "orders" | "affiliate" | "storefront" | "settings";
 
 function normalizeTab(value: string | null): DashboardTab {
   const v = String(value || "").toLowerCase();
-  if (v === "profile" || v === "wallet" || v === "orders" || v === "settings" || v === "storefront") return v;
+  if (v === "profile" || v === "wallet" || v === "orders" || v === "affiliate" || v === "settings" || v === "storefront") return v;
   return "overview";
 }
 
@@ -84,6 +90,7 @@ function tabLabel(tab: DashboardTab) {
   if (tab === "profile") return "Profile";
   if (tab === "wallet") return "Wallet";
   if (tab === "orders") return "Orders";
+  if (tab === "affiliate") return "Affiliate";
   if (tab === "storefront") return "Storefront";
   if (tab === "settings") return "Settings";
   return "Overview";
@@ -145,6 +152,15 @@ function tabIcon(tab: DashboardTab) {
           strokeLinecap="round"
         />
         <path d="M3 7h.01M3 12h.01M3 17h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (tab === "affiliate") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className={common} aria-hidden="true">
+        <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" />
+        <path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }
@@ -222,6 +238,10 @@ function DashboardInner() {
   const [storefrontSuccess, setStorefrontSuccess] = useState<string | null>(null);
   const [storefrontSearch, setStorefrontSearch] = useState<string>("");
 
+  const [affiliateReferrals, setAffiliateReferrals] = useState<{ id: string; email: string; name: string | null; joinedAt: string }[]>([]);
+  const [affiliateEarnings, setAffiliateEarnings] = useState<string>("0");
+  const [affiliateLoading, setAffiliateLoading] = useState(false);
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [orderSearch, setOrderSearch] = useState("");
@@ -254,8 +274,8 @@ function DashboardInner() {
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
   const dashboardTabs: DashboardTab[] = isAgent
-    ? ["overview", "profile", "wallet", "orders", "storefront", "settings"]
-    : ["overview", "profile", "wallet", "orders", "settings"];
+    ? ["overview", "profile", "wallet", "orders", "affiliate", "storefront", "settings"]
+    : ["overview", "profile", "wallet", "orders", "affiliate", "settings"];
 
   const filteredStorefrontItems = useMemo(() => {
     const q = storefrontSearch.trim().toLowerCase();
@@ -348,6 +368,26 @@ function DashboardInner() {
       cancelled = true;
     };
   }, [isAgent]);
+
+  useEffect(() => {
+    if (activeTab !== "affiliate" || !isAuthenticated) return;
+    let cancelled = false;
+    async function loadAffiliate() {
+      setAffiliateLoading(true);
+      try {
+        const res = await api.get<{ referralCode: string; referrals: { id: string; email: string; name: string | null; joinedAt: string }[]; totalEarnings: string }>("/auth/referral-info");
+        if (cancelled) return;
+        setAffiliateReferrals(res.data.referrals || []);
+        setAffiliateEarnings(res.data.totalEarnings || "0");
+      } catch {
+        if (cancelled) return;
+      } finally {
+        if (!cancelled) setAffiliateLoading(false);
+      }
+    }
+    loadAffiliate();
+    return () => { cancelled = true; };
+  }, [activeTab, isAuthenticated]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1073,6 +1113,105 @@ function DashboardInner() {
                     <span className="text-zinc-600 dark:text-zinc-400">Phone</span>
                     <span className="font-medium">{user?.phone || "-"}</span>
                   </div>
+                </div>
+              </div>
+            ) : null}
+
+            {activeTab === "affiliate" ? (
+              <div className="lg:col-span-2 space-y-4">
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-6 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                  <div className="pointer-events-none absolute -left-10 -top-10 h-36 w-36 rounded-full bg-gradient-to-br from-amber-500/20 via-orange-400/15 to-rose-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
+                  <div>
+                    <div className="text-xs font-semibold tracking-wide text-zinc-500">Referral Program</div>
+                    <div className="mt-2 text-lg font-semibold">Earn 3% on every purchase</div>
+                    <div className="mt-1 text-sm text-zinc-500">Share your affiliate link below. When someone signs up through your link and makes a purchase, you earn 3% of their order value directly into your wallet.</div>
+                  </div>
+
+                  {user?.referralCode ? (
+                    <div className="mt-5 space-y-4">
+                      <div>
+                        <div className="text-xs font-semibold text-zinc-500 mb-1.5">Your Referral Code</div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <div className="flex h-10 flex-1 items-center rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm font-mono font-bold tracking-widest text-zinc-900 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-100">
+                            {user.referralCode}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { void navigator.clipboard.writeText(user?.referralCode || ""); }}
+                            className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-white/70 px-4 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-zinc-50 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-200"
+                          >
+                            Copy code
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-xs font-semibold text-zinc-500 mb-1.5">Your Affiliate Link</div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <div className="flex h-10 flex-1 items-center overflow-x-auto rounded-xl border border-amber-200/70 bg-amber-50/50 px-3 text-sm font-medium text-zinc-800 backdrop-blur dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-zinc-100">
+                            {typeof window !== "undefined" ? `${window.location.origin}/register?ref=${user.referralCode}` : `/register?ref=${user.referralCode}`}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const link = `${window.location.origin}/register?ref=${user?.referralCode || ""}`;
+                              void navigator.clipboard.writeText(link);
+                            }}
+                            className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95"
+                          >
+                            Copy link
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                    <div className="text-xs font-semibold tracking-wide text-zinc-500">Total Referrals</div>
+                    <div className="mt-2 text-2xl font-bold text-blue-700 dark:text-blue-300">{affiliateReferrals.length}</div>
+                    <div className="mt-1 text-xs text-zinc-500">Users signed up with your link</div>
+                  </div>
+                  <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                    <div className="text-xs font-semibold tracking-wide text-zinc-500">Total Earnings</div>
+                    <div className="mt-2 text-2xl font-bold text-emerald-700 dark:text-emerald-300">{formatMoney(affiliateEarnings)}</div>
+                    <div className="mt-1 text-xs text-zinc-500">Earned from referral purchases</div>
+                  </div>
+                </div>
+
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                  <div className="text-sm font-semibold">Referred Users</div>
+                  <div className="mt-1 text-xs text-zinc-500">People who signed up using your affiliate link.</div>
+
+                  {affiliateLoading ? (
+                    <div className="mt-4 text-sm text-zinc-500">Loading...</div>
+                  ) : affiliateReferrals.length === 0 ? (
+                    <div className="mt-4 rounded-2xl border border-zinc-200/70 bg-zinc-50/50 p-4 text-center text-sm text-zinc-500 dark:border-zinc-800/70 dark:bg-zinc-950/30">
+                      No referrals yet. Share your affiliate link to start earning!
+                    </div>
+                  ) : (
+                    <div className="mt-4 overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                            <th className="pb-2 text-left text-xs font-semibold text-zinc-500">Name</th>
+                            <th className="pb-2 text-left text-xs font-semibold text-zinc-500">Email</th>
+                            <th className="pb-2 text-right text-xs font-semibold text-zinc-500">Joined</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {affiliateReferrals.map((r) => (
+                            <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-800/50">
+                              <td className="py-2.5 font-medium">{r.name || "-"}</td>
+                              <td className="py-2.5 text-zinc-600 dark:text-zinc-400">{r.email}</td>
+                              <td className="py-2.5 text-right text-zinc-500">{formatDate(r.joinedAt)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null}
