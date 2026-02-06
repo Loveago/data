@@ -7,7 +7,7 @@ import { Footer } from "@/components/Footer";
 import { Navbar } from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 
-const AUTH_PUBLIC_PATHS = new Set(["/login", "/register"]);
+const AUTH_PUBLIC_PATHS = new Set(["/login", "/register", "/forgot-password", "/reset-password"]);
 const PUBLIC_PREFIXES = ["/storefront"];
 
 function isPublicPath(pathname: string) {

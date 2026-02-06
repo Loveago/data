@@ -240,11 +240,14 @@ function DashboardInner() {
 
   const [affiliateReferrals, setAffiliateReferrals] = useState<{ id: string; email: string; name: string | null; joinedAt: string }[]>([]);
   const [affiliateEarnings, setAffiliateEarnings] = useState<string>("0");
+  const [affiliateCode, setAffiliateCode] = useState<string>(user?.referralCode || "");
   const [affiliateLoading, setAffiliateLoading] = useState(false);
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [orderSearch, setOrderSearch] = useState("");
+
+  const referralCode = affiliateCode || user?.referralCode || "";
 
   const filteredOrders = useMemo(() => {
     if (!orderSearch) return orders;
@@ -379,6 +382,10 @@ function DashboardInner() {
         if (cancelled) return;
         setAffiliateReferrals(res.data.referrals || []);
         setAffiliateEarnings(res.data.totalEarnings || "0");
+        setAffiliateCode(res.data.referralCode || "");
+        if (res.data.referralCode && user && !user.referralCode) {
+          updateSession({ user: { ...user, referralCode: res.data.referralCode } });
+        }
       } catch {
         if (cancelled) return;
       } finally {
@@ -387,7 +394,7 @@ function DashboardInner() {
     }
     loadAffiliate();
     return () => { cancelled = true; };
-  }, [activeTab, isAuthenticated]);
+  }, [activeTab, isAuthenticated, updateSession, user]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1054,17 +1061,17 @@ function DashboardInner() {
                     <div className="mt-1 text-sm text-zinc-500">Share your affiliate link below. When someone signs up through your link and makes a purchase, you earn 3% of their order value directly into your wallet.</div>
                   </div>
 
-                  {user?.referralCode ? (
+                  {referralCode ? (
                     <div className="mt-5 space-y-4">
                       <div>
                         <div className="text-xs font-semibold text-zinc-500 mb-1.5">Your Referral Code</div>
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                           <div className="flex h-10 flex-1 items-center rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm font-mono font-bold tracking-widest text-zinc-900 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-100">
-                            {user.referralCode}
+                            {referralCode}
                           </div>
                           <button
                             type="button"
-                            onClick={() => { void navigator.clipboard.writeText(user?.referralCode || ""); }}
+                            onClick={() => { void navigator.clipboard.writeText(referralCode); }}
                             className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-white/70 px-4 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-zinc-50 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-200"
                           >
                             Copy code
@@ -1076,12 +1083,12 @@ function DashboardInner() {
                         <div className="text-xs font-semibold text-zinc-500 mb-1.5">Your Affiliate Link</div>
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                           <div className="flex h-10 flex-1 items-center overflow-x-auto rounded-xl border border-amber-200/70 bg-amber-50/50 px-3 text-sm font-medium text-zinc-800 backdrop-blur dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-zinc-100">
-                            {typeof window !== "undefined" ? `${window.location.origin}/register?ref=${user.referralCode}` : `/register?ref=${user.referralCode}`}
+                            {typeof window !== "undefined" ? `${window.location.origin}/register?ref=${referralCode}` : `/register?ref=${referralCode}`}
                           </div>
                           <button
                             type="button"
                             onClick={() => {
-                              const link = `${window.location.origin}/register?ref=${user?.referralCode || ""}`;
+                              const link = `${window.location.origin}/register?ref=${referralCode}`;
                               void navigator.clipboard.writeText(link);
                             }}
                             className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95"

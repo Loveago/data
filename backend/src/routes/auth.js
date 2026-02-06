@@ -291,13 +291,25 @@ router.get(
 
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    let referralCode = user.referralCode;
+    if (!referralCode) {
+      let candidate = generateReferralCode();
+      for (let i = 0; i < 5; i++) {
+        const exists = await prisma.user.findUnique({ where: { referralCode: candidate } });
+        if (!exists) break;
+        candidate = generateReferralCode();
+      }
+      referralCode = candidate;
+      await prisma.user.update({ where: { id: userId }, data: { referralCode } });
+    }
+
     const totalEarnings = await prisma.walletTransaction.aggregate({
       where: { userId, type: 'REFERRAL_BONUS' },
       _sum: { amount: true },
     });
 
     return res.json({
-      referralCode: user.referralCode,
+      referralCode,
       referrals: user.referrals.map((r) => ({
         id: r.id,
         email: r.email,
