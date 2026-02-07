@@ -213,6 +213,8 @@ function DashboardInner() {
   const [depositFee, setDepositFee] = useState<number>(0);
   const [depositTotal, setDepositTotal] = useState<number>(0);
   const [withdrawAmount, setWithdrawAmount] = useState<string>("");
+  const [withdrawMomoNumber, setWithdrawMomoNumber] = useState<string>("");
+  const [withdrawMomoNetwork, setWithdrawMomoNetwork] = useState<string>("");
   const [withdrawBusy, setWithdrawBusy] = useState(false);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [withdrawSuccess, setWithdrawSuccess] = useState<string | null>(null);
@@ -637,11 +639,25 @@ function DashboardInner() {
         setWithdrawError("Minimum withdrawal is GHS 50.");
         return;
       }
+      if (!withdrawMomoNumber.trim() || withdrawMomoNumber.trim().length < 10) {
+        setWithdrawError("Enter a valid MoMo number.");
+        return;
+      }
+      if (!withdrawMomoNetwork) {
+        setWithdrawError("Select your MoMo network.");
+        return;
+      }
 
-      const res = await api.post<{ walletBalance: string; withdrawn: string; fee: string; totalDeducted: string }>("/wallet/withdraw", { amount });
+      const res = await api.post<{ walletBalance: string; withdrawn: string; fee: string; totalDeducted: string }>("/wallet/withdraw", {
+        amount,
+        momoNumber: withdrawMomoNumber.trim(),
+        momoNetwork: withdrawMomoNetwork,
+      });
       setWalletBalance(res.data.walletBalance || "0");
-      setWithdrawSuccess(`GHS ${res.data.withdrawn} withdrawn (fee: GHS ${res.data.fee}).`);
+      setWithdrawSuccess(`GHS ${res.data.withdrawn} withdrawal submitted (fee: GHS ${res.data.fee}). Pending admin approval.`);
       setWithdrawAmount("");
+      setWithdrawMomoNumber("");
+      setWithdrawMomoNetwork("");
     } catch (e: unknown) {
       const maybeError = e as { response?: { data?: { error?: string } } };
       setWithdrawError(maybeError?.response?.data?.error || "Withdrawal failed.");
@@ -1487,35 +1503,64 @@ function DashboardInner() {
                   <div className="text-sm font-semibold">Withdraw</div>
                   <div className="mt-1 text-xs text-zinc-500">Withdraw funds from your wallet. 2% fee applies. Minimum GHS 50.</div>
 
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <input
-                      value={withdrawAmount}
-                      onChange={(e) => setWithdrawAmount(e.target.value)}
-                      placeholder="Withdrawal amount (GHS)"
-                      className="h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-orange-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-orange-500"
-                    />
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">MoMo Number</label>
+                      <input
+                        value={withdrawMomoNumber}
+                        onChange={(e) => setWithdrawMomoNumber(e.target.value)}
+                        placeholder="e.g. 0241234567"
+                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-orange-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-orange-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Network</label>
+                      <select
+                        value={withdrawMomoNetwork}
+                        onChange={(e) => setWithdrawMomoNetwork(e.target.value)}
+                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-orange-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-orange-500"
+                      >
+                        <option value="">Select network</option>
+                        <option value="MTN">MTN</option>
+                        <option value="VODAFONE">Vodafone</option>
+                        <option value="AIRTELTIGO">AirtelTigo</option>
+                        <option value="TELECEL">Telecel</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Amount (GHS)</label>
+                      <input
+                        value={withdrawAmount}
+                        onChange={(e) => setWithdrawAmount(e.target.value)}
+                        placeholder="Min. 50"
+                        className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-orange-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-orange-500"
+                      />
+                    </div>
+                  </div>
+
+                  {Number(withdrawFee) > 0 ? (
+                    <div className="mt-3 space-y-1">
+                      <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+                        <span>2% fee</span>
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatMoney(withdrawFee)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+                        <span>Total deducted</span>
+                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatMoney(withdrawTotal)}</span>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="mt-3">
                     <button
                       type="button"
                       disabled={withdrawBusy}
                       onClick={() => withdrawFromWallet()}
-                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
+                      className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-red-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
                     >
-                      {withdrawBusy ? "..." : "Withdraw"}
+                      {withdrawBusy ? "Processing..." : "Submit Withdrawal"}
                     </button>
                   </div>
-
-                  {Number(withdrawFee) > 0 ? (
-                    <>
-                      <div className="mt-2 flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
-                        <span>2% fee</span>
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatMoney(withdrawFee)}</span>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
-                        <span>Total deducted</span>
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatMoney(withdrawTotal)}</span>
-                      </div>
-                    </>
-                  ) : null}
 
                   {withdrawError ? (
                     <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">

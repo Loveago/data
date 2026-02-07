@@ -11,6 +11,7 @@ sudo service postgresql start
 sudo service postgresql status
 pg_isready
 ```
+https://pdd.gh.999yes.xyz/gh/?guid=4287197&key=friend
 npx prisma migrate deploy && npx prisma db seed && npm run start
 
 ## 2) Backend (Express + Prisma)

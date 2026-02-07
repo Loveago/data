@@ -234,7 +234,8 @@ export function Navbar() {
           <div className="hidden items-center justify-between rounded-full border border-zinc-200 bg-white/80 px-3 py-2 shadow-soft backdrop-blur dark:border-zinc-800 dark:bg-black/50 md:flex">
             <div className="flex items-center gap-3">
               <Link href="/" className="flex items-center gap-2 rounded-full px-2 py-1">
-                <img src="/lofaq-techub.svg" alt="LOFAQ DATA HUB" className="h-8 w-auto" />
+                <img src="/logo.png" alt="LOFAQ DATA HUB" className="h-9 w-9 rounded-full object-contain" />
+                <span className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white">LOFAQ DATA HUB</span>
               </Link>
 
               <nav className="hidden items-center gap-1 md:flex">
@@ -394,7 +395,8 @@ export function Navbar() {
 
           <div className="flex items-center justify-between rounded-full border border-zinc-200 bg-white/80 px-3 py-2 shadow-soft backdrop-blur dark:border-zinc-800 dark:bg-black/50 md:hidden">
             <Link href="/" className="flex items-center gap-2 rounded-full px-2 py-1">
-              <img src="/lofaq-techub.svg" alt="LOFAQ DATA HUB" className="h-8 w-auto" />
+              <img src="/logo.png" alt="LOFAQ DATA HUB" className="h-9 w-9 rounded-full object-contain" />
+                <span className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white">LOFAQ DATA HUB</span>
             </Link>
 
             <div className="flex items-center gap-2">

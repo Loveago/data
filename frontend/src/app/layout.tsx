@@ -18,9 +18,9 @@ export const metadata: Metadata = {
   title: "LOFAQ DATA HUB",
   description: "Fast, secure, and reliable data bundles.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-    apple: "/favicon.svg",
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
   },
 };
 

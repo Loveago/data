@@ -284,4 +284,114 @@ router.get(
   })
 );
 
+router.get(
+  '/withdrawals',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const status = typeof req.query.status === 'string' ? req.query.status.trim().toUpperCase() : '';
+    const where = status && ['PENDING', 'APPROVED', 'REJECTED'].includes(status) ? { status } : {};
+
+    const items = await prisma.withdrawalRequest.findMany({
+      where,
+      include: { user: { select: { id: true, email: true, name: true, phone: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+
+    return res.json({
+      items: items.map((w) => ({
+        id: w.id,
+        userId: w.userId,
+        user: w.user,
+        amount: String(w.amount),
+        fee: String(w.fee),
+        totalDeducted: String(w.totalDeducted),
+        momoNumber: w.momoNumber,
+        momoNetwork: w.momoNetwork,
+        status: w.status,
+        adminNote: w.adminNote,
+        processedAt: w.processedAt,
+        createdAt: w.createdAt,
+      })),
+    });
+  })
+);
+
+router.patch(
+  '/withdrawals/:id/approve',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = req.params.id;
+    const { adminNote } = req.body || {};
+
+    const wr = await prisma.withdrawalRequest.findUnique({ where: { id } });
+    if (!wr) return res.status(404).json({ error: 'Withdrawal request not found' });
+    if (wr.status !== 'PENDING') return res.status(400).json({ error: `Already ${wr.status.toLowerCase()}` });
+
+    const updated = await prisma.withdrawalRequest.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        adminNote: adminNote || null,
+        processedAt: new Date(),
+      },
+    });
+
+    return res.json({
+      id: updated.id,
+      status: updated.status,
+      processedAt: updated.processedAt,
+    });
+  })
+);
+
+router.patch(
+  '/withdrawals/:id/reject',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = req.params.id;
+    const { adminNote } = req.body || {};
+
+    const wr = await prisma.withdrawalRequest.findUnique({ where: { id } });
+    if (!wr) return res.status(404).json({ error: 'Withdrawal request not found' });
+    if (wr.status !== 'PENDING') return res.status(400).json({ error: `Already ${wr.status.toLowerCase()}` });
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.withdrawalRequest.update({
+        where: { id },
+        data: {
+          status: 'REJECTED',
+          adminNote: adminNote || null,
+          processedAt: new Date(),
+        },
+      });
+
+      await tx.user.update({
+        where: { id: wr.userId },
+        data: { walletBalance: { increment: wr.totalDeducted } },
+      });
+
+      await tx.walletTransaction.create({
+        data: {
+          userId: wr.userId,
+          type: 'DEPOSIT',
+          amount: wr.totalDeducted,
+          reference: `WITHDRAW_REFUND:${wr.id}`,
+        },
+      });
+
+      return result;
+    });
+
+    return res.json({
+      id: updated.id,
+      status: updated.status,
+      processedAt: updated.processedAt,
+    });
+  })
+);
+
 module.exports = router;

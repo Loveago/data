@@ -64,6 +64,7 @@ model User {
 
   orders              Order[]
   walletTransactions  WalletTransaction[]
+  withdrawalRequests  WithdrawalRequest[]
   storefront          AgentStorefront?
 }
 
@@ -204,4 +205,26 @@ model WalletTransaction {
   reference String?
 
   createdAt DateTime @default(now())
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model WithdrawalRequest {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id])
+  amount        Decimal          @db.Decimal(12, 2)
+  fee           Decimal          @db.Decimal(12, 2)
+  totalDeducted Decimal          @db.Decimal(12, 2)
+  momoNumber    String
+  momoNetwork   String
+  status        WithdrawalStatus @default(PENDING)
+  adminNote     String?
+  processedAt   DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 }

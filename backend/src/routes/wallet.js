@@ -220,16 +220,27 @@ router.post(
 const WITHDRAWAL_FEE_PERCENT = new Prisma.Decimal('0.02');
 const WITHDRAWAL_MIN_GHS = new Prisma.Decimal('50');
 
+const MOMO_NETWORKS = ['MTN', 'VODAFONE', 'AIRTELTIGO', 'TELECEL'];
+
 router.post(
   '/withdraw',
   requireAuth,
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
-    const { amount: rawAmount } = req.body || {};
+    const { amount: rawAmount, momoNumber, momoNetwork } = req.body || {};
 
     const amount = Number(rawAmount);
     if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ error: 'Invalid withdrawal amount' });
+    }
+
+    if (!momoNumber || typeof momoNumber !== 'string' || momoNumber.trim().length < 10) {
+      return res.status(400).json({ error: 'A valid MoMo number is required' });
+    }
+
+    const network = typeof momoNetwork === 'string' ? momoNetwork.trim().toUpperCase() : '';
+    if (!MOMO_NETWORKS.includes(network)) {
+      return res.status(400).json({ error: `Network must be one of: ${MOMO_NETWORKS.join(', ')}` });
     }
 
     const amountDec = new Prisma.Decimal(amount.toFixed(2));
@@ -249,13 +260,24 @@ router.post(
       return res.status(400).json({ error: 'Insufficient wallet balance (amount + 2% fee)' });
     }
 
-    const updated = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
+      const wr = await tx.withdrawalRequest.create({
+        data: {
+          userId,
+          amount: amountDec,
+          fee,
+          totalDeducted,
+          momoNumber: momoNumber.trim(),
+          momoNetwork: network,
+        },
+      });
+
       await tx.walletTransaction.create({
         data: {
           userId,
           type: 'WITHDRAWAL',
           amount: amountDec,
-          reference: `WITHDRAW:${Date.now()}`,
+          reference: `WITHDRAW:${wr.id}`,
         },
       });
 
@@ -265,23 +287,55 @@ router.post(
             userId,
             type: 'SPEND',
             amount: fee,
-            reference: `WITHDRAW_FEE:${Date.now()}`,
+            reference: `WITHDRAW_FEE:${wr.id}`,
           },
         });
       }
 
-      return tx.user.update({
+      const updated = await tx.user.update({
         where: { id: userId },
         data: { walletBalance: { decrement: totalDeducted } },
         select: { walletBalance: true },
       });
+
+      return { walletBalance: updated.walletBalance, withdrawal: wr };
     });
 
     return res.json({
-      walletBalance: String(updated.walletBalance),
+      walletBalance: String(result.walletBalance),
       withdrawn: String(amountDec),
       fee: String(fee),
       totalDeducted: String(totalDeducted),
+      withdrawalId: result.withdrawal.id,
+      status: result.withdrawal.status,
+    });
+  })
+);
+
+router.get(
+  '/withdrawals',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const userId = req.user.sub;
+    const items = await prisma.withdrawalRequest.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    return res.json({
+      items: items.map((w) => ({
+        id: w.id,
+        amount: String(w.amount),
+        fee: String(w.fee),
+        totalDeducted: String(w.totalDeducted),
+        momoNumber: w.momoNumber,
+        momoNetwork: w.momoNetwork,
+        status: w.status,
+        adminNote: w.adminNote,
+        createdAt: w.createdAt,
+        processedAt: w.processedAt,
+      })),
     });
   })
 );

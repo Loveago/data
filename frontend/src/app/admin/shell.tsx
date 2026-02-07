@@ -95,6 +95,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <SideLink href="/admin" label="Dashboard" />
             <SideLink href="/admin/products" label="Products" />
             <SideLink href="/admin/orders" label="Orders" />
+            <SideLink href="/admin/withdrawals" label="Withdrawals" />
             <SideLink href="/admin/notifications" label="Notifications" />
             <SideLink href="/admin/users" label="Users" />
             <SideLink href="/admin/categories" label="Categories" />
