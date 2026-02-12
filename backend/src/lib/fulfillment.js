@@ -218,12 +218,14 @@ async function queueFulfillmentForOrder(orderId) {
   }
 
   if (String(order.paymentStatus) !== 'PAID') {
+    debugLog('Order not queued because paymentStatus != PAID', order.id, order.paymentStatus);
     return { queued: false };
   }
 
   const deliverable = [];
 
   await prisma.$transaction(async (tx) => {
+    debugLog('Queueing order items for fulfillment', order.id, order.items.length);
     for (const item of order.items) {
       const already = item.hubnetStatus;
       if (already && String(already) !== 'FAILED') continue;
@@ -233,6 +235,7 @@ async function queueFulfillmentForOrder(orderId) {
       const datahubnetNetwork = categorySlug ? datahubnetNetworkMap[categorySlug] : null;
 
       if (!encartNetwork && !datahubnetNetwork) {
+        debugLog('Skipping item, no network mapping', item.id, categorySlug);
         await tx.orderItem.update({
           where: { id: item.id },
           data: {
@@ -257,6 +260,7 @@ async function queueFulfillmentForOrder(orderId) {
       const encartCapacity = resolveCapacityForProduct(item.product, volumeMb, encartCapacityMap);
       const datahubnetCapacity = resolveCapacityForProduct(item.product, volumeMb, datahubnetCapacityMap);
       if (!encartCapacity && !datahubnetCapacity) {
+        debugLog('Marking failed, unable to determine capacity', item.id);
         await tx.orderItem.update({
           where: { id: item.id },
           data: {
@@ -300,9 +304,13 @@ async function queueFulfillmentForOrder(orderId) {
 
     if (deliverable.length > 0) {
       await tx.order.update({ where: { id: order.id }, data: { status: 'PROCESSING' } });
+      debugLog('Order queued for fulfillment', order.id, deliverable);
     }
   });
 
+  if (deliverable.length === 0) {
+    debugLog('No deliverable items found for order', order.id);
+  }
   return { queued: true };
 }
 
