@@ -4,7 +4,7 @@ const crypto = require('crypto');
 
 const { Prisma } = require('@prisma/client');
 const { prisma } = require('../lib/prisma');
-const { queueHubnetForOrder } = require('../lib/hubnet');
+const { queueFulfillmentForOrder } = require('../lib/fulfillment');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { requireAuth } = require('../middleware/auth');
 
@@ -114,7 +114,7 @@ router.post(
     });
 
     if (order.paymentStatus === 'PAID') {
-      queueHubnetForOrder(order.id).catch((e) => console.error(e));
+      queueFulfillmentForOrder(order.id).catch((e) => console.error(e));
     }
     return res.status(201).json(order);
   })
@@ -223,7 +223,7 @@ router.post(
     });
 
     if (order.paymentStatus === 'PAID') {
-      queueHubnetForOrder(order.id).catch((e) => console.error(e));
+      queueFulfillmentForOrder(order.id).catch((e) => console.error(e));
     }
 
     return res.status(201).json(order);

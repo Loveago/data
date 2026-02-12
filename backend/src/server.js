@@ -14,9 +14,7 @@ const productsRoutes = require('./routes/products');
 const agentStorefrontRoutes = require('./routes/agent-storefront');
 const { router: notificationsRoutes } = require('./routes/notifications');
 const walletRoutes = require('./routes/wallet');
-const hubnetRoutes = require('./routes/hubnet');
-
-const { startHubnetDispatcher } = require('./lib/hubnet');
+const { startFulfillmentDispatcher } = require('./lib/fulfillment');
 
 const app = express();
 
@@ -40,7 +38,6 @@ app.use('/api/payments', paymentsRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/hubnet', hubnetRoutes);
 app.use('/api/agent-storefront', agentStorefrontRoutes);
 
 app.use((err, req, res, next) => {
@@ -54,5 +51,5 @@ app.use((err, req, res, next) => {
 const port = process.env.PORT ? Number(process.env.PORT) : 4000;
 app.listen(port, () => {
   console.log(`API listening on http://localhost:${port}`);
-  startHubnetDispatcher();
+  startFulfillmentDispatcher();
 });

@@ -1,0 +1,612 @@
+const { prisma } = require('./prisma');
+const { datahubnetCheckStatus, datahubnetPlaceOrder } = require('./datahubnet');
+const { encartCheckStatus, encartPlaceOrder } = require('./encart');
+
+const DAY_START_MINUTES = 8 * 60 + 30;
+const DAY_END_MINUTES = 18 * 60;
+
+function getDispatchIntervalMs() {
+  const raw = process.env.FULFILLMENT_DISPATCH_INTERVAL_MS ?? process.env.HUBNET_DISPATCH_INTERVAL_MS;
+  const intervalMs = Math.max(5000, Number(raw || 13000) || 13000);
+  return intervalMs;
+}
+
+function getActiveProviderByTime(now = new Date()) {
+  const forced = String(process.env.FULFILLMENT_FORCE_PROVIDER || '').trim().toLowerCase();
+  if (forced === 'encart' || forced === 'datahubnet') {
+    return forced;
+  }
+
+  const minutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  if (minutes >= DAY_START_MINUTES && minutes < DAY_END_MINUTES) return 'encart';
+  return 'datahubnet';
+}
+
+function parseJsonEnv(raw, label) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(String(raw));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    const err = new Error(`Invalid ${label} JSON`);
+    err.statusCode = 500;
+    throw err;
+  }
+}
+
+function getDatahubnetNetworkMap() {
+  const telecel = getDatahubnetTelecelNetwork();
+  const defaults = {
+    mtn: 'mtn',
+    telecel,
+    airteltigo: 'airteltigo',
+    'at-bigtime': 'at-bigtime',
+  };
+  const raw = process.env.DATAHUBNET_NETWORK_MAP;
+  const custom = parseJsonEnv(raw, 'DATAHUBNET_NETWORK_MAP');
+  return { ...defaults, ...custom };
+}
+
+function getEncartNetworkMap() {
+  const defaults = {
+    mtn: 'YELLO',
+    telecel: 'TELECEL',
+    airteltigo: 'AT_PREMIUM',
+    'at-bigtime': 'AT_BIGTIME',
+  };
+  const raw = process.env.ENCART_NETWORK_MAP;
+  const custom = parseJsonEnv(raw, 'ENCART_NETWORK_MAP');
+  return { ...defaults, ...custom };
+}
+
+function getDatahubnetCapacityMap() {
+  return parseJsonEnv(process.env.DATAHUBNET_CAPACITY_MAP, 'DATAHUBNET_CAPACITY_MAP');
+}
+
+function getEncartCapacityMap() {
+  return parseJsonEnv(process.env.ENCART_CAPACITY_MAP, 'ENCART_CAPACITY_MAP');
+}
+
+function getDatahubnetTelecelNetwork() {
+  const raw = process.env.DATAHUBNET_TELECEL_NETWORK;
+  const v = raw == null ? 'telecel' : String(raw).trim();
+  return v || 'telecel';
+}
+
+function normalizePhone(phone) {
+  const digits = String(phone || '').replace(/\D+/g, '');
+  if (digits.length === 10) return digits;
+  if (digits.length === 12 && digits.startsWith('233')) return `0${digits.slice(3)}`;
+  const err = new Error('Invalid phone number');
+  err.statusCode = 400;
+  throw err;
+}
+
+function parseVolumeMbFromProduct(product) {
+  const hay = `${product?.name || ''} ${product?.slug || ''}`;
+  const gb = hay.match(/(\d+(?:\.\d+)?)\s*gb/i);
+  if (gb) {
+    const n = Number(gb[1]);
+    if (Number.isFinite(n) && n > 0) return Math.round(n * 1000);
+  }
+
+  const mb = hay.match(/(\d+)\s*mb/i);
+  if (mb) {
+    const n = Number(mb[1]);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+
+  return null;
+}
+
+function parseCapacityFromProduct(product) {
+  const hay = `${product?.name || ''} ${product?.slug || ''}`;
+  const gb = hay.match(/(\d+(?:\.\d+)?)\s*gb/i);
+  if (gb) {
+    const n = Number(gb[1]);
+    if (Number.isFinite(n) && n > 0) return Math.round(n);
+  }
+
+  const mb = hay.match(/(\d+)\s*mb/i);
+  if (mb) {
+    const n = Number(mb[1]);
+    if (Number.isFinite(n) && n > 0 && n % 1000 === 0) return n / 1000;
+  }
+
+  return null;
+}
+
+function resolveCapacityForProduct(product, volumeMb, capacityMap) {
+  const slug = product?.slug ? String(product.slug) : '';
+  if (slug && capacityMap && capacityMap[slug] != null) {
+    const n = Number(capacityMap[slug]);
+    if (Number.isFinite(n) && n > 0) return Math.round(n);
+  }
+
+  if (volumeMb != null && capacityMap && capacityMap[String(volumeMb)] != null) {
+    const n = Number(capacityMap[String(volumeMb)]);
+    if (Number.isFinite(n) && n > 0) return Math.round(n);
+  }
+
+  if (volumeMb != null && volumeMb % 1000 === 0) {
+    return volumeMb / 1000;
+  }
+
+  return parseCapacityFromProduct(product);
+}
+
+function getNetworkForProvider(provider, categorySlug) {
+  const slug = String(categorySlug || '').toLowerCase();
+  if (!slug) return null;
+
+  if (provider === 'encart') {
+    const map = getEncartNetworkMap();
+    return map[slug] ? String(map[slug]) : null;
+  }
+
+  const map = getDatahubnetNetworkMap();
+  return map[slug] ? String(map[slug]) : null;
+}
+
+function buildProviderReference(provider, orderId, itemId) {
+  const prefix = provider === 'encart' ? 'EN' : 'DH';
+  const o = String(orderId || '').replace(/\W+/g, '');
+  const i = String(itemId || '').replace(/\W+/g, '');
+  const ref = `${prefix}-${o.slice(-8)}-${i.slice(-6)}`.toUpperCase();
+  return ref.length > 25 ? ref.slice(0, 25) : ref;
+}
+
+function isDeliveredStatus(text) {
+  return /deliver|success|completed|fulfilled/i.test(text);
+}
+
+function isFailedStatus(text) {
+  return /fail|error|cancel|rejected/i.test(text);
+}
+
+async function updateOrderCompletion(orderId) {
+  const remaining = await prisma.orderItem.count({
+    where: {
+      orderId,
+      hubnetSkip: false,
+      NOT: { hubnetStatus: 'DELIVERED' },
+    },
+  });
+
+  if (remaining === 0) {
+    const deliverableCount = await prisma.orderItem.count({
+      where: { orderId, hubnetSkip: false },
+    });
+
+    if (deliverableCount > 0) {
+      await prisma.order.update({ where: { id: orderId }, data: { status: 'COMPLETED' } });
+    }
+  }
+}
+
+async function queueFulfillmentForOrder(orderId) {
+  const datahubnetConfigured = Boolean(process.env.DATAHUBNET_API_KEY);
+  const encartConfigured = Boolean(process.env.ENCART_API_KEY);
+  if (!datahubnetConfigured && !encartConfigured) return { queued: false };
+
+  const encartNetworkMap = getEncartNetworkMap();
+  const datahubnetNetworkMap = getDatahubnetNetworkMap();
+  const encartCapacityMap = getEncartCapacityMap();
+  const datahubnetCapacityMap = getDatahubnetCapacityMap();
+
+  const order = await prisma.order.findUnique({
+    where: { id: String(orderId) },
+    include: { items: { include: { product: { include: { category: true } } } } },
+  });
+
+  if (!order) {
+    const err = new Error('Order not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (String(order.paymentStatus) !== 'PAID') {
+    return { queued: false };
+  }
+
+  const deliverable = [];
+
+  await prisma.$transaction(async (tx) => {
+    for (const item of order.items) {
+      const already = item.hubnetStatus;
+      if (already && String(already) !== 'FAILED') continue;
+
+      const categorySlug = item.product?.category?.slug ? String(item.product.category.slug).toLowerCase() : '';
+      const encartNetwork = categorySlug ? encartNetworkMap[categorySlug] : null;
+      const datahubnetNetwork = categorySlug ? datahubnetNetworkMap[categorySlug] : null;
+
+      if (!encartNetwork && !datahubnetNetwork) {
+        await tx.orderItem.update({
+          where: { id: item.id },
+          data: {
+            hubnetSkip: true,
+            hubnetStatus: null,
+            hubnetNetwork: null,
+            hubnetVolumeMb: null,
+            hubnetReference: null,
+            hubnetAttempts: 0,
+            hubnetLastAttemptAt: null,
+            hubnetLastError: null,
+            hubnetTransactionId: null,
+            hubnetPaymentId: null,
+            hubnetDeliveredAt: null,
+            fulfillmentProvider: null,
+          },
+        });
+        continue;
+      }
+
+      const volumeMb = parseVolumeMbFromProduct(item.product);
+      const encartCapacity = resolveCapacityForProduct(item.product, volumeMb, encartCapacityMap);
+      const datahubnetCapacity = resolveCapacityForProduct(item.product, volumeMb, datahubnetCapacityMap);
+      if (!encartCapacity && !datahubnetCapacity) {
+        await tx.orderItem.update({
+          where: { id: item.id },
+          data: {
+            hubnetSkip: false,
+            hubnetStatus: 'FAILED',
+            hubnetNetwork: null,
+            hubnetVolumeMb: volumeMb,
+            hubnetReference: null,
+            hubnetAttempts: 1,
+            hubnetLastAttemptAt: new Date(),
+            hubnetLastError: 'Unable to determine bundle size (capacity)',
+            hubnetTransactionId: null,
+            hubnetPaymentId: null,
+            hubnetDeliveredAt: null,
+            fulfillmentProvider: null,
+          },
+        });
+        continue;
+      }
+
+      await tx.orderItem.update({
+        where: { id: item.id },
+        data: {
+          hubnetSkip: false,
+          hubnetStatus: 'PENDING',
+          hubnetNetwork: null,
+          hubnetVolumeMb: volumeMb,
+          hubnetReference: null,
+          hubnetAttempts: 0,
+          hubnetLastAttemptAt: null,
+          hubnetLastError: null,
+          hubnetTransactionId: null,
+          hubnetPaymentId: null,
+          hubnetDeliveredAt: null,
+          fulfillmentProvider: null,
+        },
+      });
+
+      deliverable.push(item.id);
+    }
+
+    if (deliverable.length > 0) {
+      await tx.order.update({ where: { id: order.id }, data: { status: 'PROCESSING' } });
+    }
+  });
+
+  return { queued: true };
+}
+
+async function dispatchOneProviderItem(provider, intervalMs) {
+  const cutoff = new Date(Date.now() - intervalMs);
+
+  const candidate = await prisma.orderItem.findFirst({
+    where: {
+      order: { paymentStatus: 'PAID' },
+      hubnetSkip: false,
+      hubnetAttempts: { lt: 6 },
+      AND: [
+        { OR: [{ hubnetStatus: null }, { hubnetStatus: 'PENDING' }, { hubnetStatus: 'FAILED' }] },
+        { OR: [{ hubnetLastAttemptAt: null }, { hubnetLastAttemptAt: { lte: cutoff } }] },
+        { OR: [{ fulfillmentProvider: null }, { fulfillmentProvider: provider }] },
+      ],
+    },
+    select: { id: true },
+    orderBy: { updatedAt: 'asc' },
+  });
+
+  if (!candidate) return false;
+
+  const claimed = await prisma.orderItem.updateMany({
+    where: {
+      id: candidate.id,
+      order: { paymentStatus: 'PAID' },
+      hubnetSkip: false,
+      hubnetAttempts: { lt: 6 },
+      AND: [
+        { OR: [{ hubnetStatus: null }, { hubnetStatus: 'PENDING' }, { hubnetStatus: 'FAILED' }] },
+        { OR: [{ hubnetLastAttemptAt: null }, { hubnetLastAttemptAt: { lte: cutoff } }] },
+        { OR: [{ fulfillmentProvider: null }, { fulfillmentProvider: provider }] },
+      ],
+    },
+    data: {
+      hubnetStatus: 'SENDING',
+      hubnetAttempts: { increment: 1 },
+      hubnetLastAttemptAt: new Date(),
+      hubnetLastError: null,
+      fulfillmentProvider: provider,
+    },
+  });
+
+  if (!claimed || claimed.count !== 1) return true;
+
+  const item = await prisma.orderItem.findUnique({
+    where: { id: candidate.id },
+    include: { order: true, product: { include: { category: true } } },
+  });
+
+  if (!item) return true;
+
+  const phoneRaw = item.recipientPhone || item.order?.customerPhone;
+  let phone;
+  try {
+    phone = normalizePhone(phoneRaw);
+  } catch (err) {
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: {
+        hubnetStatus: 'FAILED',
+        hubnetLastError: err?.message ? String(err.message) : 'Invalid phone number',
+      },
+    });
+    return true;
+  }
+
+  const categorySlug = item.product?.category?.slug;
+  const network = getNetworkForProvider(provider, categorySlug);
+  if (!network) {
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: {
+        hubnetStatus: 'FAILED',
+        hubnetLastError: `No network mapping for category: ${String(categorySlug || 'unknown')}`,
+      },
+    });
+    return true;
+  }
+
+  const volumeMb = item.hubnetVolumeMb || parseVolumeMbFromProduct(item.product);
+  const capacityMap = provider === 'encart' ? getEncartCapacityMap() : getDatahubnetCapacityMap();
+  const capacity = resolveCapacityForProduct(item.product, volumeMb, capacityMap);
+  if (!capacity) {
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: {
+        hubnetStatus: 'FAILED',
+        hubnetLastError: 'Unable to determine bundle size (capacity)',
+      },
+    });
+    return true;
+  }
+
+  const reference = item.hubnetReference || buildProviderReference(provider, item.orderId, item.id);
+
+  await prisma.orderItem.update({
+    where: { id: item.id },
+    data: {
+      hubnetNetwork: network,
+      hubnetVolumeMb: volumeMb,
+      hubnetReference: reference,
+      fulfillmentProvider: provider,
+    },
+  });
+
+  try {
+    if (provider === 'encart') {
+      const res = await encartPlaceOrder({
+        networkKey: network,
+        recipient: phone,
+        capacity,
+        reference,
+      });
+
+      const errorText = res?.error ? String(res.error) : '';
+      if (errorText) {
+        const err = new Error(errorText);
+        err.statusCode = 502;
+        throw err;
+      }
+
+      const remoteId = res?.data?.reference || res?.reference || res?.data?.transaction_id || res?.transaction_id;
+      await prisma.orderItem.update({
+        where: { id: item.id },
+        data: {
+          hubnetStatus: 'SUBMITTED',
+          hubnetTransactionId: remoteId ? String(remoteId) : item.hubnetTransactionId,
+        },
+      });
+
+      return true;
+    }
+
+    const res = await datahubnetPlaceOrder({
+      phone,
+      network,
+      capacity,
+      reference,
+      express: true,
+    });
+
+    const errorText = res?.error != null ? String(res.error) : '';
+    if (errorText) {
+      const err = new Error(errorText);
+      err.statusCode = 502;
+      throw err;
+    }
+
+    const remoteId = res?.data?.order_id || res?.order_id || res?.id;
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: {
+        hubnetStatus: 'SUBMITTED',
+        hubnetTransactionId: remoteId ? String(remoteId) : item.hubnetTransactionId,
+      },
+    });
+  } catch (e) {
+    const message = e?.message ? String(e.message) : `${provider} request failed`;
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: {
+        hubnetStatus: 'FAILED',
+        hubnetLastError: message,
+      },
+    });
+  }
+
+  return true;
+}
+
+async function pollOneProviderItem(provider, intervalMs) {
+  const cutoff = new Date(Date.now() - intervalMs);
+
+  const item = await prisma.orderItem.findFirst({
+    where: {
+      order: { paymentStatus: 'PAID' },
+      hubnetSkip: false,
+      fulfillmentProvider: provider,
+      hubnetStatus: 'SUBMITTED',
+      OR: [{ hubnetLastAttemptAt: null }, { hubnetLastAttemptAt: { lte: cutoff } }],
+    },
+    include: { order: true },
+    orderBy: { updatedAt: 'asc' },
+  });
+
+  if (!item) return false;
+
+  await prisma.orderItem.update({
+    where: { id: item.id },
+    data: { hubnetLastAttemptAt: new Date() },
+  });
+
+  try {
+    const checkId = provider === 'encart'
+      ? item.hubnetReference || item.hubnetTransactionId
+      : item.hubnetTransactionId || item.hubnetReference;
+    if (!checkId) return true;
+
+    if (provider === 'encart') {
+      const res = await encartCheckStatus(checkId);
+      const statusText =
+        res?.data?.status ||
+        res?.status ||
+        res?.order?.status ||
+        res?.data?.order?.status ||
+        res?.data?.state ||
+        '';
+      const text = String(statusText || '').toLowerCase();
+
+      if (isDeliveredStatus(text)) {
+        await prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            hubnetStatus: 'DELIVERED',
+            hubnetDeliveredAt: new Date(),
+            hubnetLastError: null,
+          },
+        });
+        await updateOrderCompletion(item.orderId);
+        return true;
+      }
+
+      if (isFailedStatus(text)) {
+        await prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            hubnetStatus: 'FAILED',
+            hubnetLastError: String(statusText || 'Encart failed'),
+          },
+        });
+        return true;
+      }
+
+      return true;
+    }
+
+    const res = await datahubnetCheckStatus(checkId);
+    const statusText = res?.data?.order?.status || res?.data?.status || res?.status || '';
+    const s = String(statusText).toLowerCase();
+
+    if (isDeliveredStatus(s)) {
+      await prisma.orderItem.update({
+        where: { id: item.id },
+        data: {
+          hubnetStatus: 'DELIVERED',
+          hubnetDeliveredAt: new Date(),
+          hubnetLastError: null,
+        },
+      });
+      await updateOrderCompletion(item.orderId);
+      return true;
+    }
+
+    if (isFailedStatus(s)) {
+      await prisma.orderItem.update({
+        where: { id: item.id },
+        data: {
+          hubnetStatus: 'FAILED',
+          hubnetLastError: String(statusText || 'DataHubnet failed'),
+        },
+      });
+      return true;
+    }
+  } catch (e) {
+    const message = e?.message ? String(e.message) : `${provider} status check failed`;
+    await prisma.orderItem.update({
+      where: { id: item.id },
+      data: { hubnetLastError: message },
+    });
+  }
+
+  return true;
+}
+
+let dispatcherTimer = null;
+let dispatcherInFlight = false;
+
+function startFulfillmentDispatcher() {
+  const intervalMs = getDispatchIntervalMs();
+  const datahubnetConfigured = Boolean(process.env.DATAHUBNET_API_KEY);
+  const encartConfigured = Boolean(process.env.ENCART_API_KEY);
+  if (!datahubnetConfigured && !encartConfigured) return;
+  if (dispatcherTimer) return;
+
+  dispatcherTimer = setInterval(() => {
+    if (dispatcherInFlight) return;
+    dispatcherInFlight = true;
+
+    Promise.resolve()
+      .then(async () => {
+        const activeProvider = getActiveProviderByTime();
+        if (activeProvider === 'encart' && encartConfigured) {
+          const dispatched = await dispatchOneProviderItem('encart', intervalMs);
+          if (dispatched) return;
+        }
+
+        if (activeProvider === 'datahubnet' && datahubnetConfigured) {
+          const dispatched = await dispatchOneProviderItem('datahubnet', intervalMs);
+          if (dispatched) return;
+        }
+
+        const polledDatahubnet = datahubnetConfigured ? await pollOneProviderItem('datahubnet', intervalMs) : false;
+        if (polledDatahubnet) return;
+        const polledEncart = encartConfigured ? await pollOneProviderItem('encart', intervalMs) : false;
+        if (polledEncart) return;
+      })
+      .catch((e) => console.error(e))
+      .finally(() => {
+        dispatcherInFlight = false;
+      });
+  }, intervalMs);
+}
+
+module.exports = {
+  queueFulfillmentForOrder,
+  startFulfillmentDispatcher,
+};

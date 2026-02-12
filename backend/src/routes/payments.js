@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const { Prisma } = require('@prisma/client');
 const { prisma } = require('../lib/prisma');
 const { computePaystackGrossAmountPesewas } = require('../lib/paystackFees');
-const { queueHubnetForOrder } = require('../lib/hubnet');
+const { queueFulfillmentForOrder } = require('../lib/fulfillment');
 const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
 
@@ -651,7 +651,7 @@ router.post(
           return order;
         });
 
-        queueHubnetForOrder(created.id).catch((e) => console.error(e));
+        queueFulfillmentForOrder(created.id).catch((e) => console.error(e));
         return res.status(201).json(created);
       }
 
@@ -718,7 +718,7 @@ router.post(
         return order;
       });
 
-      queueHubnetForOrder(created.id).catch((e) => console.error(e));
+      queueFulfillmentForOrder(created.id).catch((e) => console.error(e));
       return res.status(201).json(created);
     }
 
@@ -784,7 +784,7 @@ router.post(
       return updatedOrder;
     });
 
-    queueHubnetForOrder(updated.id).catch((e) => console.error(e));
+    queueFulfillmentForOrder(updated.id).catch((e) => console.error(e));
     return res.status(201).json(updated);
   })
 );
@@ -882,7 +882,7 @@ router.post(
       return created;
     });
 
-    queueHubnetForOrder(order.id).catch((e) => console.error(e));
+    queueFulfillmentForOrder(order.id).catch((e) => console.error(e));
     return res.status(201).json(order);
   })
 );
