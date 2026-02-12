@@ -33,7 +33,7 @@ FULFILLMENT_DISPATCH_INTERVAL_MS=13000
 Notes:
 1. `ENCART_CAPACITY_MAP` / `DATAHUBNET_CAPACITY_MAP` let you override capacity (GB) per product slug or volume (MB). Keep them `{}` unless you need custom mappings.
 2. `ENCART_NETWORK_MAP` must point category slugs → Encart network keys (`mtn→YELLO`, etc.).
-3. If you need to test a provider manually, set `FULFILLMENT_FORCE_PROVIDER` to `encart` or `datahubnet`, then restart the backend. Remove it afterward.
+3. To test a provider manually, set `FULFILLMENT_FORCE_PROVIDER` to `encart` or `datahubnet`, then restart the backend so the dispatcher re-reads the env. Remove it afterward.
 
 ## 2. VPS deployment checklist
 1. **Prerequisites**
@@ -75,3 +75,13 @@ Notes:
    - Logs: `pm2 logs backend`
    - Restart after env changes: `pm2 restart backend`
    - Pull updates: `git pull origin main && npm install && pm2 restart backend`
+
+## 3. Forcing a provider during investigation
+```
+# example: force Datahubnet regardless of time window
+FULFILLMENT_FORCE_PROVIDER=datahubnet
+```
+1. Add the variable (or export it) on the VPS.
+2. Restart the backend (`pm2 restart backend`).
+3. Verify new orders show `fulfillmentProvider` matching the forced value.
+4. Remove the line when done and restart again so time-based routing resumes.

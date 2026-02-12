@@ -4,6 +4,13 @@ const { encartCheckStatus, encartPlaceOrder } = require('./encart');
 
 const DAY_START_MINUTES = 8 * 60 + 30;
 const DAY_END_MINUTES = 18 * 60;
+const ENABLE_FULFILLMENT_DEBUG = String(process.env.FULFILLMENT_DEBUG || '').trim().toLowerCase() === 'true';
+
+function debugLog(...args) {
+  if (!ENABLE_FULFILLMENT_DEBUG) return;
+  const ts = new Date().toISOString();
+  console.log('[FULFILLMENT]', ts, ...args);
+}
 
 function getDispatchIntervalMs() {
   const raw = process.env.FULFILLMENT_DISPATCH_INTERVAL_MS ?? process.env.HUBNET_DISPATCH_INTERVAL_MS;
@@ -14,11 +21,16 @@ function getDispatchIntervalMs() {
 function getActiveProviderByTime(now = new Date()) {
   const forced = String(process.env.FULFILLMENT_FORCE_PROVIDER || '').trim().toLowerCase();
   if (forced === 'encart' || forced === 'datahubnet') {
+    debugLog('Force override active →', forced);
     return forced;
   }
 
   const minutes = now.getUTCHours() * 60 + now.getUTCMinutes();
-  if (minutes >= DAY_START_MINUTES && minutes < DAY_END_MINUTES) return 'encart';
+  if (minutes >= DAY_START_MINUTES && minutes < DAY_END_MINUTES) {
+    debugLog('Time window selects provider', 'encart');
+    return 'encart';
+  }
+  debugLog('Time window selects provider', 'datahubnet');
   return 'datahubnet';
 }
 
@@ -313,6 +325,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
   });
 
   if (!candidate) return false;
+  debugLog('Dispatch candidate found', provider, candidate.id);
 
   const claimed = await prisma.orderItem.updateMany({
     where: {
@@ -343,6 +356,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
   });
 
   if (!item) return true;
+  debugLog('Dispatching item', item.id, provider);
 
   const phoneRaw = item.recipientPhone || item.order?.customerPhone;
   let phone;
@@ -356,6 +370,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         hubnetLastError: err?.message ? String(err.message) : 'Invalid phone number',
       },
     });
+    debugLog('Dispatch failed - invalid phone', item.id, err?.message);
     return true;
   }
 
@@ -369,6 +384,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         hubnetLastError: `No network mapping for category: ${String(categorySlug || 'unknown')}`,
       },
     });
+    debugLog('Dispatch failed - no network mapping', item.id, categorySlug);
     return true;
   }
 
@@ -383,6 +399,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         hubnetLastError: 'Unable to determine bundle size (capacity)',
       },
     });
+    debugLog('Dispatch failed - capacity lookup', item.id, provider);
     return true;
   }
 
@@ -423,6 +440,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         },
       });
 
+      debugLog('Encart order submitted', item.id, reference, remoteId);
       return true;
     }
 
@@ -449,6 +467,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         hubnetTransactionId: remoteId ? String(remoteId) : item.hubnetTransactionId,
       },
     });
+    debugLog('Datahubnet order submitted', item.id, reference, remoteId);
   } catch (e) {
     const message = e?.message ? String(e.message) : `${provider} request failed`;
     await prisma.orderItem.update({
@@ -458,6 +477,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         hubnetLastError: message,
       },
     });
+    debugLog('Dispatch error', provider, item.id, message);
   }
 
   return true;
@@ -484,6 +504,7 @@ async function pollOneProviderItem(provider, intervalMs) {
     where: { id: item.id },
     data: { hubnetLastAttemptAt: new Date() },
   });
+  debugLog('Polling status', provider, item.id, checkId);
 
   try {
     const checkId = provider === 'encart'
@@ -512,6 +533,7 @@ async function pollOneProviderItem(provider, intervalMs) {
           },
         });
         await updateOrderCompletion(item.orderId);
+        debugLog('Encart delivered', item.id, checkId);
         return true;
       }
 
@@ -523,6 +545,7 @@ async function pollOneProviderItem(provider, intervalMs) {
             hubnetLastError: String(statusText || 'Encart failed'),
           },
         });
+        debugLog('Encart failed status', item.id, statusText);
         return true;
       }
 
@@ -543,6 +566,7 @@ async function pollOneProviderItem(provider, intervalMs) {
         },
       });
       await updateOrderCompletion(item.orderId);
+      debugLog('Datahubnet delivered', item.id, checkId);
       return true;
     }
 
@@ -554,6 +578,7 @@ async function pollOneProviderItem(provider, intervalMs) {
           hubnetLastError: String(statusText || 'DataHubnet failed'),
         },
       });
+      debugLog('Datahubnet failed status', item.id, statusText);
       return true;
     }
   } catch (e) {
@@ -562,6 +587,7 @@ async function pollOneProviderItem(provider, intervalMs) {
       where: { id: item.id },
       data: { hubnetLastError: message },
     });
+    debugLog('Polling error', provider, item.id, message);
   }
 
   return true;
@@ -577,6 +603,8 @@ function startFulfillmentDispatcher() {
   if (!datahubnetConfigured && !encartConfigured) return;
   if (dispatcherTimer) return;
 
+  debugLog('Dispatcher initializing', { intervalMs, datahubnetConfigured, encartConfigured });
+
   dispatcherTimer = setInterval(() => {
     if (dispatcherInFlight) return;
     dispatcherInFlight = true;
@@ -584,19 +612,24 @@ function startFulfillmentDispatcher() {
     Promise.resolve()
       .then(async () => {
         const activeProvider = getActiveProviderByTime();
+        debugLog('Tick active provider', activeProvider);
         if (activeProvider === 'encart' && encartConfigured) {
           const dispatched = await dispatchOneProviderItem('encart', intervalMs);
+          debugLog('Encart dispatch tick result', dispatched);
           if (dispatched) return;
         }
 
         if (activeProvider === 'datahubnet' && datahubnetConfigured) {
           const dispatched = await dispatchOneProviderItem('datahubnet', intervalMs);
+          debugLog('Datahubnet dispatch tick result', dispatched);
           if (dispatched) return;
         }
 
         const polledDatahubnet = datahubnetConfigured ? await pollOneProviderItem('datahubnet', intervalMs) : false;
+        debugLog('Datahubnet poll tick result', polledDatahubnet);
         if (polledDatahubnet) return;
         const polledEncart = encartConfigured ? await pollOneProviderItem('encart', intervalMs) : false;
+        debugLog('Encart poll tick result', polledEncart);
         if (polledEncart) return;
       })
       .catch((e) => console.error(e))
