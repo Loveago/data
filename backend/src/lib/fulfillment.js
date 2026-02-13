@@ -5,6 +5,7 @@ const { encartCheckStatus, encartPlaceOrder } = require('./encart');
 const DAY_START_MINUTES = 8 * 60 + 30;
 const DAY_END_MINUTES = 18 * 60;
 const ENABLE_FULFILLMENT_DEBUG = String(process.env.FULFILLMENT_DEBUG || '').trim().toLowerCase() === 'true';
+let runtimeForcedProvider = null;
 
 function debugLog(...args) {
   if (!ENABLE_FULFILLMENT_DEBUG) return;
@@ -18,8 +19,29 @@ function getDispatchIntervalMs() {
   return intervalMs;
 }
 
+function normalizeForcedProviderValue(value) {
+  const v = String(value || '').trim().toLowerCase();
+  if (!v || v === 'auto' || v === 'none') return null;
+  if (v === 'encart' || v === 'datahubnet') return v;
+  return null;
+}
+
+function getForcedProvider() {
+  if (runtimeForcedProvider === 'encart' || runtimeForcedProvider === 'datahubnet') {
+    return runtimeForcedProvider;
+  }
+
+  return normalizeForcedProviderValue(process.env.FULFILLMENT_FORCE_PROVIDER);
+}
+
+function setForcedProvider(provider) {
+  const normalized = normalizeForcedProviderValue(provider);
+  runtimeForcedProvider = normalized;
+  return normalized;
+}
+
 function getActiveProviderByTime(now = new Date()) {
-  const forced = String(process.env.FULFILLMENT_FORCE_PROVIDER || '').trim().toLowerCase();
+  const forced = getForcedProvider();
   if (forced === 'encart' || forced === 'datahubnet') {
     debugLog('Force override active →', forced);
     return forced;
@@ -512,12 +534,12 @@ async function pollOneProviderItem(provider, intervalMs) {
     where: { id: item.id },
     data: { hubnetLastAttemptAt: new Date() },
   });
-  debugLog('Polling status', provider, item.id, checkId);
 
   try {
     const checkId = provider === 'encart'
       ? item.hubnetReference || item.hubnetTransactionId
       : item.hubnetTransactionId || item.hubnetReference;
+    debugLog('Polling status', provider, item.id, checkId);
     if (!checkId) return true;
 
     if (provider === 'encart') {
@@ -647,7 +669,23 @@ function startFulfillmentDispatcher() {
   }, intervalMs);
 }
 
+function getFulfillmentControlState(now = new Date()) {
+  const forcedProvider = getForcedProvider();
+  const activeProvider = getActiveProviderByTime(now);
+  return {
+    forcedProvider,
+    activeProvider,
+    nowUtc: now.toISOString(),
+    dayWindowUtc: {
+      start: '08:30',
+      end: '18:00',
+    },
+  };
+}
+
 module.exports = {
+  getFulfillmentControlState,
   queueFulfillmentForOrder,
+  setForcedProvider,
   startFulfillmentDispatcher,
 };

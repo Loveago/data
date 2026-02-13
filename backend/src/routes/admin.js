@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 
 const { Prisma, NotificationLevel } = require('@prisma/client');
 const { prisma } = require('../lib/prisma');
+const { getFulfillmentControlState, setForcedProvider } = require('../lib/fulfillment');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { sanitizeHtml } = require('./notifications');
@@ -18,6 +19,39 @@ function parseMoneyInput(value) {
   if (!/^-?\d+(?:\.\d{1,2})?$/.test(trimmed)) return null;
   return trimmed;
 }
+
+function parseForcedProviderInput(value) {
+  if (value == null) return null;
+  const v = String(value).trim().toLowerCase();
+  if (!v || v === 'auto' || v === 'none') return null;
+  if (v === 'encart' || v === 'datahubnet') return v;
+  return undefined;
+}
+
+router.get(
+  '/fulfillment-provider',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    void req;
+    return res.json(getFulfillmentControlState());
+  })
+);
+
+router.patch(
+  '/fulfillment-provider',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const provider = parseForcedProviderInput(req.body?.provider);
+    if (provider === undefined) {
+      return res.status(400).json({ error: 'Invalid provider. Use encart, datahubnet, or auto.' });
+    }
+
+    setForcedProvider(provider);
+    return res.json(getFulfillmentControlState());
+  })
+);
 
 router.get(
   '/orders',
