@@ -11,8 +11,8 @@ type Stats = {
 };
 
 type FulfillmentControl = {
-  forcedProvider: "encart" | "datahubnet" | null;
-  activeProvider: "encart" | "datahubnet";
+  forcedProvider: "grandapi" | "datahubnet" | null;
+  activeProvider: "grandapi" | "datahubnet";
   nowUtc: string;
   dayWindowUtc: {
     start: string;
@@ -29,7 +29,7 @@ function formatMoney(value: string) {
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [fulfillment, setFulfillment] = useState<FulfillmentControl | null>(null);
-  const [providerInput, setProviderInput] = useState<"auto" | "encart" | "datahubnet">("auto");
+  const [providerInput, setProviderInput] = useState<"auto" | "grandapi" | "datahubnet">("auto");
   const [providerSaving, setProviderSaving] = useState(false);
   const [providerMessage, setProviderMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,13 +136,13 @@ export default function AdminDashboardPage() {
                 value={providerInput}
                 onChange={(e) => {
                   const v = e.target.value;
-                  if (v === "encart" || v === "datahubnet") setProviderInput(v);
+                  if (v === "grandapi" || v === "datahubnet") setProviderInput(v);
                   else setProviderInput("auto");
                 }}
                 className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none dark:border-zinc-800 dark:bg-zinc-950"
               >
                 <option value="auto">Auto (time-based)</option>
-                <option value="encart">Force Encart</option>
+                <option value="grandapi">Force GrandAPI</option>
                 <option value="datahubnet">Force Datahubnet</option>
               </select>
               <button

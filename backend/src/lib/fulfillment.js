@@ -1,11 +1,14 @@
 const { prisma } = require('./prisma');
 const { datahubnetCheckStatus, datahubnetPlaceOrder } = require('./datahubnet');
-const { encartCheckStatus, encartPlaceOrder } = require('./encart');
+const { grandapiCheckStatus, grandapiGetPackages, grandapiPlaceOrder } = require('./grandapi');
 
 const DAY_START_MINUTES = 8 * 60 + 30;
 const DAY_END_MINUTES = 18 * 60;
 const ENABLE_FULFILLMENT_DEBUG = String(process.env.FULFILLMENT_DEBUG || '').trim().toLowerCase() === 'true';
 let runtimeForcedProvider = null;
+const SHOULD_USE_DATAHUBNET_EXPRESS = String(process.env.FULFILLMENT_DATAHUBNET_EXPRESS || '')
+  .trim()
+  .toLowerCase() === 'true';
 
 function debugLog(...args) {
   if (!ENABLE_FULFILLMENT_DEBUG) return;
@@ -22,12 +25,13 @@ function getDispatchIntervalMs() {
 function normalizeForcedProviderValue(value) {
   const v = String(value || '').trim().toLowerCase();
   if (!v || v === 'auto' || v === 'none') return null;
-  if (v === 'encart' || v === 'datahubnet') return v;
+  if (v === 'encart') return 'grandapi';
+  if (v === 'grandapi' || v === 'datahubnet') return v;
   return null;
 }
 
 function getForcedProvider() {
-  if (runtimeForcedProvider === 'encart' || runtimeForcedProvider === 'datahubnet') {
+  if (runtimeForcedProvider === 'grandapi' || runtimeForcedProvider === 'datahubnet') {
     return runtimeForcedProvider;
   }
 
@@ -40,17 +44,27 @@ function setForcedProvider(provider) {
   return normalized;
 }
 
+function normalizeProviderName(provider) {
+  return provider === 'encart' ? 'grandapi' : provider;
+}
+
+function getProviderAliasList(provider) {
+  const resolved = normalizeProviderName(provider);
+  if (resolved === 'grandapi') return ['grandapi', 'encart'];
+  return [resolved];
+}
+
 function getActiveProviderByTime(now = new Date()) {
   const forced = getForcedProvider();
-  if (forced === 'encart' || forced === 'datahubnet') {
+  if (forced === 'grandapi' || forced === 'datahubnet') {
     debugLog('Force override active →', forced);
     return forced;
   }
 
   const minutes = now.getUTCHours() * 60 + now.getUTCMinutes();
   if (minutes >= DAY_START_MINUTES && minutes < DAY_END_MINUTES) {
-    debugLog('Time window selects provider', 'encart');
-    return 'encart';
+    debugLog('Time window selects provider', 'grandapi');
+    return 'grandapi';
   }
   debugLog('Time window selects provider', 'datahubnet');
   return 'datahubnet';
@@ -81,15 +95,15 @@ function getDatahubnetNetworkMap() {
   return { ...defaults, ...custom };
 }
 
-function getEncartNetworkMap() {
+function getGrandapiNetworkMap() {
   const defaults = {
-    mtn: 'YELLO',
+    mtn: 'MTN',
     telecel: 'TELECEL',
-    airteltigo: 'AT_PREMIUM',
-    'at-bigtime': 'AT_BIGTIME',
+    airteltigo: 'AIRTELTIGO',
+    'at-bigtime': 'AIRTELTIGO',
   };
-  const raw = process.env.ENCART_NETWORK_MAP;
-  const custom = parseJsonEnv(raw, 'ENCART_NETWORK_MAP');
+  const raw = process.env.GRANDAPI_NETWORK_MAP;
+  const custom = parseJsonEnv(raw, 'GRANDAPI_NETWORK_MAP');
   return { ...defaults, ...custom };
 }
 
@@ -97,8 +111,66 @@ function getDatahubnetCapacityMap() {
   return parseJsonEnv(process.env.DATAHUBNET_CAPACITY_MAP, 'DATAHUBNET_CAPACITY_MAP');
 }
 
-function getEncartCapacityMap() {
-  return parseJsonEnv(process.env.ENCART_CAPACITY_MAP, 'ENCART_CAPACITY_MAP');
+function getGrandapiCapacityMap() {
+  return parseJsonEnv(process.env.GRANDAPI_CAPACITY_MAP, 'GRANDAPI_CAPACITY_MAP');
+}
+
+function getGrandapiPackageMap() {
+  return parseJsonEnv(process.env.GRANDAPI_PACKAGE_MAP, 'GRANDAPI_PACKAGE_MAP');
+}
+
+function getGrandapiBundleType() {
+  const raw = process.env.GRANDAPI_BUNDLE_TYPE;
+  const v = raw ? String(raw).trim().toUpperCase() : '';
+  return v || 'EXPIRING';
+}
+
+function normalizeGrandapiNetwork(value) {
+  const v = String(value || '').trim();
+  return v ? v.toUpperCase() : v;
+}
+
+const GRANDAPI_PACKAGE_CACHE_TTL_MS = Math.max(
+  60000,
+  Number(process.env.GRANDAPI_PACKAGE_CACHE_TTL_MS || 300000) || 300000
+);
+const grandapiPackageCache = new Map();
+
+function resolveGrandapiPackageFromMap(network, size, map) {
+  if (!map || typeof map !== 'object') return null;
+  const sizeKey = String(size);
+  const networkKey = String(network || '').toLowerCase();
+  const byNetwork = map[network] || map[networkKey] || map[String(network || '').toUpperCase()];
+  if (byNetwork && typeof byNetwork === 'object' && byNetwork[sizeKey]) {
+    return String(byNetwork[sizeKey]);
+  }
+  if (map[sizeKey]) return String(map[sizeKey]);
+  return null;
+}
+
+async function resolveGrandapiPackageId(network, size, type) {
+  const normalizedNetwork = normalizeGrandapiNetwork(network);
+  const normalizedType = String(type || '').toUpperCase();
+  const sizeValue = Number(size);
+  if (!normalizedNetwork || !Number.isFinite(sizeValue) || sizeValue <= 0) return null;
+
+  const packageMap = getGrandapiPackageMap();
+  const mapped = resolveGrandapiPackageFromMap(normalizedNetwork, sizeValue, packageMap);
+  if (mapped) return mapped;
+
+  const cacheKey = `${normalizedNetwork}|${normalizedType}`;
+  const now = Date.now();
+  const cached = grandapiPackageCache.get(cacheKey);
+  if (!cached || now - cached.fetchedAt > GRANDAPI_PACKAGE_CACHE_TTL_MS) {
+    const res = await grandapiGetPackages({ network: normalizedNetwork, type: normalizedType });
+    const payload = res?.payload || res?.data || res?.packages || [];
+    const packages = Array.isArray(payload) ? payload : [];
+    grandapiPackageCache.set(cacheKey, { fetchedAt: now, packages });
+  }
+
+  const packages = grandapiPackageCache.get(cacheKey)?.packages || [];
+  const match = packages.find((pkg) => Number(pkg?.size) === sizeValue);
+  return match?.id ? String(match.id) : match?.packageId ? String(match.packageId) : null;
 }
 
 function getDatahubnetTelecelNetwork() {
@@ -173,8 +245,9 @@ function getNetworkForProvider(provider, categorySlug) {
   const slug = String(categorySlug || '').toLowerCase();
   if (!slug) return null;
 
-  if (provider === 'encart') {
-    const map = getEncartNetworkMap();
+  const resolved = normalizeProviderName(provider);
+  if (resolved === 'grandapi') {
+    const map = getGrandapiNetworkMap();
     return map[slug] ? String(map[slug]) : null;
   }
 
@@ -183,7 +256,8 @@ function getNetworkForProvider(provider, categorySlug) {
 }
 
 function buildProviderReference(provider, orderId, itemId) {
-  const prefix = provider === 'encart' ? 'EN' : 'DH';
+  const resolved = normalizeProviderName(provider);
+  const prefix = resolved === 'grandapi' ? 'GA' : 'DH';
   const o = String(orderId || '').replace(/\W+/g, '');
   const i = String(itemId || '').replace(/\W+/g, '');
   const ref = `${prefix}-${o.slice(-8)}-${i.slice(-6)}`.toUpperCase();
@@ -220,12 +294,12 @@ async function updateOrderCompletion(orderId) {
 
 async function queueFulfillmentForOrder(orderId) {
   const datahubnetConfigured = Boolean(process.env.DATAHUBNET_API_KEY);
-  const encartConfigured = Boolean(process.env.ENCART_API_KEY);
-  if (!datahubnetConfigured && !encartConfigured) return { queued: false };
+  const grandapiConfigured = Boolean(process.env.GRANDAPI_API_KEY);
+  if (!datahubnetConfigured && !grandapiConfigured) return { queued: false };
 
-  const encartNetworkMap = getEncartNetworkMap();
+  const grandapiNetworkMap = getGrandapiNetworkMap();
   const datahubnetNetworkMap = getDatahubnetNetworkMap();
-  const encartCapacityMap = getEncartCapacityMap();
+  const grandapiCapacityMap = getGrandapiCapacityMap();
   const datahubnetCapacityMap = getDatahubnetCapacityMap();
 
   const order = await prisma.order.findUnique({
@@ -253,10 +327,10 @@ async function queueFulfillmentForOrder(orderId) {
       if (already && String(already) !== 'FAILED') continue;
 
       const categorySlug = item.product?.category?.slug ? String(item.product.category.slug).toLowerCase() : '';
-      const encartNetwork = categorySlug ? encartNetworkMap[categorySlug] : null;
+      const grandapiNetwork = categorySlug ? grandapiNetworkMap[categorySlug] : null;
       const datahubnetNetwork = categorySlug ? datahubnetNetworkMap[categorySlug] : null;
 
-      if (!encartNetwork && !datahubnetNetwork) {
+      if (!grandapiNetwork && !datahubnetNetwork) {
         debugLog('Skipping item, no network mapping', item.id, categorySlug);
         await tx.orderItem.update({
           where: { id: item.id },
@@ -279,9 +353,9 @@ async function queueFulfillmentForOrder(orderId) {
       }
 
       const volumeMb = parseVolumeMbFromProduct(item.product);
-      const encartCapacity = resolveCapacityForProduct(item.product, volumeMb, encartCapacityMap);
+      const grandapiCapacity = resolveCapacityForProduct(item.product, volumeMb, grandapiCapacityMap);
       const datahubnetCapacity = resolveCapacityForProduct(item.product, volumeMb, datahubnetCapacityMap);
-      if (!encartCapacity && !datahubnetCapacity) {
+      if (!grandapiCapacity && !datahubnetCapacity) {
         debugLog('Marking failed, unable to determine capacity', item.id);
         await tx.orderItem.update({
           where: { id: item.id },
@@ -338,6 +412,7 @@ async function queueFulfillmentForOrder(orderId) {
 
 async function dispatchOneProviderItem(provider, intervalMs) {
   const cutoff = new Date(Date.now() - intervalMs);
+  const providerAliases = getProviderAliasList(provider);
 
   const candidate = await prisma.orderItem.findFirst({
     where: {
@@ -347,7 +422,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
       AND: [
         { OR: [{ hubnetStatus: null }, { hubnetStatus: 'PENDING' }, { hubnetStatus: 'FAILED' }] },
         { OR: [{ hubnetLastAttemptAt: null }, { hubnetLastAttemptAt: { lte: cutoff } }] },
-        { OR: [{ fulfillmentProvider: null }, { fulfillmentProvider: provider }] },
+        { OR: [{ fulfillmentProvider: null }, { fulfillmentProvider: { in: providerAliases } }] },
       ],
     },
     select: { id: true },
@@ -366,7 +441,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
       AND: [
         { OR: [{ hubnetStatus: null }, { hubnetStatus: 'PENDING' }, { hubnetStatus: 'FAILED' }] },
         { OR: [{ hubnetLastAttemptAt: null }, { hubnetLastAttemptAt: { lte: cutoff } }] },
-        { OR: [{ fulfillmentProvider: null }, { fulfillmentProvider: provider }] },
+        { OR: [{ fulfillmentProvider: null }, { fulfillmentProvider: { in: providerAliases } }] },
       ],
     },
     data: {
@@ -419,7 +494,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
   }
 
   const volumeMb = item.hubnetVolumeMb || parseVolumeMbFromProduct(item.product);
-  const capacityMap = provider === 'encart' ? getEncartCapacityMap() : getDatahubnetCapacityMap();
+  const capacityMap = provider === 'grandapi' ? getGrandapiCapacityMap() : getDatahubnetCapacityMap();
   const capacity = resolveCapacityForProduct(item.product, volumeMb, capacityMap);
   if (!capacity) {
     await prisma.orderItem.update({
@@ -446,22 +521,27 @@ async function dispatchOneProviderItem(provider, intervalMs) {
   });
 
   try {
-    if (provider === 'encart') {
-      const res = await encartPlaceOrder({
-        networkKey: network,
-        recipient: phone,
-        capacity,
-        reference,
-      });
-
-      const errorText = res?.error ? String(res.error) : '';
-      if (errorText) {
-        const err = new Error(errorText);
+    if (provider === 'grandapi') {
+      const bundleType = getGrandapiBundleType();
+      const networkKey = normalizeGrandapiNetwork(network);
+      const sizeGb = Number(capacity);
+      const packageId = await resolveGrandapiPackageId(networkKey, sizeGb, bundleType);
+      if (!packageId) {
+        const err = new Error('Unable to resolve GrandAPI package for bundle size');
         err.statusCode = 502;
         throw err;
       }
 
-      const remoteId = res?.data?.reference || res?.reference || res?.data?.transaction_id || res?.transaction_id;
+      const res = await grandapiPlaceOrder({
+        phone,
+        network: networkKey,
+        size: sizeGb,
+        type: bundleType,
+        packageId,
+      });
+
+      const payload = res?.payload || res?.data || res;
+      const remoteId = payload?.orderId || payload?.id || payload?.orders?.[0]?.id;
       await prisma.orderItem.update({
         where: { id: item.id },
         data: {
@@ -470,7 +550,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         },
       });
 
-      debugLog('Encart order submitted', item.id, reference, remoteId);
+      debugLog('GrandAPI order submitted', item.id, packageId, remoteId);
       return true;
     }
 
@@ -479,7 +559,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
       network,
       capacity,
       reference,
-      express: true,
+      express: SHOULD_USE_DATAHUBNET_EXPRESS,
     });
 
     const errorText = res?.error != null ? String(res.error) : '';
@@ -515,12 +595,13 @@ async function dispatchOneProviderItem(provider, intervalMs) {
 
 async function pollOneProviderItem(provider, intervalMs) {
   const cutoff = new Date(Date.now() - intervalMs);
+  const providerAliases = getProviderAliasList(provider);
 
   const item = await prisma.orderItem.findFirst({
     where: {
       order: { paymentStatus: 'PAID' },
       hubnetSkip: false,
-      fulfillmentProvider: provider,
+      fulfillmentProvider: { in: providerAliases },
       hubnetStatus: 'SUBMITTED',
       OR: [{ hubnetLastAttemptAt: null }, { hubnetLastAttemptAt: { lte: cutoff } }],
     },
@@ -536,21 +617,16 @@ async function pollOneProviderItem(provider, intervalMs) {
   });
 
   try {
-    const checkId = provider === 'encart'
-      ? item.hubnetReference || item.hubnetTransactionId
+    const resolvedProvider = normalizeProviderName(provider);
+    const checkId = resolvedProvider === 'grandapi'
+      ? item.hubnetTransactionId || item.hubnetReference
       : item.hubnetTransactionId || item.hubnetReference;
     debugLog('Polling status', provider, item.id, checkId);
     if (!checkId) return true;
 
-    if (provider === 'encart') {
-      const res = await encartCheckStatus(checkId);
-      const statusText =
-        res?.data?.status ||
-        res?.status ||
-        res?.order?.status ||
-        res?.data?.order?.status ||
-        res?.data?.state ||
-        '';
+    if (resolvedProvider === 'grandapi') {
+      const res = await grandapiCheckStatus(checkId);
+      const statusText = res?.data?.status || res?.status || res?.payload?.status || '';
       const text = String(statusText || '').toLowerCase();
 
       if (isDeliveredStatus(text)) {
@@ -563,7 +639,7 @@ async function pollOneProviderItem(provider, intervalMs) {
           },
         });
         await updateOrderCompletion(item.orderId);
-        debugLog('Encart delivered', item.id, checkId);
+        debugLog('GrandAPI delivered', item.id, checkId);
         return true;
       }
 
@@ -572,10 +648,10 @@ async function pollOneProviderItem(provider, intervalMs) {
           where: { id: item.id },
           data: {
             hubnetStatus: 'FAILED',
-            hubnetLastError: String(statusText || 'Encart failed'),
+            hubnetLastError: String(statusText || 'GrandAPI failed'),
           },
         });
-        debugLog('Encart failed status', item.id, statusText);
+        debugLog('GrandAPI failed status', item.id, statusText);
         return true;
       }
 
@@ -629,11 +705,11 @@ let dispatcherInFlight = false;
 function startFulfillmentDispatcher() {
   const intervalMs = getDispatchIntervalMs();
   const datahubnetConfigured = Boolean(process.env.DATAHUBNET_API_KEY);
-  const encartConfigured = Boolean(process.env.ENCART_API_KEY);
-  if (!datahubnetConfigured && !encartConfigured) return;
+  const grandapiConfigured = Boolean(process.env.GRANDAPI_API_KEY);
+  if (!datahubnetConfigured && !grandapiConfigured) return;
   if (dispatcherTimer) return;
 
-  debugLog('Dispatcher initializing', { intervalMs, datahubnetConfigured, encartConfigured });
+  debugLog('Dispatcher initializing', { intervalMs, datahubnetConfigured, grandapiConfigured });
 
   dispatcherTimer = setInterval(() => {
     if (dispatcherInFlight) return;
@@ -643,9 +719,9 @@ function startFulfillmentDispatcher() {
       .then(async () => {
         const activeProvider = getActiveProviderByTime();
         debugLog('Tick active provider', activeProvider);
-        if (activeProvider === 'encart' && encartConfigured) {
-          const dispatched = await dispatchOneProviderItem('encart', intervalMs);
-          debugLog('Encart dispatch tick result', dispatched);
+        if (activeProvider === 'grandapi' && grandapiConfigured) {
+          const dispatched = await dispatchOneProviderItem('grandapi', intervalMs);
+          debugLog('GrandAPI dispatch tick result', dispatched);
           if (dispatched) return;
         }
 
@@ -658,9 +734,9 @@ function startFulfillmentDispatcher() {
         const polledDatahubnet = datahubnetConfigured ? await pollOneProviderItem('datahubnet', intervalMs) : false;
         debugLog('Datahubnet poll tick result', polledDatahubnet);
         if (polledDatahubnet) return;
-        const polledEncart = encartConfigured ? await pollOneProviderItem('encart', intervalMs) : false;
-        debugLog('Encart poll tick result', polledEncart);
-        if (polledEncart) return;
+        const polledGrandapi = grandapiConfigured ? await pollOneProviderItem('grandapi', intervalMs) : false;
+        debugLog('GrandAPI poll tick result', polledGrandapi);
+        if (polledGrandapi) return;
       })
       .catch((e) => console.error(e))
       .finally(() => {
@@ -688,4 +764,5 @@ module.exports = {
   queueFulfillmentForOrder,
   setForcedProvider,
   startFulfillmentDispatcher,
+  updateOrderCompletion,
 };

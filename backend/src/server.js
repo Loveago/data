@@ -13,6 +13,7 @@ const paymentsRoutes = require('./routes/payments');
 const productsRoutes = require('./routes/products');
 const agentStorefrontRoutes = require('./routes/agent-storefront');
 const { router: notificationsRoutes } = require('./routes/notifications');
+const grandapiRoutes = require('./routes/grandapi');
 const walletRoutes = require('./routes/wallet');
 const { startFulfillmentDispatcher } = require('./lib/fulfillment');
 
@@ -39,6 +40,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agent-storefront', agentStorefrontRoutes);
+app.use('/api/grandapi', grandapiRoutes);
 
 app.use((err, req, res, next) => {
   void next;

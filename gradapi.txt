@@ -1,0 +1,368 @@
+GET
+/api/orders/:orderId
+Get Order Status
+Retrieve the status and details of a specific order.
+
+Parameters
+Parameter
+Type
+Description
+orderId
+string
+The unique identifier of the order
+Example Request
+curl -X GET https://grandapi.duckdns.org/api/orders/ord_123456789 \
+  -H "X-API-Key: YOUR_API_KEY"
+Response
+{
+  "success": true,
+  "data": {
+    "id": "ord_123456789",
+    "phoneNumber": "233244123456",
+    "network": "mtn",
+    "dataSize": 100,
+    "bundleType": "daily",
+    "status": "completed",
+    "amount": 10.00,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "completedAt": "2024-01-15T10:35:00Z",
+    "transactionId": "txn_987654321",
+    "notes": "Bundle activated successfully"
+  }
+}
+Error Responses
+401 Unauthorized
+{
+  "success": false,
+  "error": "Invalid API key"
+}
+400 Bad Request
+{
+  "success": false,
+  "error": "Invalid request format",
+  "details": "phoneNumber is required"
+}
+429 Too Many Requests
+{
+  "success": false,
+  "error": "Rate limit exceeded",
+  "retryAfter": 60
+}
+Rate Limits
+API requests are limited to 100 requests per minute per API key.
+
+When rate limit is exceeded, the API returns a 429 status code with a Retry-After header.
+
+GET
+/api/packages
+Get Packages
+Retrieve available data packages by network and type.
+
+Note: The price value is in pesewas (1 GHS = 100 pesewas).
+Query Parameters
+Parameter
+Type
+Description
+network
+string
+Network provider (MTN, TELECEL, AIRTELTIGO)
+type
+string
+Bundle type (EXPIRING, NON_EXPIRING)
+Example Request
+curl -X GET "https://grandapi.duckdns.org/api/packages?network=MTN&type=EXPIRING" \
+  -H "X-API-Key: YOUR_API_KEY"
+Response
+{
+  "status": true,
+  "message": "Packages fetched successfully",
+  "statusCode": 200,
+  "payload": [
+    {
+      "id": "c2cbf795-445d-43c6-8d2d-425eaca7cc7d",
+      "updatedAt": "2025-06-21T18:55:21.000Z",
+      "createdAt": "2025-06-15T12:53:07.839Z",
+      "price": 1250,
+      "size": 3,
+      "network": "MTN",
+      "sales": null,
+      "limit": null,
+      "type": "EXPIRING"
+    }
+  ]
+}
+Error Responses
+401 Unauthorized
+{
+  "success": false,
+  "error": "Invalid API key"
+}
+400 Bad Request
+{
+  "success": false,
+  "error": "Invalid request format",
+  "details": "phoneNumber is required"
+}
+429 Too Many Requests
+{
+  "success": false,
+  "error": "Rate limit exceeded",
+  "retryAfter": 60
+}
+
+POST
+/api/orders
+Make Orders
+Create new data bundle orders for phone numbers.
+
+Request Body
+{
+  "packages": [
+    {
+      "packageId": "string",
+      "size": "number (MB)",
+      "network": "string (MTN|TELECEL|AIRTELTIGO)",
+      "type": "string (EXPIRING|NON_EXPIRING)",
+      "phone": "string",
+      "callback": "string (optional)"
+    }
+  ]
+}
+Parameters
+Parameter
+Type
+Description
+packageId
+string
+Unique identifier for the package
+size
+number
+Data size in GB
+network
+string
+Network provider (MTN, TELECEL, AIRTELTIGO)
+type
+string
+Bundle type (EXPIRING, UNLIMITED)
+phone
+string
+Phone number to receive the bundle
+callback
+string
+Webhook URL for order status updates (optional)
+Example Request
+curl -X POST https://grandapi.duckdns.org/api/orders \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "packages": [
+      {
+        "packageId": "1",
+        "size": 100,
+        "network": "MTN",
+        "type": "EXPIRING",
+        "phone": "08123456789",
+        "callback": "https://your-domain.com/webhook/order-status"
+      }
+    ]
+  }'
+Response
+{
+  "status": true,
+  "message": "Orders created successfully",
+  "statusCode": 200,
+  "payload": {
+    "orderId": "ord_123456789",
+    "totalOrders": 1,
+    "totalAmount": 10.00,
+    "orders": [
+      {
+        "id": "sub_001",
+        "packageId": "1",
+        "phone": "08123456789",
+        "network": "MTN",
+        "size": 100,
+        "type": "EXPIRING",
+        "status": "processing",
+        "amount": 10.00
+      }
+    ]
+  }
+}
+Error Responses
+401 Unauthorized
+{
+  "success": false,
+  "error": "Invalid API key"
+}
+400 Bad Request
+{
+  "success": false,
+  "error": "Invalid request format",
+  "details": "phoneNumber is required"
+}
+429 Too Many Requests
+{
+  "success": false,
+  "error": "Rate limit exceeded",
+  "retryAfter": 60
+}
+GET
+/api/orders
+Get Orders
+Retrieve a list of all orders for your account.
+
+Query Parameters
+Parameter
+Type
+Description
+page
+number
+Page number (default: 1)
+limit
+number
+Items per page (default: 20)
+status
+string
+Filter by status (PENDING|PROCESSING|COMPLETED|FAILED)
+Example Request
+curl -X GET "https://grandapi.duckdns.org/api/orders?page=1&limit=10&status=COMPLETED" \
+  -H "X-API-Key: YOUR_API_KEY"
+Response
+{
+  "message": "Orders fetched successfully",
+  "payload": [
+    {
+      "id": "bbe23d1a-29df-4e80-af8c-0f18b7105906",
+      "updatedAt": "2025-07-18T18:40:54.338Z",
+      "createdAt": "2025-07-18T18:40:54.338Z",
+      "orderId": "36267",
+      "totalPrice": 2060,
+      "source": "WEB",
+      "packages": [
+        {
+          "id": "bdab959b-71c3-4b66-9d3b-9e986ef542f8",
+          "updatedAt": "2025-07-18T19:02:25.000Z",
+          "createdAt": "2025-07-18T18:40:54.341Z",
+          "status": "COMPLETED",
+          "package": {
+            "id": "453d0edf-9859-430f-8c5d-d8e91dd04b70",
+            "updatedAt": "2025-06-21T19:22:25.000Z",
+            "createdAt": "2025-06-15T12:53:30.882Z",
+            "price": 2060,
+            "size": 5,
+            "network": "MTN",
+            "type": "EXPIRING"
+          },
+          "phone": "0536897800",
+          "size": 5,
+          "price": 2060,
+          "network": "MTN",
+          "type": "EXPIRING",
+          "source": "WEB",
+          "callback": null
+        }
+      ]
+    }
+  ],
+  "statusCode": 200,
+  "status": true,
+  "total": 14,
+  "totalPages": 14
+}
+Error Responses
+401 Unauthorized
+{
+  "success": false,
+  "error": "Invalid API key"
+}
+400 Bad Request
+
+GET
+/api/balance
+Check Balance
+Retrieve the current balance of your account.
+
+Example Request
+curl -X GET https://grandapi.duckdns.org/api/balance \
+  -H "X-API-Key: YOUR_API_KEY"
+Response
+{
+  "status": true,
+  "message": "Balance retrieved successfully",
+  "statusCode": 200,
+  "payload": {
+    "balance": 105775,
+    "totalSales": 49455,
+    "totalDeposit": 102300,
+    "overDraft": 60000
+  }
+}
+Error Responses
+401 Unauthorized
+{
+  "success": false,
+  "error": "Invalid API key"
+}
+400 Bad Request
+{
+  "success": false,
+  "error": "Invalid request format",
+  "details": "phoneNumber is required"
+}
+429 Too Many Requests
+{
+  "success": false,
+  "error": "Rate limit exceeded",
+  "retryAfter": 60
+}
+
+GET
+/api/orders/:orderId
+Get Order Status
+Retrieve the status and details of a specific order.
+
+Parameters
+Parameter
+Type
+Description
+orderId
+string
+The unique identifier of the order
+Example Request
+curl -X GET https://grandapi.duckdns.org/api/orders/ord_123456789 \
+  -H "X-API-Key: YOUR_API_KEY"
+Response
+{
+  "success": true,
+  "data": {
+    "id": "ord_123456789",
+    "phoneNumber": "233244123456",
+    "network": "mtn",
+    "dataSize": 100,
+    "bundleType": "daily",
+    "status": "completed",
+    "amount": 10.00,
+    "createdAt": "2024-01-15T10:30:00Z",
+    "completedAt": "2024-01-15T10:35:00Z",
+    "transactionId": "txn_987654321",
+    "notes": "Bundle activated successfully"
+  }
+}
+Error Responses
+401 Unauthorized
+{
+  "success": false,
+  "error": "Invalid API key"
+}
+400 Bad Request
+{
+  "success": false,
+  "error": "Invalid request format",
+  "details": "phoneNumber is required"
+}
+429 Too Many Requests
+{
+  "success": false,
+  "error": "Rate limit exceeded",
+  "retryAfter": 60

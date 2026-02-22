@@ -11,11 +11,19 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME
 JWT_SECRET=<random string>
 PAYSTACK_SECRET_KEY=<paystack-key>
 
-# Encart (daytime provider)
-ENCART_API_KEY=
-ENCART_BASE_URL=https://encartastores.com/api
-ENCART_NETWORK_MAP={"mtn":"YELLO","telecel":"TELECEL","airteltigo":"AT_PREMIUM","at-bigtime":"AT_BIGTIME"}
-ENCART_CAPACITY_MAP={}
+# GrandAPI (daytime provider)
+GRANDAPI_API_KEY=
+GRANDAPI_BASE_URL=https://grandapi.duckdns.org/api
+GRANDAPI_NETWORK_MAP={"mtn":"MTN","telecel":"TELECEL","airteltigo":"AIRTELTIGO","at-bigtime":"AIRTELTIGO"}
+GRANDAPI_CAPACITY_MAP={}
+# Optional overrides
+GRANDAPI_PACKAGE_MAP={}
+# EXPIRING or NON_EXPIRING (per GrandAPI packages)
+GRANDAPI_BUNDLE_TYPE=EXPIRING
+# Optional callback for order status webhooks
+GRANDAPI_CALLBACK_URL=
+# Package cache TTL in ms (default 300000)
+GRANDAPI_PACKAGE_CACHE_TTL_MS=300000
 
 # Datahubnet (night provider)
 DATAHUBNET_API_KEY=
@@ -31,9 +39,10 @@ FULFILLMENT_DISPATCH_INTERVAL_MS=13000
 ```
 
 Notes:
-1. `ENCART_CAPACITY_MAP` / `DATAHUBNET_CAPACITY_MAP` let you override capacity (GB) per product slug or volume (MB). Keep them `{}` unless you need custom mappings.
-2. `ENCART_NETWORK_MAP` must point category slugs → Encart network keys (`mtn→YELLO`, etc.).
-3. To test a provider manually, set `FULFILLMENT_FORCE_PROVIDER` to `encart` or `datahubnet`, then restart the backend so the dispatcher re-reads the env. Remove it afterward.
+1. `GRANDAPI_CAPACITY_MAP` / `DATAHUBNET_CAPACITY_MAP` let you override capacity (GB) per product slug or volume (MB). Keep them `{}` unless you need custom mappings.
+2. `GRANDAPI_NETWORK_MAP` must point category slugs → GrandAPI network keys (`mtn→MTN`, `telecel→TELECEL`, etc.).
+3. `GRANDAPI_PACKAGE_MAP` can override package IDs. You can map by size or by network+size (e.g. `{ "MTN": { "1": "package-id" } }`).
+4. To test a provider manually, set `FULFILLMENT_FORCE_PROVIDER` to `grandapi` or `datahubnet`, then restart the backend so the dispatcher re-reads the env. Remove it afterward.
 
 ## 2. VPS deployment checklist
 1. **Prerequisites**
