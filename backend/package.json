@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
+    "build": "prisma generate",
     "prisma": "prisma",
     "seed": "node prisma/seed.js",
+    "migrate:deploy": "prisma migrate deploy",
+    "deploy": "prisma migrate deploy && prisma db seed",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -20,11 +23,11 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "prisma": "^6.2.1",
     "resend": "^6.9.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11",
-    "prisma": "^6.2.1"
+    "nodemon": "^3.1.11"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
