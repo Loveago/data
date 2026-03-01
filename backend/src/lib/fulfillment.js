@@ -272,6 +272,52 @@ function isFailedStatus(text) {
   return /fail|error|cancel|rejected/i.test(text);
 }
 
+function getAutoDeliverAfterMs() {
+  const raw = process.env.HUBNET_AUTO_DELIVER_AFTER_MS;
+  const ms = Math.max(0, Number(raw || 2 * 60 * 60 * 1000) || 2 * 60 * 60 * 1000);
+  return ms;
+}
+
+async function finalizeStaleSubmittedItems() {
+  const autoDeliverAfterMs = getAutoDeliverAfterMs();
+  if (!autoDeliverAfterMs) return;
+
+  const cutoff = new Date(Date.now() - autoDeliverAfterMs);
+
+  const stale = await prisma.orderItem.findMany({
+    where: {
+      order: { paymentStatus: 'PAID' },
+      hubnetSkip: false,
+      hubnetStatus: 'SUBMITTED',
+      hubnetDeliveredAt: null,
+      OR: [{ hubnetSubmittedAt: { lte: cutoff } }, { AND: [{ hubnetSubmittedAt: null }, { updatedAt: { lte: cutoff } }] }],
+    },
+    select: { id: true, orderId: true },
+    orderBy: { updatedAt: 'asc' },
+    take: 50,
+  });
+
+  if (!stale.length) return;
+
+  const ids = stale.map((x) => x.id);
+  const orderIds = Array.from(new Set(stale.map((x) => x.orderId)));
+
+  const now = new Date();
+  await prisma.orderItem.updateMany({
+    where: { id: { in: ids }, hubnetStatus: 'SUBMITTED', hubnetDeliveredAt: null },
+    data: {
+      hubnetStatus: 'DELIVERED',
+      hubnetDeliveredAt: now,
+      hubnetLastError: null,
+    },
+  });
+
+  debugLog('Auto-finalized stale submitted items → DELIVERED', { count: ids.length, orderIds: orderIds.length });
+  for (const orderId of orderIds) {
+    await updateOrderCompletion(orderId);
+  }
+}
+
 async function updateOrderCompletion(orderId) {
   const remaining = await prisma.orderItem.count({
     where: {
@@ -345,6 +391,7 @@ async function queueFulfillmentForOrder(orderId) {
             hubnetLastError: null,
             hubnetTransactionId: null,
             hubnetPaymentId: null,
+            hubnetSubmittedAt: null,
             hubnetDeliveredAt: null,
             fulfillmentProvider: null,
           },
@@ -370,6 +417,7 @@ async function queueFulfillmentForOrder(orderId) {
             hubnetLastError: 'Unable to determine bundle size (capacity)',
             hubnetTransactionId: null,
             hubnetPaymentId: null,
+            hubnetSubmittedAt: null,
             hubnetDeliveredAt: null,
             fulfillmentProvider: null,
           },
@@ -390,6 +438,7 @@ async function queueFulfillmentForOrder(orderId) {
           hubnetLastError: null,
           hubnetTransactionId: null,
           hubnetPaymentId: null,
+          hubnetSubmittedAt: null,
           hubnetDeliveredAt: null,
           fulfillmentProvider: null,
         },
@@ -547,6 +596,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         data: {
           hubnetStatus: 'SUBMITTED',
           hubnetTransactionId: remoteId ? String(remoteId) : item.hubnetTransactionId,
+          hubnetSubmittedAt: new Date(),
         },
       });
 
@@ -575,6 +625,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
       data: {
         hubnetStatus: 'SUBMITTED',
         hubnetTransactionId: remoteId ? String(remoteId) : item.hubnetTransactionId,
+        hubnetSubmittedAt: new Date(),
       },
     });
     debugLog('Datahubnet order submitted', item.id, reference, remoteId);
@@ -585,6 +636,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
       data: {
         hubnetStatus: 'FAILED',
         hubnetLastError: message,
+        hubnetSubmittedAt: null,
       },
     });
     debugLog('Dispatch error', provider, item.id, message);
@@ -717,6 +769,7 @@ function startFulfillmentDispatcher() {
 
     Promise.resolve()
       .then(async () => {
+        await finalizeStaleSubmittedItems();
         const activeProvider = getActiveProviderByTime();
         debugLog('Tick active provider', activeProvider);
         if (activeProvider === 'grandapi' && grandapiConfigured) {

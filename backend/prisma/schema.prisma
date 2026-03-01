@@ -186,6 +186,7 @@ model OrderItem {
   hubnetAttempts      Int     @default(0)
   hubnetLastError     String?
   hubnetLastAttemptAt DateTime?
+  hubnetSubmittedAt   DateTime?
   hubnetDeliveredAt   DateTime?
 
   fulfillmentProvider String?
