@@ -29,6 +29,9 @@ export default function AdminOrdersPage() {
   const [q, setQ] = useState("");
   const [status, setStatusFilter] = useState<"" | AdminOrder["status"]>("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [page, setPage] = useState(1);
+  const limit = 10;
+  const [total, setTotal] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,22 +40,28 @@ export default function AdminOrdersPage() {
       const params = new URLSearchParams();
       if (q.trim()) params.set("q", q.trim());
       if (status) params.set("status", status);
+      params.set("page", String(page));
+      params.set("limit", String(limit));
       const suffix = params.toString() ? `?${params.toString()}` : "";
 
-      const res = await api.get<{ items: AdminOrder[] }>(`/admin/orders${suffix}`);
+      const res = await api.get<{ items: AdminOrder[]; total?: number }>(`/admin/orders${suffix}`);
       setOrders(res.data.items || []);
+      setTotal(Number(res.data.total || 0));
     } catch (e: unknown) {
       const maybeError = e as { response?: { data?: { error?: string } } };
       setError(maybeError?.response?.data?.error || "Failed to load orders.");
       setOrders([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [q, status]);
+  }, [q, status, page]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const totalPages = Math.max(1, Math.ceil(total / limit));
 
   async function setStatus(id: string, status: AdminOrder["status"]) {
     try {
@@ -201,6 +210,28 @@ export default function AdminOrdersPage() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="mt-6 flex items-center justify-between">
+        <button
+          type="button"
+          disabled={loading || page <= 1}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+        >
+          Prev
+        </button>
+        <div className="text-sm text-zinc-600 dark:text-zinc-400">
+          Page {page} of {totalPages}
+        </div>
+        <button
+          type="button"
+          disabled={loading || page >= totalPages}
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+        >
+          Next
+        </button>
       </div>
     </div>
   );

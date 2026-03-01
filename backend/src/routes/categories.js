@@ -19,12 +19,18 @@ router.post(
   requireAuth,
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { name, slug } = req.body || {};
+    const { name, slug, enabled } = req.body || {};
     if (!name || !slug) {
       return res.status(400).json({ error: 'Name and slug are required' });
     }
 
-    const created = await prisma.category.create({ data: { name, slug } });
+    const created = await prisma.category.create({
+      data: {
+        name,
+        slug,
+        ...(enabled != null ? { enabled: Boolean(enabled) } : {}),
+      },
+    });
     return res.status(201).json(created);
   })
 );
@@ -35,13 +41,14 @@ router.put(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const id = req.params.id;
-    const { name, slug } = req.body || {};
+    const { name, slug, enabled } = req.body || {};
 
     const updated = await prisma.category.update({
       where: { id },
       data: {
         ...(name != null ? { name } : {}),
         ...(slug != null ? { slug } : {}),
+        ...(enabled != null ? { enabled: Boolean(enabled) } : {}),
       },
     });
 

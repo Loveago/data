@@ -248,6 +248,9 @@ function DashboardInner() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [orderSearch, setOrderSearch] = useState("");
+  const [ordersPage, setOrdersPage] = useState(1);
+  const ordersLimit = 10;
+  const [ordersTotal, setOrdersTotal] = useState(0);
 
   const referralCode = affiliateCode || user?.referralCode || "";
 
@@ -483,10 +486,18 @@ function DashboardInner() {
 
       setLoading(true);
       try {
-        const res = await api.get<{ items: Order[] }>("/orders/my");
-        if (!cancelled) setOrders(res.data.items || []);
+        const res = await api.get<{ items: Order[]; total?: number }>("/orders/my", {
+          params: { page: ordersPage, limit: ordersLimit },
+        });
+        if (!cancelled) {
+          setOrders(res.data.items || []);
+          setOrdersTotal(Number(res.data.total || 0));
+        }
       } catch {
-        if (!cancelled) setOrders([]);
+        if (!cancelled) {
+          setOrders([]);
+          setOrdersTotal(0);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -496,7 +507,9 @@ function DashboardInner() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, ordersPage]);
+
+  const ordersTotalPages = Math.max(1, Math.ceil(ordersTotal / ordersLimit));
 
   useEffect(() => {
     let cancelled = false;
@@ -1779,6 +1792,30 @@ function DashboardInner() {
                 </table>
               </div>
             )}
+
+            {activeTab === "orders" && !loading ? (
+              <div className="mt-4 flex items-center justify-between">
+                <button
+                  type="button"
+                  disabled={ordersPage <= 1}
+                  onClick={() => setOrdersPage((p) => Math.max(1, p - 1))}
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                >
+                  Prev
+                </button>
+                <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Page {ordersPage} of {ordersTotalPages}
+                </div>
+                <button
+                  type="button"
+                  disabled={ordersPage >= ordersTotalPages}
+                  onClick={() => setOrdersPage((p) => Math.min(ordersTotalPages, p + 1))}
+                  className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
           </div>
         </main>
       </div>

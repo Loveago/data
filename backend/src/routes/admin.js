@@ -61,8 +61,11 @@ router.get(
   asyncHandler(async (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const status = typeof req.query.status === 'string' ? req.query.status.trim() : '';
+    const pageRaw = typeof req.query.page === 'string' ? req.query.page : '';
     const limitRaw = typeof req.query.limit === 'string' ? req.query.limit : '';
-    const limit = Math.min(500, Math.max(1, Number(limitRaw || 200) || 200));
+    const page = Math.max(1, Number(pageRaw || 1) || 1);
+    const limit = Math.min(500, Math.max(1, Number(limitRaw || 10) || 10));
+    const skip = Math.max(0, (page - 1) * limit);
 
     const where = {
       ...(status && ['PENDING', 'PROCESSING', 'COMPLETED'].includes(status) ? { status } : {}),
@@ -78,14 +81,18 @@ router.get(
         : {}),
     };
 
-    const items = await prisma.order.findMany({
-      where,
-      take: limit,
-      include: { user: { select: { id: true, email: true } }, items: { include: { product: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [items, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        take: limit,
+        skip,
+        include: { user: { select: { id: true, email: true } }, items: { include: { product: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.order.count({ where }),
+    ]);
 
-    return res.json({ items });
+    return res.json({ items, total, page, limit });
   })
 );
 

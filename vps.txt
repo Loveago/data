@@ -160,7 +160,7 @@ npm run build
 pm2 restart lofaq-web --update-env
 pm2 save
 
-11) PostgreSQL on VPS (local DB)
+11) PostgreSQdL on VPS (local DB)
 -------------------------------
 # Install Postgres server + client
 sudo apt update && sudo apt install -y postgresql postgresql-contrib

@@ -104,6 +104,8 @@ export function ProductCard({ product }: { product: Product }) {
   const router = useRouter();
   const [phoneOpen, setPhoneOpen] = useState(false);
 
+  const categoryEnabled = product.category?.enabled !== false;
+
   const amount = extractDataAmountGb(product.name) || "";
   const net = networkMeta(product.category?.slug);
 
@@ -152,8 +154,13 @@ export function ProductCard({ product }: { product: Product }) {
 
       <button
         type="button"
+        disabled={!categoryEnabled}
         onClick={() => setPhoneOpen(true)}
-        className={`relative mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold shadow-sm ${net.cta}`}
+        className={
+          categoryEnabled
+            ? `relative mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold shadow-sm ${net.cta}`
+            : "relative mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-zinc-200 text-sm font-semibold text-zinc-500 shadow-sm dark:bg-zinc-900 dark:text-zinc-400"
+        }
       >
         <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-black/10 dark:bg-white/10">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -163,7 +170,7 @@ export function ProductCard({ product }: { product: Product }) {
             <path d="M17 20C17.5523 20 18 19.5523 18 19C18 18.4477 17.5523 18 17 18C16.4477 18 16 18.4477 16 19C16 19.5523 16.4477 20 17 20Z" fill="currentColor" />
           </svg>
         </span>
-        Add to Purchase
+        {categoryEnabled ? "Add to Purchase" : "Temporarily unavailable"}
       </button>
 
       <RecipientPhoneModal
@@ -172,6 +179,7 @@ export function ProductCard({ product }: { product: Product }) {
         priceOverride={resolvedPrice}
         onCancel={() => setPhoneOpen(false)}
         onConfirm={(recipientPhone) => {
+          if (!categoryEnabled) return;
           addItem(product, 1, recipientPhone, Number.isFinite(priceNum) ? priceNum : undefined);
           setPhoneOpen(false);
           router.push("/cart");

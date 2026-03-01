@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
 
-type Category = { id: string; name: string; slug: string };
+type Category = { id: string; name: string; slug: string; enabled?: boolean };
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -42,13 +42,27 @@ export default function AdminCategoriesPage() {
     setSaving(true);
     setError(null);
     try {
-      await api.post("/categories", { name, slug });
+      await api.post("/categories", { name, slug, enabled: true });
       setName("");
       setSlug("");
       await load();
     } catch (e: unknown) {
       const maybeError = e as { response?: { data?: { error?: string } } };
       setError(maybeError?.response?.data?.error || "Failed to create category.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleEnabled(c: Category) {
+    setSaving(true);
+    setError(null);
+    try {
+      await api.put(`/categories/${c.id}`, { enabled: c.enabled === false });
+      await load();
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setError(maybeError?.response?.data?.error || "Failed to update category.");
     } finally {
       setSaving(false);
     }
@@ -144,6 +158,7 @@ export default function AdminCategoriesPage() {
                 <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
                   <th className="py-3">Name</th>
                   <th className="py-3">Slug</th>
+                  <th className="py-3">Status</th>
                   <th className="py-3"></th>
                 </tr>
               </thead>
@@ -171,6 +186,20 @@ export default function AdminCategoriesPage() {
                       ) : (
                         c.slug
                       )}
+                    </td>
+                    <td className="py-3">
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => toggleEnabled(c)}
+                        className={
+                          c.enabled === false
+                            ? "inline-flex h-9 items-center justify-center rounded-xl bg-red-50 px-3 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-100 disabled:opacity-60 dark:bg-red-950/30 dark:text-red-200 dark:ring-red-900/40"
+                            : "inline-flex h-9 items-center justify-center rounded-xl bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-100 disabled:opacity-60 dark:bg-emerald-950/30 dark:text-emerald-200 dark:ring-emerald-900/40"
+                        }
+                      >
+                        {c.enabled === false ? "OFF" : "ON"}
+                      </button>
                     </td>
                     <td className="py-3 text-right">
                       {editingId === c.id ? (

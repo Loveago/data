@@ -26,6 +26,7 @@ export type Product = {
     id: string;
     name: string;
     slug: string;
+    enabled?: boolean;
   };
 };
 

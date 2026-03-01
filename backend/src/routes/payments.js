@@ -144,10 +144,17 @@ async function computeOrderFromItems(items, role = 'USER') {
   }
 
   const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
-  const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+  const products = await prisma.product.findMany({ where: { id: { in: productIds } }, include: { category: true } });
 
   if (products.length !== productIds.length) {
     const err = new Error('One or more products not found');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const disabledCategory = products.find((p) => p.category && p.category.enabled === false);
+  if (disabledCategory) {
+    const err = new Error('This category is temporarily unavailable');
     err.statusCode = 400;
     throw err;
   }
@@ -213,12 +220,19 @@ async function computeStorefrontOrderFromItems(items, storefrontId) {
 
   const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
   const [products, prices] = await Promise.all([
-    prisma.product.findMany({ where: { id: { in: productIds } } }),
+    prisma.product.findMany({ where: { id: { in: productIds } }, include: { category: true } }),
     prisma.agentStorefrontPrice.findMany({ where: { storefrontId, productId: { in: productIds } } }),
   ]);
 
   if (products.length !== productIds.length) {
     const err = new Error('One or more products not found');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const disabledCategory = products.find((p) => p.category && p.category.enabled === false);
+  if (disabledCategory) {
+    const err = new Error('This category is temporarily unavailable');
     err.statusCode = 400;
     throw err;
   }

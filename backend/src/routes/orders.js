@@ -54,10 +54,15 @@ router.post(
     }
 
     const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
-    const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+    const products = await prisma.product.findMany({ where: { id: { in: productIds } }, include: { category: true } });
 
     if (products.length !== productIds.length) {
       return res.status(400).json({ error: 'One or more products not found' });
+    }
+
+    const disabledCategory = products.find((p) => p.category && p.category.enabled === false);
+    if (disabledCategory) {
+      return res.status(400).json({ error: 'This category is temporarily unavailable' });
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
@@ -109,7 +114,7 @@ router.post(
           total,
           items: { create: orderItemsData },
         },
-        include: { items: { include: { product: true } } },
+        include: { items: { include: { product: { include: { category: true } } } } },
       });
     });
 
@@ -150,10 +155,15 @@ router.post(
     }
 
     const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
-    const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+    const products = await prisma.product.findMany({ where: { id: { in: productIds } }, include: { category: true } });
 
     if (products.length !== productIds.length) {
       return res.status(400).json({ error: 'One or more products not found' });
+    }
+
+    const disabledCategory = products.find((p) => p.category && p.category.enabled === false);
+    if (disabledCategory) {
+      return res.status(400).json({ error: 'This category is temporarily unavailable' });
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { walletBalance: true, role: true } });
@@ -218,7 +228,7 @@ router.post(
           paymentStatus: 'PAID',
           items: { create: orderItemsData },
         },
-        include: { items: { include: { product: true } } },
+        include: { items: { include: { product: { include: { category: true } } } } },
       });
     });
 
@@ -236,13 +246,24 @@ router.get(
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
 
-    const items = await prisma.order.findMany({
-      where: { userId },
-      include: { items: { include: { product: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
+    const pageRaw = typeof req.query.page === 'string' ? req.query.page : '';
+    const limitRaw = typeof req.query.limit === 'string' ? req.query.limit : '';
+    const page = Math.max(1, Number(pageRaw || 1) || 1);
+    const limit = Math.min(100, Math.max(1, Number(limitRaw || 10) || 10));
+    const skip = Math.max(0, (page - 1) * limit);
 
-    return res.json({ items });
+    const [items, total] = await Promise.all([
+      prisma.order.findMany({
+        where: { userId },
+        include: { items: { include: { product: { include: { category: true } } } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.order.count({ where: { userId } }),
+    ]);
+
+    return res.json({ items, total, page, limit });
   })
 );
 
