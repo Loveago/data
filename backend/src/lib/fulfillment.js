@@ -1,6 +1,7 @@
 const { prisma } = require('./prisma');
 const { datahubnetCheckStatus, datahubnetPlaceOrder } = require('./datahubnet');
 const { grandapiCheckStatus, grandapiGetPackages, grandapiPlaceOrder } = require('./grandapi');
+const { elitnutGetTransactionHistory, elitnutInitiateTransaction } = require('./elitnut');
 
 const DAY_START_MINUTES = 8 * 60 + 30;
 const DAY_END_MINUTES = 18 * 60;
@@ -26,12 +27,12 @@ function normalizeForcedProviderValue(value) {
   const v = String(value || '').trim().toLowerCase();
   if (!v || v === 'auto' || v === 'none') return null;
   if (v === 'encart') return 'grandapi';
-  if (v === 'grandapi' || v === 'datahubnet') return v;
+  if (v === 'grandapi' || v === 'datahubnet' || v === 'elitnut') return v;
   return null;
 }
 
 function getForcedProvider() {
-  if (runtimeForcedProvider === 'grandapi' || runtimeForcedProvider === 'datahubnet') {
+  if (runtimeForcedProvider === 'grandapi' || runtimeForcedProvider === 'datahubnet' || runtimeForcedProvider === 'elitnut') {
     return runtimeForcedProvider;
   }
 
@@ -56,7 +57,7 @@ function getProviderAliasList(provider) {
 
 function getActiveProviderByTime(now = new Date()) {
   const forced = getForcedProvider();
-  if (forced === 'grandapi' || forced === 'datahubnet') {
+  if (forced === 'grandapi' || forced === 'datahubnet' || forced === 'elitnut') {
     debugLog('Force override active →', forced);
     return forced;
   }
@@ -104,6 +105,18 @@ function getGrandapiNetworkMap() {
   };
   const raw = process.env.GRANDAPI_NETWORK_MAP;
   const custom = parseJsonEnv(raw, 'GRANDAPI_NETWORK_MAP');
+  return { ...defaults, ...custom };
+}
+
+function getElitnutNetworkMap() {
+  const defaults = {
+    mtn: 'MTN',
+    telecel: 'TELECEL',
+    airteltigo: 'AT',
+    'at-bigtime': 'AT',
+  };
+  const raw = process.env.ELITNUT_NETWORK_MAP;
+  const custom = parseJsonEnv(raw, 'ELITNUT_NETWORK_MAP');
   return { ...defaults, ...custom };
 }
 
@@ -246,6 +259,10 @@ function getNetworkForProvider(provider, categorySlug) {
   if (!slug) return null;
 
   const resolved = normalizeProviderName(provider);
+  if (resolved === 'elitnut') {
+    const map = getElitnutNetworkMap();
+    return map[slug] ? String(map[slug]) : null;
+  }
   if (resolved === 'grandapi') {
     const map = getGrandapiNetworkMap();
     return map[slug] ? String(map[slug]) : null;
@@ -341,10 +358,12 @@ async function updateOrderCompletion(orderId) {
 async function queueFulfillmentForOrder(orderId) {
   const datahubnetConfigured = Boolean(process.env.DATAHUBNET_API_KEY);
   const grandapiConfigured = Boolean(process.env.GRANDAPI_API_KEY);
-  if (!datahubnetConfigured && !grandapiConfigured) return { queued: false };
+  const elitnutConfigured = Boolean(process.env.ELITNUT_API_KEY);
+  if (!datahubnetConfigured && !grandapiConfigured && !elitnutConfigured) return { queued: false };
 
   const grandapiNetworkMap = getGrandapiNetworkMap();
   const datahubnetNetworkMap = getDatahubnetNetworkMap();
+  const elitnutNetworkMap = getElitnutNetworkMap();
   const grandapiCapacityMap = getGrandapiCapacityMap();
   const datahubnetCapacityMap = getDatahubnetCapacityMap();
 
@@ -375,8 +394,9 @@ async function queueFulfillmentForOrder(orderId) {
       const categorySlug = item.product?.category?.slug ? String(item.product.category.slug).toLowerCase() : '';
       const grandapiNetwork = categorySlug ? grandapiNetworkMap[categorySlug] : null;
       const datahubnetNetwork = categorySlug ? datahubnetNetworkMap[categorySlug] : null;
+      const elitnutNetwork = categorySlug ? elitnutNetworkMap[categorySlug] : null;
 
-      if (!grandapiNetwork && !datahubnetNetwork) {
+      if (!grandapiNetwork && !datahubnetNetwork && !elitnutNetwork) {
         debugLog('Skipping item, no network mapping', item.id, categorySlug);
         await tx.orderItem.update({
           where: { id: item.id },
@@ -543,7 +563,8 @@ async function dispatchOneProviderItem(provider, intervalMs) {
   }
 
   const volumeMb = item.hubnetVolumeMb || parseVolumeMbFromProduct(item.product);
-  const capacityMap = provider === 'grandapi' ? getGrandapiCapacityMap() : getDatahubnetCapacityMap();
+  const resolvedProvider = normalizeProviderName(provider);
+  const capacityMap = resolvedProvider === 'grandapi' ? getGrandapiCapacityMap() : getDatahubnetCapacityMap();
   const capacity = resolveCapacityForProduct(item.product, volumeMb, capacityMap);
   if (!capacity) {
     await prisma.orderItem.update({
@@ -570,6 +591,30 @@ async function dispatchOneProviderItem(provider, intervalMs) {
   });
 
   try {
+    if (provider === 'elitnut') {
+      const packageMb = Math.round(Number(capacity) * 1000);
+      const res = await elitnutInitiateTransaction({
+        network: String(network).toUpperCase(),
+        number: phone,
+        reference,
+        packageMb,
+      });
+
+      const payload = res?.payload || res?.data || res;
+      const remoteId = payload?.id || payload?.transactionId || payload?.transaction_id;
+      await prisma.orderItem.update({
+        where: { id: item.id },
+        data: {
+          hubnetStatus: 'SUBMITTED',
+          hubnetTransactionId: remoteId ? String(remoteId) : item.hubnetTransactionId,
+          hubnetSubmittedAt: new Date(),
+        },
+      });
+
+      debugLog('ElitNut transaction submitted', item.id, reference, remoteId);
+      return true;
+    }
+
     if (provider === 'grandapi') {
       const bundleType = getGrandapiBundleType();
       const networkKey = normalizeGrandapiNetwork(network);
@@ -676,6 +721,50 @@ async function pollOneProviderItem(provider, intervalMs) {
     debugLog('Polling status', provider, item.id, checkId);
     if (!checkId) return true;
 
+    if (resolvedProvider === 'elitnut') {
+      const network = item.hubnetNetwork;
+      if (!network) return true;
+
+      const res = await elitnutGetTransactionHistory({
+        network: String(network).toUpperCase(),
+        reference: checkId,
+      });
+
+      const payload = res?.data || res?.payload || res;
+      const list = Array.isArray(payload) ? payload : Array.isArray(payload?.transactions) ? payload.transactions : [];
+      const entry = list && list.length ? list[0] : payload;
+      const statusText = entry?.status || entry?.state || payload?.status || '';
+      const text = String(statusText || '').toLowerCase();
+
+      if (isDeliveredStatus(text)) {
+        await prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            hubnetStatus: 'DELIVERED',
+            hubnetDeliveredAt: new Date(),
+            hubnetLastError: null,
+          },
+        });
+        await updateOrderCompletion(item.orderId);
+        debugLog('ElitNut delivered', item.id, checkId);
+        return true;
+      }
+
+      if (isFailedStatus(text)) {
+        await prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            hubnetStatus: 'FAILED',
+            hubnetLastError: String(statusText || 'ElitNut failed'),
+          },
+        });
+        debugLog('ElitNut failed status', item.id, statusText);
+        return true;
+      }
+
+      return true;
+    }
+
     if (resolvedProvider === 'grandapi') {
       const res = await grandapiCheckStatus(checkId);
       const statusText = res?.data?.status || res?.status || res?.payload?.status || '';
@@ -758,7 +847,8 @@ function startFulfillmentDispatcher() {
   const intervalMs = getDispatchIntervalMs();
   const datahubnetConfigured = Boolean(process.env.DATAHUBNET_API_KEY);
   const grandapiConfigured = Boolean(process.env.GRANDAPI_API_KEY);
-  if (!datahubnetConfigured && !grandapiConfigured) return;
+  const elitnutConfigured = Boolean(process.env.ELITNUT_API_KEY);
+  if (!datahubnetConfigured && !grandapiConfigured && !elitnutConfigured) return;
   if (dispatcherTimer) return;
 
   debugLog('Dispatcher initializing', { intervalMs, datahubnetConfigured, grandapiConfigured });
@@ -772,6 +862,11 @@ function startFulfillmentDispatcher() {
         await finalizeStaleSubmittedItems();
         const activeProvider = getActiveProviderByTime();
         debugLog('Tick active provider', activeProvider);
+        if (activeProvider === 'elitnut' && elitnutConfigured) {
+          const dispatched = await dispatchOneProviderItem('elitnut', intervalMs);
+          debugLog('ElitNut dispatch tick result', dispatched);
+          if (dispatched) return;
+        }
         if (activeProvider === 'grandapi' && grandapiConfigured) {
           const dispatched = await dispatchOneProviderItem('grandapi', intervalMs);
           debugLog('GrandAPI dispatch tick result', dispatched);
@@ -784,9 +879,14 @@ function startFulfillmentDispatcher() {
           if (dispatched) return;
         }
 
+        const polledElitnut = elitnutConfigured ? await pollOneProviderItem('elitnut', intervalMs) : false;
+        debugLog('ElitNut poll tick result', polledElitnut);
+        if (polledElitnut) return;
+
         const polledDatahubnet = datahubnetConfigured ? await pollOneProviderItem('datahubnet', intervalMs) : false;
         debugLog('Datahubnet poll tick result', polledDatahubnet);
         if (polledDatahubnet) return;
+
         const polledGrandapi = grandapiConfigured ? await pollOneProviderItem('grandapi', intervalMs) : false;
         debugLog('GrandAPI poll tick result', polledGrandapi);
         if (polledGrandapi) return;
