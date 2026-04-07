@@ -1,6 +1,7 @@
 const { prisma } = require('./prisma');
 const { datahubnetCheckStatus, datahubnetPlaceOrder } = require('./datahubnet');
 const { grandapiCheckStatus, grandapiGetPackages, grandapiPlaceOrder } = require('./grandapi');
+const { encartCheckStatus, encartPurchase } = require('./encart');
 const { elitnutGetTransactionHistory, elitnutInitiateTransaction } = require('./elitnut');
 
 const DAY_START_MINUTES = 8 * 60 + 30;
@@ -46,12 +47,11 @@ function setForcedProvider(provider) {
 }
 
 function normalizeProviderName(provider) {
-  return provider === 'encart' ? 'grandapi' : provider;
+  return String(provider || '').trim().toLowerCase();
 }
 
 function getProviderAliasList(provider) {
   const resolved = normalizeProviderName(provider);
-  if (resolved === 'grandapi') return ['grandapi', 'encart'];
   return [resolved];
 }
 
@@ -108,6 +108,18 @@ function getGrandapiNetworkMap() {
   return { ...defaults, ...custom };
 }
 
+function getEncartNetworkMap() {
+  const defaults = {
+    mtn: 'YELLO',
+    telecel: 'TELECEL',
+    airteltigo: 'AT_PREMIUM',
+    'at-bigtime': 'AT_BIGTIME',
+  };
+  const raw = process.env.ENCART_NETWORK_MAP;
+  const custom = parseJsonEnv(raw, 'ENCART_NETWORK_MAP');
+  return { ...defaults, ...custom };
+}
+
 function getElitnutNetworkMap() {
   const defaults = {
     mtn: 'MTN',
@@ -126,6 +138,10 @@ function getDatahubnetCapacityMap() {
 
 function getGrandapiCapacityMap() {
   return parseJsonEnv(process.env.GRANDAPI_CAPACITY_MAP, 'GRANDAPI_CAPACITY_MAP');
+}
+
+function getEncartCapacityMap() {
+  return parseJsonEnv(process.env.ENCART_CAPACITY_MAP, 'ENCART_CAPACITY_MAP');
 }
 
 function getGrandapiPackageMap() {
@@ -263,6 +279,10 @@ function getNetworkForProvider(provider, categorySlug) {
     const map = getElitnutNetworkMap();
     return map[slug] ? String(map[slug]) : null;
   }
+  if (resolved === 'encart') {
+    const map = getEncartNetworkMap();
+    return map[slug] ? String(map[slug]) : null;
+  }
   if (resolved === 'grandapi') {
     const map = getGrandapiNetworkMap();
     return map[slug] ? String(map[slug]) : null;
@@ -274,7 +294,7 @@ function getNetworkForProvider(provider, categorySlug) {
 
 function buildProviderReference(provider, orderId, itemId) {
   const resolved = normalizeProviderName(provider);
-  const prefix = resolved === 'grandapi' ? 'GA' : 'DH';
+  const prefix = resolved === 'grandapi' ? 'GA' : resolved === 'encart' ? 'EC' : 'DH';
   const o = String(orderId || '').replace(/\W+/g, '');
   const i = String(itemId || '').replace(/\W+/g, '');
   const ref = `${prefix}-${o.slice(-8)}-${i.slice(-6)}`.toUpperCase();
@@ -358,13 +378,16 @@ async function updateOrderCompletion(orderId) {
 async function queueFulfillmentForOrder(orderId) {
   const datahubnetConfigured = Boolean(process.env.DATAHUBNET_API_KEY);
   const grandapiConfigured = Boolean(process.env.GRANDAPI_API_KEY);
+  const encartConfigured = Boolean(process.env.ENCART_API_KEY);
   const elitnutConfigured = Boolean(process.env.ELITNUT_API_KEY);
-  if (!datahubnetConfigured && !grandapiConfigured && !elitnutConfigured) return { queued: false };
+  if (!datahubnetConfigured && !grandapiConfigured && !encartConfigured && !elitnutConfigured) return { queued: false };
 
   const grandapiNetworkMap = getGrandapiNetworkMap();
+  const encartNetworkMap = getEncartNetworkMap();
   const datahubnetNetworkMap = getDatahubnetNetworkMap();
   const elitnutNetworkMap = getElitnutNetworkMap();
   const grandapiCapacityMap = getGrandapiCapacityMap();
+  const encartCapacityMap = getEncartCapacityMap();
   const datahubnetCapacityMap = getDatahubnetCapacityMap();
 
   const order = await prisma.order.findUnique({
@@ -393,10 +416,11 @@ async function queueFulfillmentForOrder(orderId) {
 
       const categorySlug = item.product?.category?.slug ? String(item.product.category.slug).toLowerCase() : '';
       const grandapiNetwork = categorySlug ? grandapiNetworkMap[categorySlug] : null;
+      const encartNetwork = categorySlug ? encartNetworkMap[categorySlug] : null;
       const datahubnetNetwork = categorySlug ? datahubnetNetworkMap[categorySlug] : null;
       const elitnutNetwork = categorySlug ? elitnutNetworkMap[categorySlug] : null;
 
-      if (!grandapiNetwork && !datahubnetNetwork && !elitnutNetwork) {
+      if (!grandapiNetwork && !encartNetwork && !datahubnetNetwork && !elitnutNetwork) {
         debugLog('Skipping item, no network mapping', item.id, categorySlug);
         await tx.orderItem.update({
           where: { id: item.id },
@@ -421,8 +445,9 @@ async function queueFulfillmentForOrder(orderId) {
 
       const volumeMb = parseVolumeMbFromProduct(item.product);
       const grandapiCapacity = resolveCapacityForProduct(item.product, volumeMb, grandapiCapacityMap);
+      const encartCapacity = resolveCapacityForProduct(item.product, volumeMb, encartCapacityMap);
       const datahubnetCapacity = resolveCapacityForProduct(item.product, volumeMb, datahubnetCapacityMap);
-      if (!grandapiCapacity && !datahubnetCapacity) {
+      if (!grandapiCapacity && !encartCapacity && !datahubnetCapacity) {
         debugLog('Marking failed, unable to determine capacity', item.id);
         await tx.orderItem.update({
           where: { id: item.id },
@@ -564,7 +589,11 @@ async function dispatchOneProviderItem(provider, intervalMs) {
 
   const volumeMb = item.hubnetVolumeMb || parseVolumeMbFromProduct(item.product);
   const resolvedProvider = normalizeProviderName(provider);
-  const capacityMap = resolvedProvider === 'grandapi' ? getGrandapiCapacityMap() : getDatahubnetCapacityMap();
+  const capacityMap = resolvedProvider === 'grandapi'
+    ? getGrandapiCapacityMap()
+    : resolvedProvider === 'encart'
+      ? getEncartCapacityMap()
+      : getDatahubnetCapacityMap();
   const capacity = resolveCapacityForProduct(item.product, volumeMb, capacityMap);
   if (!capacity) {
     await prisma.orderItem.update({
@@ -615,7 +644,31 @@ async function dispatchOneProviderItem(provider, intervalMs) {
       return true;
     }
 
-    if (provider === 'grandapi' || provider === 'encart') {
+    if (provider === 'encart') {
+      const networkKey = String(network);
+      const res = await encartPurchase({
+        networkKey,
+        recipient: phone,
+        capacity: Number(capacity),
+        reference,
+      });
+
+      const payload = res?.payload || res?.data || res;
+      const remoteRef = payload?.reference || payload?.order?.reference || payload?.id || reference;
+      await prisma.orderItem.update({
+        where: { id: item.id },
+        data: {
+          hubnetStatus: 'SUBMITTED',
+          hubnetTransactionId: remoteRef ? String(remoteRef) : item.hubnetTransactionId,
+          hubnetSubmittedAt: new Date(),
+        },
+      });
+
+      debugLog('Encart order submitted', item.id, reference, remoteRef);
+      return true;
+    }
+
+    if (provider === 'grandapi') {
       const bundleType = getGrandapiBundleType();
       const networkKey = normalizeGrandapiNetwork(network);
       const sizeGb = Number(capacity);
@@ -715,9 +768,7 @@ async function pollOneProviderItem(provider, intervalMs) {
 
   try {
     const resolvedProvider = normalizeProviderName(provider);
-    const checkId = resolvedProvider === 'grandapi'
-      ? item.hubnetTransactionId || item.hubnetReference
-      : item.hubnetTransactionId || item.hubnetReference;
+    const checkId = item.hubnetTransactionId || item.hubnetReference;
     debugLog('Polling status', provider, item.id, checkId);
     if (!checkId) return true;
 
@@ -759,6 +810,40 @@ async function pollOneProviderItem(provider, intervalMs) {
           },
         });
         debugLog('ElitNut failed status', item.id, statusText);
+        return true;
+      }
+
+      return true;
+    }
+
+    if (resolvedProvider === 'encart') {
+      const res = await encartCheckStatus(checkId);
+      const statusText = res?.data?.status || res?.status || res?.payload?.status || '';
+      const text = String(statusText || '').toLowerCase();
+
+      if (isDeliveredStatus(text)) {
+        await prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            hubnetStatus: 'DELIVERED',
+            hubnetDeliveredAt: new Date(),
+            hubnetLastError: null,
+          },
+        });
+        await updateOrderCompletion(item.orderId);
+        debugLog('Encart delivered', item.id, checkId);
+        return true;
+      }
+
+      if (isFailedStatus(text)) {
+        await prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            hubnetStatus: 'FAILED',
+            hubnetLastError: String(statusText || 'Encart failed'),
+          },
+        });
+        debugLog('Encart failed status', item.id, statusText);
         return true;
       }
 
@@ -847,11 +932,12 @@ function startFulfillmentDispatcher() {
   const intervalMs = getDispatchIntervalMs();
   const datahubnetConfigured = Boolean(process.env.DATAHUBNET_API_KEY);
   const grandapiConfigured = Boolean(process.env.GRANDAPI_API_KEY);
+  const encartConfigured = Boolean(process.env.ENCART_API_KEY);
   const elitnutConfigured = Boolean(process.env.ELITNUT_API_KEY);
-  if (!datahubnetConfigured && !grandapiConfigured && !elitnutConfigured) return;
+  if (!datahubnetConfigured && !grandapiConfigured && !encartConfigured && !elitnutConfigured) return;
   if (dispatcherTimer) return;
 
-  debugLog('Dispatcher initializing', { intervalMs, datahubnetConfigured, grandapiConfigured });
+  debugLog('Dispatcher initializing', { intervalMs, datahubnetConfigured, grandapiConfigured, encartConfigured, elitnutConfigured });
 
   dispatcherTimer = setInterval(() => {
     if (dispatcherInFlight) return;
@@ -867,7 +953,12 @@ function startFulfillmentDispatcher() {
           debugLog('ElitNut dispatch tick result', dispatched);
           if (dispatched) return;
         }
-        if ((activeProvider === 'grandapi' || activeProvider === 'encart') && grandapiConfigured) {
+        if (activeProvider === 'encart' && encartConfigured) {
+          const dispatched = await dispatchOneProviderItem('encart', intervalMs);
+          debugLog('Encart dispatch tick result', dispatched);
+          if (dispatched) return;
+        }
+        if (activeProvider === 'grandapi' && grandapiConfigured) {
           const dispatched = await dispatchOneProviderItem('grandapi', intervalMs);
           debugLog('GrandAPI dispatch tick result', dispatched);
           if (dispatched) return;
@@ -886,6 +977,10 @@ function startFulfillmentDispatcher() {
         const polledDatahubnet = datahubnetConfigured ? await pollOneProviderItem('datahubnet', intervalMs) : false;
         debugLog('Datahubnet poll tick result', polledDatahubnet);
         if (polledDatahubnet) return;
+
+        const polledEncart = encartConfigured ? await pollOneProviderItem('encart', intervalMs) : false;
+        debugLog('Encart poll tick result', polledEncart);
+        if (polledEncart) return;
 
         const polledGrandapi = grandapiConfigured ? await pollOneProviderItem('grandapi', intervalMs) : false;
         debugLog('GrandAPI poll tick result', polledGrandapi);
