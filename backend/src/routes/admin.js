@@ -24,8 +24,7 @@ function parseForcedProviderInput(value) {
   if (value == null) return null;
   const v = String(value).trim().toLowerCase();
   if (!v || v === 'auto' || v === 'none') return null;
-  if (v === 'encart') return 'grandapi';
-  if (v === 'grandapi' || v === 'datahubnet' || v === 'elitnut') return v;
+  if (v === 'encart' || v === 'grandapi' || v === 'datahubnet' || v === 'elitnut') return v;
   return undefined;
 }
 
@@ -46,7 +45,7 @@ router.patch(
   asyncHandler(async (req, res) => {
     const provider = parseForcedProviderInput(req.body?.provider);
     if (provider === undefined) {
-      return res.status(400).json({ error: 'Invalid provider. Use grandapi, datahubnet, elitnut, or auto.' });
+      return res.status(400).json({ error: 'Invalid provider. Use encart, grandapi, datahubnet, elitnut, or auto.' });
     }
 
     setForcedProvider(provider);

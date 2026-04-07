@@ -26,13 +26,13 @@ function getDispatchIntervalMs() {
 function normalizeForcedProviderValue(value) {
   const v = String(value || '').trim().toLowerCase();
   if (!v || v === 'auto' || v === 'none') return null;
-  if (v === 'encart') return 'grandapi';
+  if (v === 'encart') return 'encart';
   if (v === 'grandapi' || v === 'datahubnet' || v === 'elitnut') return v;
   return null;
 }
 
 function getForcedProvider() {
-  if (runtimeForcedProvider === 'grandapi' || runtimeForcedProvider === 'datahubnet' || runtimeForcedProvider === 'elitnut') {
+  if (runtimeForcedProvider === 'encart' || runtimeForcedProvider === 'grandapi' || runtimeForcedProvider === 'datahubnet' || runtimeForcedProvider === 'elitnut') {
     return runtimeForcedProvider;
   }
 
@@ -57,7 +57,7 @@ function getProviderAliasList(provider) {
 
 function getActiveProviderByTime(now = new Date()) {
   const forced = getForcedProvider();
-  if (forced === 'grandapi' || forced === 'datahubnet' || forced === 'elitnut') {
+  if (forced === 'encart' || forced === 'grandapi' || forced === 'datahubnet' || forced === 'elitnut') {
     debugLog('Force override active →', forced);
     return forced;
   }
@@ -615,7 +615,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
       return true;
     }
 
-    if (provider === 'grandapi') {
+    if (provider === 'grandapi' || provider === 'encart') {
       const bundleType = getGrandapiBundleType();
       const networkKey = normalizeGrandapiNetwork(network);
       const sizeGb = Number(capacity);
@@ -867,7 +867,7 @@ function startFulfillmentDispatcher() {
           debugLog('ElitNut dispatch tick result', dispatched);
           if (dispatched) return;
         }
-        if (activeProvider === 'grandapi' && grandapiConfigured) {
+        if ((activeProvider === 'grandapi' || activeProvider === 'encart') && grandapiConfigured) {
           const dispatched = await dispatchOneProviderItem('grandapi', intervalMs);
           debugLog('GrandAPI dispatch tick result', dispatched);
           if (dispatched) return;
