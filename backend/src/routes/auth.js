@@ -4,10 +4,58 @@ const crypto = require('crypto');
 const { prisma } = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { requireAuth } = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rateLimit');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 const { hashPassword, verifyPassword, hashToken, verifyToken } = require('../utils/password');
 
 const router = express.Router();
+
+const MIN_PASSWORD_LENGTH = Math.max(6, Number(process.env.MIN_PASSWORD_LENGTH || 8) || 8);
+
+const authLoginRateLimit = createRateLimiter({
+  windowMs: Number(process.env.AUTH_LOGIN_WINDOW_MS || 5 * 60 * 1000),
+  limit: Number(process.env.AUTH_LOGIN_LIMIT || 10),
+  keyPrefix: 'auth-login',
+  message: 'Too many login attempts. Please try again later.',
+});
+
+const authRegisterRateLimit = createRateLimiter({
+  windowMs: Number(process.env.AUTH_REGISTER_WINDOW_MS || 10 * 60 * 1000),
+  limit: Number(process.env.AUTH_REGISTER_LIMIT || 5),
+  keyPrefix: 'auth-register',
+  message: 'Too many registration attempts. Please try again later.',
+});
+
+const authPasswordResetRateLimit = createRateLimiter({
+  windowMs: Number(process.env.AUTH_PASSWORD_RESET_WINDOW_MS || 10 * 60 * 1000),
+  limit: Number(process.env.AUTH_PASSWORD_RESET_LIMIT || 5),
+  keyPrefix: 'auth-password-reset',
+  message: 'Too many password reset attempts. Please try again later.',
+});
+
+const authRefreshRateLimit = createRateLimiter({
+  windowMs: Number(process.env.AUTH_REFRESH_WINDOW_MS || 60 * 1000),
+  limit: Number(process.env.AUTH_REFRESH_LIMIT || 30),
+  keyPrefix: 'auth-refresh',
+  message: 'Too many refresh attempts. Please try again later.',
+});
+
+function normalizeEmail(raw) {
+  return String(raw || '').trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''));
+}
+
+function isStrongPassword(password) {
+  const value = String(password || '');
+  if (value.length < MIN_PASSWORD_LENGTH) return false;
+  if (!/[a-z]/.test(value)) return false;
+  if (!/[A-Z]/.test(value)) return false;
+  if (!/[0-9]/.test(value)) return false;
+  return true;
+}
 
 function generateReferralCode() {
   return 'LFQ-' + crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -70,11 +118,21 @@ async function issueTokensForUser(user) {
 
 router.post(
   '/register',
+  authRegisterRateLimit,
   asyncHandler(async (req, res) => {
-    const { email, password, name, phone, referralCode: refCode } = req.body || {};
+    const { email: rawEmail, password, name, phone, referralCode: refCode } = req.body || {};
+    const email = normalizeEmail(rawEmail);
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email' });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} chars and include uppercase, lowercase, and number` });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -117,11 +175,17 @@ router.post(
 
 router.post(
   '/login',
+  authLoginRateLimit,
   asyncHandler(async (req, res) => {
-    const { email, password } = req.body || {};
+    const { email: rawEmail, password } = req.body || {};
+    const email = normalizeEmail(rawEmail);
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email' });
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -142,6 +206,7 @@ router.post(
 
 router.post(
   '/refresh',
+  authRefreshRateLimit,
   asyncHandler(async (req, res) => {
     const { refreshToken } = req.body || {};
     if (!refreshToken) {
@@ -220,8 +285,8 @@ router.patch(
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const nextEmail = email != null ? String(email).trim() : undefined;
-    if (nextEmail !== undefined && !nextEmail.includes('@')) {
+    const nextEmail = email != null ? normalizeEmail(email) : undefined;
+    if (nextEmail !== undefined && !isValidEmail(nextEmail)) {
       return res.status(400).json({ error: 'Invalid email' });
     }
 
@@ -263,8 +328,8 @@ router.post(
       return res.status(400).json({ error: 'Current password and new password are required' });
     }
 
-    if (String(newPassword).length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} chars and include uppercase, lowercase, and number` });
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -335,13 +400,19 @@ router.get(
 
 router.post(
   '/forgot-password',
+  authPasswordResetRateLimit,
   asyncHandler(async (req, res) => {
-    const { email } = req.body || {};
+    const { email: rawEmail } = req.body || {};
+    const email = normalizeEmail(rawEmail);
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: String(email).trim() } });
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return res.json({ message: 'If that email exists, a reset link has been sent.' });
     }
@@ -393,6 +464,7 @@ router.post(
 
 router.post(
   '/reset-password',
+  authPasswordResetRateLimit,
   asyncHandler(async (req, res) => {
     const { token, newPassword } = req.body || {};
 
@@ -400,8 +472,8 @@ router.post(
       return res.status(400).json({ error: 'Token and new password are required' });
     }
 
-    if (String(newPassword).length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} chars and include uppercase, lowercase, and number` });
     }
 
     const user = await prisma.user.findFirst({

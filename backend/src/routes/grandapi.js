@@ -1,13 +1,29 @@
 const express = require('express');
+const crypto = require('crypto');
 
 const router = express.Router();
 
 const { prisma } = require('../lib/prisma');
 const { updateOrderCompletion } = require('../lib/fulfillment');
+const { createRateLimiter } = require('../middleware/rateLimit');
 const { asyncHandler } = require('../utils/asyncHandler');
+
+const webhookRateLimit = createRateLimiter({
+  windowMs: Number(process.env.WEBHOOK_WINDOW_MS || 60 * 1000),
+  limit: Number(process.env.WEBHOOK_LIMIT || 120),
+  keyPrefix: 'grandapi-webhook',
+  message: 'Too many webhook requests',
+});
 
 function getWebhookSecret() {
   return String(process.env.GRANDAPI_WEBHOOK_TOKEN || '').trim();
+}
+
+function safeTokenEquals(a, b) {
+  const left = Buffer.from(String(a || ''), 'utf8');
+  const right = Buffer.from(String(b || ''), 'utf8');
+  if (left.length !== right.length) return false;
+  return crypto.timingSafeEqual(left, right);
 }
 
 function extractPayload(body) {
@@ -57,6 +73,7 @@ function isFailedStatus(text) {
 
 router.post(
   '/webhook',
+  webhookRateLimit,
   asyncHandler(async (req, res) => {
     const secret = getWebhookSecret();
     if (secret) {
@@ -66,7 +83,7 @@ router.post(
           req.headers['x-grandapi-secret'] ||
           ''
       ).trim();
-      if (!provided || provided !== secret) {
+      if (!provided || !safeTokenEquals(provided, secret)) {
         return res.status(401).json({ error: 'Invalid webhook token' });
       }
     }

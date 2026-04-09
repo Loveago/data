@@ -19,9 +19,24 @@ const { startFulfillmentDispatcher } = require('./lib/fulfillment');
 
 const app = express();
 
+const allowedOrigins = String(process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map((v) => v.trim())
+  .filter(Boolean);
+
+function resolveCorsOrigin(origin, callback) {
+  if (!origin) return callback(null, true);
+  if (allowedOrigins.length === 0) {
+    if (process.env.NODE_ENV === 'production') return callback(new Error('Origin not allowed by CORS'));
+    return callback(null, true);
+  }
+  if (allowedOrigins.includes(origin)) return callback(null, true);
+  return callback(new Error('Origin not allowed by CORS'));
+}
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : true,
+    origin: resolveCorsOrigin,
     credentials: true,
   })
 );

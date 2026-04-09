@@ -43,3 +43,4 @@ coverage/
 # Misc
 *.tsbuildinfo
 api2.txt
+backend/.env.example

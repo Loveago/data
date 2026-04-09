@@ -6,6 +6,7 @@ const { Prisma } = require('@prisma/client');
 const { prisma } = require('../lib/prisma');
 const { computePaystackGrossAmountPesewas } = require('../lib/paystackFees');
 const { queueFulfillmentForOrder } = require('../lib/fulfillment');
+const { createRateLimiter } = require('../middleware/rateLimit');
 const { requireAuth } = require('../middleware/auth');
 const { asyncHandler } = require('../utils/asyncHandler');
 
@@ -13,6 +14,20 @@ const router = express.Router();
 
 const AGENT_UPGRADE_FEE_GHS = 40;
 const MAX_ORDER_LINE_QUANTITY = Math.max(1, Number(process.env.MAX_ORDER_LINE_QUANTITY || 20) || 20);
+
+const paymentInitializeRateLimit = createRateLimiter({
+  windowMs: Number(process.env.PAYMENT_INITIALIZE_WINDOW_MS || 60 * 1000),
+  limit: Number(process.env.PAYMENT_INITIALIZE_LIMIT || 20),
+  keyPrefix: 'payment-initialize',
+  message: 'Too many payment initialization attempts. Please try again shortly.',
+});
+
+const paymentCompleteRateLimit = createRateLimiter({
+  windowMs: Number(process.env.PAYMENT_COMPLETE_WINDOW_MS || 60 * 1000),
+  limit: Number(process.env.PAYMENT_COMPLETE_LIMIT || 60),
+  keyPrefix: 'payment-complete',
+  message: 'Too many payment verification attempts. Please try again shortly.',
+});
 
 function generateOrderCode() {
   const d = new Date();
@@ -52,6 +67,44 @@ function resolveUnitPrice(product, role) {
 
 function normalizeString(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function assertSafeCallbackUrl(rawUrl) {
+  const callbackUrl = normalizeString(rawUrl);
+  if (!callbackUrl) {
+    const err = new Error('Missing callbackUrl');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(callbackUrl);
+  } catch {
+    const err = new Error('Invalid callbackUrl');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    const err = new Error('Invalid callbackUrl protocol');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const allowedRaw = process.env.PAYSTACK_CALLBACK_ALLOWED_ORIGINS || process.env.CORS_ORIGIN || '';
+  const allowedOrigins = allowedRaw
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  if (allowedOrigins.length > 0 && !allowedOrigins.includes(parsed.origin)) {
+    const err = new Error('callbackUrl origin is not allowed');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return callbackUrl;
 }
 
 function normalizeOrderItems(items) {
@@ -349,13 +402,12 @@ router.post(
 
 router.post(
   '/paystack/initialize-storefront',
+  paymentInitializeRateLimit,
   asyncHandler(async (req, res) => {
     const { items, callbackUrl, storefrontSlug, customerName, customerEmail, customerPhone, customerAddress } = req.body || {};
 
     if (!storefrontSlug) return res.status(400).json({ error: 'Missing storefront slug' });
-    if (!callbackUrl) {
-      return res.status(400).json({ error: 'Missing callbackUrl' });
-    }
+    const safeCallbackUrl = assertSafeCallbackUrl(callbackUrl);
 
     const storefront = await prisma.agentStorefront.findUnique({ where: { slug: String(storefrontSlug) } });
     if (!storefront) return res.status(404).json({ error: 'Storefront not found' });
@@ -379,7 +431,7 @@ router.post(
     const payload = {
       email,
       amount: grossAmountPesewas,
-      callback_url: callbackUrl,
+      callback_url: safeCallbackUrl,
       metadata: {
         type: 'storefront_order',
         storefrontSlug: storefront.slug,
@@ -452,6 +504,7 @@ router.post(
 router.post(
   '/paystack/initialize',
   requireAuth,
+  paymentInitializeRateLimit,
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
     const { customerName, customerEmail, customerPhone, customerAddress, items, callbackUrl } = req.body || {};
@@ -461,9 +514,7 @@ router.post(
       return res.status(400).json({ error: 'Missing customer fields' });
     }
 
-    if (!callbackUrl) {
-      return res.status(400).json({ error: 'Missing callbackUrl' });
-    }
+    const safeCallbackUrl = assertSafeCallbackUrl(callbackUrl);
 
     const role = await getUserRole(userId, req.user?.role);
     const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role);
@@ -476,7 +527,7 @@ router.post(
     const payload = {
       email: customerEmail,
       amount: grossAmountPesewas,
-      callback_url: callbackUrl,
+      callback_url: safeCallbackUrl,
       metadata: {
         type: 'order',
         userId,
@@ -548,6 +599,7 @@ router.post(
 
 router.post(
   '/paystack/complete-public',
+  paymentCompleteRateLimit,
   asyncHandler(async (req, res) => {
     const {
       reference,
@@ -875,6 +927,7 @@ router.post(
 router.post(
   '/paystack/complete',
   requireAuth,
+  paymentCompleteRateLimit,
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
     const { reference, customerName, customerEmail, customerPhone, customerAddress, items } = req.body || {};
