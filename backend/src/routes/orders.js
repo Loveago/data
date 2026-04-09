@@ -9,6 +9,7 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+const MAX_ORDER_LINE_QUANTITY = Math.max(1, Number(process.env.MAX_ORDER_LINE_QUANTITY || 20) || 20);
 
 function generateOrderCode() {
   const d = new Date();
@@ -24,6 +25,39 @@ function resolveUnitPrice(product, role) {
   return product.price;
 }
 
+function normalizeOrderItems(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    const err = new Error('Order items are required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const normalized = items
+    .map((it) => ({
+      productId: it.productId,
+      quantity: Number(it.quantity),
+      recipientPhone: it.recipientPhone ? String(it.recipientPhone) : null,
+    }))
+    .filter((it) => it.productId);
+
+  if (normalized.length === 0) {
+    const err = new Error('Invalid order items');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const invalidQuantity = normalized.find(
+    (it) => !Number.isInteger(it.quantity) || it.quantity <= 0 || it.quantity > MAX_ORDER_LINE_QUANTITY
+  );
+  if (invalidQuantity) {
+    const err = new Error(`Each item quantity must be a whole number between 1 and ${MAX_ORDER_LINE_QUANTITY}`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return normalized;
+}
+
 router.post(
   '/',
   requireAuth,
@@ -37,20 +71,12 @@ router.post(
       return res.status(400).json({ error: 'Missing customer fields' });
     }
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'Order items are required' });
-    }
-
-    const normalized = items
-      .map((it) => ({
-        productId: it.productId,
-        quantity: Number(it.quantity),
-        recipientPhone: it.recipientPhone ? String(it.recipientPhone) : null,
-      }))
-      .filter((it) => it.productId && Number.isFinite(it.quantity) && it.quantity > 0);
-
-    if (normalized.length === 0) {
-      return res.status(400).json({ error: 'Invalid order items' });
+    let normalized;
+    try {
+      normalized = normalizeOrderItems(items);
+    } catch (err) {
+      const statusCode = err?.statusCode || 400;
+      return res.status(statusCode).json({ error: err?.message || 'Invalid order items' });
     }
 
     const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
@@ -138,20 +164,12 @@ router.post(
       return res.status(400).json({ error: 'Missing customer fields' });
     }
 
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'Order items are required' });
-    }
-
-    const normalized = items
-      .map((it) => ({
-        productId: it.productId,
-        quantity: Number(it.quantity),
-        recipientPhone: it.recipientPhone ? String(it.recipientPhone) : null,
-      }))
-      .filter((it) => it.productId && Number.isFinite(it.quantity) && it.quantity > 0);
-
-    if (normalized.length === 0) {
-      return res.status(400).json({ error: 'Invalid order items' });
+    let normalized;
+    try {
+      normalized = normalizeOrderItems(items);
+    } catch (err) {
+      const statusCode = err?.statusCode || 400;
+      return res.status(statusCode).json({ error: err?.message || 'Invalid order items' });
     }
 
     const productIds = Array.from(new Set(normalized.map((it) => it.productId)));

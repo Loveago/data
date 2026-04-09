@@ -12,6 +12,7 @@ const { asyncHandler } = require('../utils/asyncHandler');
 const router = express.Router();
 
 const AGENT_UPGRADE_FEE_GHS = 40;
+const MAX_ORDER_LINE_QUANTITY = Math.max(1, Number(process.env.MAX_ORDER_LINE_QUANTITY || 20) || 20);
 
 function generateOrderCode() {
   const d = new Date();
@@ -51,6 +52,55 @@ function resolveUnitPrice(product, role) {
 
 function normalizeString(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeOrderItems(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    const err = new Error('Order items are required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const normalized = items
+    .map((it) => ({
+      productId: it.productId,
+      quantity: Number(it.quantity),
+      recipientPhone: it.recipientPhone ? String(it.recipientPhone) : null,
+    }))
+    .filter((it) => it.productId);
+
+  if (normalized.length === 0) {
+    const err = new Error('Invalid order items');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const invalidQuantity = normalized.find(
+    (it) => !Number.isInteger(it.quantity) || it.quantity <= 0 || it.quantity > MAX_ORDER_LINE_QUANTITY
+  );
+
+  if (invalidQuantity) {
+    const err = new Error(`Each item quantity must be a whole number between 1 and ${MAX_ORDER_LINE_QUANTITY}`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return normalized;
+}
+
+function findInvalidPersistedOrderItem(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return { reason: 'Order has no items' };
+  }
+
+  const bad = items.find(
+    (it) => !Number.isInteger(it.quantity) || it.quantity <= 0 || it.quantity > MAX_ORDER_LINE_QUANTITY
+  );
+
+  if (!bad) return null;
+  return {
+    reason: `Invalid item quantity ${String(bad.quantity)} for order item ${String(bad.id || bad.productId || 'unknown')}`,
+  };
 }
 
 function generateGuestEmail(slug) {
@@ -123,25 +173,7 @@ async function getUserRole(userId, fallbackRole) {
 }
 
 async function computeOrderFromItems(items, role = 'USER') {
-  if (!Array.isArray(items) || items.length === 0) {
-    const err = new Error('Order items are required');
-    err.statusCode = 400;
-    throw err;
-  }
-
-  const normalized = items
-    .map((it) => ({
-      productId: it.productId,
-      quantity: Number(it.quantity),
-      recipientPhone: it.recipientPhone ? String(it.recipientPhone) : null,
-    }))
-    .filter((it) => it.productId && Number.isFinite(it.quantity) && it.quantity > 0);
-
-  if (normalized.length === 0) {
-    const err = new Error('Invalid order items');
-    err.statusCode = 400;
-    throw err;
-  }
+  const normalized = normalizeOrderItems(items);
 
   const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
   const products = await prisma.product.findMany({ where: { id: { in: productIds } }, include: { category: true } });
@@ -198,25 +230,7 @@ async function computeStorefrontOrderFromItems(items, storefrontId) {
     throw err;
   }
 
-  if (!Array.isArray(items) || items.length === 0) {
-    const err = new Error('Order items are required');
-    err.statusCode = 400;
-    throw err;
-  }
-
-  const normalized = items
-    .map((it) => ({
-      productId: it.productId,
-      quantity: Number(it.quantity),
-      recipientPhone: it.recipientPhone ? String(it.recipientPhone) : null,
-    }))
-    .filter((it) => it.productId && Number.isFinite(it.quantity) && it.quantity > 0);
-
-  if (normalized.length === 0) {
-    const err = new Error('Invalid order items');
-    err.statusCode = 400;
-    throw err;
-  }
+  const normalized = normalizeOrderItems(items);
 
   const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
   const [products, prices] = await Promise.all([
@@ -560,12 +574,35 @@ router.post(
     }
 
     const status = vdata?.data?.status;
+    const verifiedReference = vdata?.data?.reference ? String(vdata.data.reference) : '';
     const paidAmount = Number(vdata?.data?.amount);
+    const currency = String(vdata?.data?.currency || '').toUpperCase();
     if (status !== 'success') {
       return res.status(400).json({ error: 'Payment not successful' });
     }
 
+    if (!verifiedReference || verifiedReference !== String(reference)) {
+      return res.status(400).json({ error: 'Payment reference mismatch' });
+    }
+
+    if (currency && currency !== 'GHS') {
+      return res.status(400).json({ error: 'Unsupported payment currency' });
+    }
+
+    if (!Number.isInteger(paidAmount) || paidAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid paid amount' });
+    }
+
     const verifiedMeta = vdata?.data?.metadata || {};
+    const metadataGrossAmountPesewas = Number(verifiedMeta?.grossAmountPesewas);
+    if (Number.isFinite(metadataGrossAmountPesewas) && metadataGrossAmountPesewas > 0 && paidAmount !== metadataGrossAmountPesewas) {
+      console.warn('[payments] paystack metadata gross mismatch', {
+        reference: String(reference),
+        paidAmount,
+        metadataGrossAmountPesewas,
+      });
+      return res.status(400).json({ error: 'Payment amount mismatch' });
+    }
 
     const existing = await prisma.order.findFirst({
       where: { paymentProvider: 'paystack', paymentReference: String(reference) },
@@ -602,6 +639,11 @@ router.post(
         const { grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
 
         if (paidAmount !== grossAmountPesewas) {
+          console.warn('[payments] storefront amount mismatch', {
+            reference: String(reference),
+            paidAmount,
+            grossAmountPesewas,
+          });
           return res.status(400).json({ error: 'Payment amount mismatch' });
         }
 
@@ -681,10 +723,24 @@ router.post(
       const role = await getUserRole(userId, verifiedMeta.role);
       const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role);
 
+      const customerName = normalizeString(verifiedMeta.customerName ?? bodyCustomerName);
+      const customerEmail = normalizeString(verifiedMeta.customerEmail ?? bodyCustomerEmail);
+      const customerPhone = normalizeString(verifiedMeta.customerPhone ?? bodyCustomerPhone);
+      const customerAddress = normalizeString(verifiedMeta.customerAddress ?? bodyCustomerAddress);
+
+      if (!customerName || !customerEmail || !customerPhone) {
+        return res.status(400).json({ error: 'Missing customer fields' });
+      }
+
       const netPesewas = toPesewas(total);
       const { grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
 
       if (paidAmount !== grossAmountPesewas) {
+        console.warn('[payments] order amount mismatch', {
+          reference: String(reference),
+          paidAmount,
+          grossAmountPesewas,
+        });
         return res.status(400).json({ error: 'Payment amount mismatch' });
       }
 
@@ -749,10 +805,24 @@ router.post(
       return res.json(existing);
     }
 
+    const invalidExistingItems = findInvalidPersistedOrderItem(existing.items);
+    if (invalidExistingItems) {
+      console.warn('[payments] refusing to settle malformed existing order', {
+        orderId: existing.id,
+        reference: String(reference),
+        reason: invalidExistingItems.reason,
+      });
+      return res.status(409).json({ error: 'Order contains invalid item quantity and cannot be settled' });
+    }
+
     const expectedFromTotal = toPesewas(existing.total);
-    const expectedFromSubtotal = computePaystackGrossAmountPesewas(toPesewas(existing.subtotal)).grossAmountPesewas;
-    const expectedPaid = paidAmount === expectedFromSubtotal ? expectedFromSubtotal : expectedFromTotal;
-    if (paidAmount !== expectedFromTotal && paidAmount !== expectedFromSubtotal) {
+    if (paidAmount !== expectedFromTotal) {
+      console.warn('[payments] existing order amount mismatch', {
+        orderId: existing.id,
+        reference: String(reference),
+        paidAmount,
+        expectedFromTotal,
+      });
       return res.status(400).json({ error: 'Payment amount mismatch' });
     }
 
@@ -789,7 +859,6 @@ router.post(
         where: { id: order.id },
         data: {
           paymentStatus: 'PAID',
-          ...(expectedPaid !== expectedFromTotal ? { total: pesewasToDecimal(expectedPaid) } : {}),
         },
         include: { items: { include: { product: true } } },
       });
@@ -841,13 +910,43 @@ router.post(
     }
 
     const status = vdata?.data?.status;
+    const verifiedReference = vdata?.data?.reference ? String(vdata.data.reference) : '';
     const paidAmount = Number(vdata?.data?.amount);
+    const currency = String(vdata?.data?.currency || '').toUpperCase();
 
     if (status !== 'success') {
       return res.status(400).json({ error: 'Payment not successful' });
     }
 
+    if (!verifiedReference || verifiedReference !== String(reference)) {
+      return res.status(400).json({ error: 'Payment reference mismatch' });
+    }
+
+    if (currency && currency !== 'GHS') {
+      return res.status(400).json({ error: 'Unsupported payment currency' });
+    }
+
+    if (!Number.isInteger(paidAmount) || paidAmount <= 0) {
+      return res.status(400).json({ error: 'Invalid paid amount' });
+    }
+
+    const verifiedMeta = vdata?.data?.metadata || {};
+    const metadataGrossAmountPesewas = Number(verifiedMeta?.grossAmountPesewas);
+    if (Number.isFinite(metadataGrossAmountPesewas) && metadataGrossAmountPesewas > 0 && paidAmount !== metadataGrossAmountPesewas) {
+      console.warn('[payments] private complete metadata gross mismatch', {
+        reference: String(reference),
+        paidAmount,
+        metadataGrossAmountPesewas,
+      });
+      return res.status(400).json({ error: 'Payment amount mismatch' });
+    }
+
     if (paidAmount !== grossAmountPesewas) {
+      console.warn('[payments] private complete amount mismatch', {
+        reference: String(reference),
+        paidAmount,
+        grossAmountPesewas,
+      });
       return res.status(400).json({ error: 'Payment amount mismatch' });
     }
 
