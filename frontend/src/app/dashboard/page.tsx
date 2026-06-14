@@ -234,6 +234,7 @@ function DashboardInner() {
   const [storefrontEmoji, setStorefrontEmoji] = useState<string>("");
   const [storefrontAccent, setStorefrontAccent] = useState<string>("#1d4ed8");
   const [storefrontSlug, setStorefrontSlug] = useState<string>("");
+  const [storefrontWhatsapp, setStorefrontWhatsapp] = useState<string>("");
   const [storefrontLoading, setStorefrontLoading] = useState(false);
   const [storefrontError, setStorefrontError] = useState<string | null>(null);
   const [storefrontInfoSaving, setStorefrontInfoSaving] = useState(false);
@@ -354,6 +355,7 @@ function DashboardInner() {
         setStorefrontEmoji(storefrontData?.heroEmoji || '');
         setStorefrontAccent(storefrontData?.accentColor || '#1d4ed8');
         setStorefrontSlug(storefrontData?.slug || '');
+        setStorefrontWhatsapp(storefrontData?.whatsappLink || '');
 
         const items = productsRes.data.items || [];
         setStorefrontItems(items);
@@ -725,6 +727,7 @@ function DashboardInner() {
         heroEmoji: storefrontEmoji,
         accentColor: storefrontAccent,
         slug: storefrontSlug,
+        whatsappLink: storefrontWhatsapp,
       });
       const data = res.data.storefront;
       setStorefront(data);
@@ -733,6 +736,7 @@ function DashboardInner() {
       setStorefrontEmoji(data?.heroEmoji || '');
       setStorefrontAccent(data?.accentColor || '#1d4ed8');
       setStorefrontSlug(data?.slug || '');
+      setStorefrontWhatsapp(data?.whatsappLink || '');
       setStorefrontSuccess("Storefront details updated.");
     } catch (e: unknown) {
       const maybeError = e as { response?: { data?: { error?: string } } };
@@ -1160,6 +1164,16 @@ function DashboardInner() {
                           placeholder="Welcome to Emma's data store."
                           className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
                         />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">WhatsApp link</label>
+                        <input
+                          value={storefrontWhatsapp}
+                          onChange={(e) => setStorefrontWhatsapp(e.target.value)}
+                          placeholder="https://wa.me/233XXXXXXXXX"
+                          className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
+                        />
+                        <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">Paste your WhatsApp channel or direct message link. It will appear as a chat bubble on your storefront.</p>
                       </div>
                       <div>
                         <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Accent color</label>
