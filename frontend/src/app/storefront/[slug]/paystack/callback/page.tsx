@@ -292,7 +292,7 @@ function PaystackCallbackInner() {
                 Continue Shopping
               </Link>
               <Link
-                href="/track-order"
+                href={`/track-order?storefront=${slug}`}
                 className="w-full h-12 inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 font-bold text-sm hover:bg-slate-50 transition-all"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="mr-2">
