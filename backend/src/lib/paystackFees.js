@@ -11,5 +11,4 @@ function computePaystackGrossAmountPesewas(netAmountPesewas) {
 
 module.exports = {
   computePaystackGrossAmountPesewas,
-  getPaystackFeeConfig,
 };
