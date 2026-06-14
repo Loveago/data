@@ -8,6 +8,47 @@ function formatMoney(value: string) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "GHS" }).format(n);
 }
 
+function timeGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+function displayName(name: string | null | undefined, email: string | null | undefined) {
+  if (name && name.trim()) return name.trim();
+  if (email && email.includes("@")) return email.split("@")[0];
+  return "there";
+}
+
+function statusPill(status: string) {
+  const s = String(status || "").toUpperCase();
+  if (s === "COMPLETED") return "bg-emerald-100 text-emerald-700";
+  if (s === "PROCESSING") return "bg-blue-100 text-blue-700";
+  return "bg-amber-100 text-amber-700";
+}
+
+function formatDate(value: string) {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return value;
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function formatTime(value: string) {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+type OrderItem = {
+  id: string;
+  orderCode?: string | null;
+  status: string;
+  total: string;
+  createdAt: string;
+  items: { id: string; quantity: number; recipientPhone?: string | null; product: { name: string } }[];
+};
+
 export function DashboardOverview({
   walletBalance,
   depositAmount,
@@ -24,6 +65,8 @@ export function DashboardOverview({
   upgradeToAgent,
   upgradeError,
   referralCode,
+  user,
+  pushTab,
 }: {
   walletBalance: string;
   depositAmount: string;
@@ -34,13 +77,17 @@ export function DashboardOverview({
   depositFee: number;
   depositError: string | null;
   loading: boolean;
-  orders: { status: string }[];
+  orders: OrderItem[];
   isAgent: boolean;
   upgradeBusy: boolean;
   upgradeToAgent: () => void;
   upgradeError: string | null;
   referralCode: string;
+  user: { name: string | null; email: string } | null;
+  pushTab: (tab: string) => void;
 }) {
+  const recentOrders = orders.slice(0, 5);
+
   return (
     <>
       {/* Wallet Balance */}

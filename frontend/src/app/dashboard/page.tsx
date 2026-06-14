@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import type { AgentStorefront, StorefrontProduct, User } from "@/lib/types";
-import { DashboardOverview } from "@/components/DashboardOverview";
+import { DashboardOverviewV2 } from "@/components/DashboardOverviewV2";
 
 type Order = {
   id: string;
@@ -961,7 +961,7 @@ function DashboardInner() {
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             {activeTab === "overview" ? (
-              <DashboardOverview
+              <DashboardOverviewV2
                 walletBalance={walletBalance}
                 depositAmount={depositAmount}
                 setDepositAmount={setDepositAmount}
@@ -977,6 +977,8 @@ function DashboardInner() {
                 upgradeToAgent={upgradeToAgent}
                 upgradeError={upgradeError}
                 referralCode={referralCode}
+                user={user}
+                pushTab={pushTab}
               />
             ) : null}
 
