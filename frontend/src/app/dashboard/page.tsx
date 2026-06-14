@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import type { AgentStorefront, StorefrontProduct, User } from "@/lib/types";
+import { DashboardOverview } from "@/components/DashboardOverview";
 
 type Order = {
   id: string;
@@ -797,29 +798,29 @@ function DashboardInner() {
 
   return (
     <div className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-70 dark:opacity-[0.18]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-60 dark:opacity-[0.12]" />
       <div className="pointer-events-none absolute inset-0 -z-10 hero-wash" />
-      <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-gradient-to-br from-blue-600/25 via-cyan-500/20 to-emerald-400/15 blur-3xl animate-floaty" />
-      <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 via-blue-500/16 to-cyan-400/12 blur-3xl animate-floaty2" />
+      <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-gradient-to-br from-indigo-500/20 via-violet-500/15 to-emerald-400/12 blur-3xl animate-floaty" />
+      <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/18 via-indigo-500/14 to-violet-400/10 blur-3xl animate-floaty2" />
 
       <div className="mx-auto max-w-7xl px-4 py-8">
         <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside
-          className={`hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-4 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70 lg:block ${
+          className={`hidden rounded-3xl border border-slate-200/70 bg-white p-4 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/70 lg:block ${
             sidebarCollapsed ? "lg:w-[88px]" : "lg:w-[280px]"
           }`}
         >
           <div className="flex items-center justify-between">
             <div>
-              <div className={`text-xs font-semibold tracking-wider text-zinc-500 ${sidebarCollapsed ? "hidden" : "block"}`}>
+              <div className={`text-[11px] font-bold uppercase tracking-wider text-slate-500 ${sidebarCollapsed ? "hidden" : "block"}`}>
                 ACCOUNT PANEL
               </div>
-              <div className={`mt-1 text-sm font-semibold ${sidebarCollapsed ? "hidden" : "block"}`}>Dashboard</div>
+              <div className={`mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200 ${sidebarCollapsed ? "hidden" : "block"}`}>Dashboard</div>
             </div>
             <button
               type="button"
               onClick={() => setSidebarCollapsed((v) => !v)}
-              className="hidden h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white/70 text-zinc-500 backdrop-blur transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-400 dark:hover:bg-zinc-900 lg:flex"
+              className="hidden h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 lg:flex"
               aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               title={sidebarCollapsed ? "Expand" : "Collapse"}
             >
@@ -837,15 +838,17 @@ function DashboardInner() {
                   onClick={() => pushTab(tab)}
                   className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left font-medium transition-colors ${
                     isActive
-                      ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-soft"
-                      : "text-zinc-600 hover:bg-white/60 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                      ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm"
+                      : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
                   } ${sidebarCollapsed ? "justify-center" : "justify-start"}`}
                   aria-current={isActive ? "page" : undefined}
                   title={sidebarCollapsed ? tabLabel(tab) : undefined}
                 >
                   <span
-                    className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white/80 text-zinc-700 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-200 ${
-                      isActive ? "border-white/20 bg-white/15 text-white" : ""
+                    className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border text-slate-700 dark:text-slate-200 ${
+                      isActive
+                        ? "border-white/20 bg-white/15 text-white"
+                        : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
                     }`}
                   >
                     {tabIcon(tab)}
@@ -856,7 +859,7 @@ function DashboardInner() {
             })}
           </nav>
 
-          <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+          <div className="mt-6 border-t border-slate-200 pt-4 dark:border-slate-700">
             <button
               type="button"
               onClick={() => {
@@ -865,9 +868,10 @@ function DashboardInner() {
                   router.push("/login");
                 })();
               }}
-              className="w-full rounded-xl border border-zinc-200 bg-white/60 px-3 py-2 text-left text-sm font-semibold text-red-600 backdrop-blur transition hover:bg-red-50 dark:border-zinc-800 dark:bg-zinc-950/50 dark:text-red-400 dark:hover:bg-red-950/30"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
             >
-              Sign out
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+              <span className={sidebarCollapsed ? "hidden" : "block"}>Sign out</span>
             </button>
           </div>
         </aside>
@@ -877,9 +881,9 @@ function DashboardInner() {
 
           <div className="lg:hidden fixed left-0 right-0 top-[72px] z-30 px-4">
             <div className="w-full">
-              <div className="rounded-3xl border border-zinc-200/70 bg-white/90 p-3 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/90">
+              <div className="rounded-3xl border border-slate-200/70 bg-white/90 p-3 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/90">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold">Dashboard</div>
+                  <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Dashboard</div>
                   <button
                     type="button"
                     onClick={() => {
@@ -888,7 +892,7 @@ function DashboardInner() {
                         router.push("/login");
                       })();
                     }}
-                    className="inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200/70 bg-white/60 px-3 text-xs font-semibold text-red-600 backdrop-blur transition hover:bg-red-50 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200/70 bg-white/60 px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-slate-700/70 dark:bg-slate-800/50 dark:text-red-400 dark:hover:bg-red-950/30"
                   >
                     Sign out
                   </button>
@@ -904,8 +908,8 @@ function DashboardInner() {
                         onClick={() => pushTab(tab)}
                         className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                           isActive
-                            ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-soft"
-                            : "border border-zinc-200/70 bg-white/60 text-zinc-700 backdrop-blur hover:bg-white/80 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                            ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm"
+                            : "border border-slate-200/70 bg-white/60 text-slate-700 hover:bg-white/80 dark:border-slate-700/70 dark:bg-slate-800/50 dark:text-slate-200 dark:hover:bg-slate-700"
                         }`}
                         aria-current={isActive ? "page" : undefined}
                       >
@@ -921,215 +925,55 @@ function DashboardInner() {
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">
-                {timeGreeting()}, {displayName(user?.name, user?.email)}!
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                {timeGreeting()}, {displayName(user?.name, user?.email)} 👋
               </h1>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Manage your account and track your performance.</p>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Here&apos;s what&apos;s happening with your account today.</p>
             </div>
             <Link
               href="/store"
-              className="inline-flex h-10 items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-95"
             >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
               New Order
             </Link>
           </div>
 
           {recentOrder ? (
-            <div className="mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900 shadow-soft dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 animate-fade-up">
+            <div className="mt-6 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900 shadow-card dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200 animate-fade-up">
               Order placed successfully: <span className="font-semibold">{recentOrder}</span>
             </div>
           ) : null}
 
           {agentUpgradeStatus === "success" ? (
-            <div className="mt-6 rounded-3xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900 shadow-soft dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200 animate-fade-up">
+            <div className="mt-6 rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-sm text-indigo-900 shadow-card dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-200 animate-fade-up">
               Your account has been upgraded to <span className="font-semibold">Agent</span> status.
             </div>
           ) : agentUpgradeStatus === "error" ? (
-            <div className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-soft dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 animate-fade-up">
+            <div className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-card dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 animate-fade-up">
               We couldn&apos;t confirm your agent upgrade. Please try again.
             </div>
           ) : null}
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
             {activeTab === "overview" ? (
-              <>
-                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800/70 dark:bg-zinc-950/70">
-                  <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gradient-to-br from-blue-500/25 via-cyan-400/20 to-emerald-400/15 blur-2xl transition-transform duration-500 group-hover:scale-110 dark:from-blue-500/20 dark:via-cyan-400/15 dark:to-emerald-400/10" />
-                  <div className="pointer-events-none absolute -bottom-12 left-10 h-28 w-28 rounded-full bg-gradient-to-br from-blue-600/18 to-cyan-400/10 blur-2xl animate-floaty" />
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-xs font-semibold tracking-wide text-zinc-500">Wallet Balance</div>
-                      <div className="mt-2 text-2xl font-semibold text-gradient-blue">{formatMoney(walletBalance)}</div>
-                      <div className="mt-1 text-xs text-zinc-500">Top up and pay faster at checkout.</div>
-                    </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200/70 bg-white/70 text-blue-600 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-blue-300">
-                      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-                        <path d="M3 7a3 3 0 013-3h12a3 3 0 013 3v10a3 3 0 01-3 3H6a3 3 0 01-3-3V7z" stroke="currentColor" strokeWidth="2" />
-                        <path d="M17 12h4v4h-4a2 2 0 110-4z" stroke="currentColor" strokeWidth="2" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <input
-                        value={depositAmount}
-                        onChange={(e) => setDepositAmount(e.target.value)}
-                        placeholder="Top up amount (GHS)"
-                        className="h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
-                      />
-                      <button
-                        type="button"
-                        disabled={depositBusy}
-                        onClick={() => depositWithPaystack()}
-                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
-                      >
-                        {depositBusy ? "..." : "Top up"}
-                      </button>
-                    </div>
-
-                    {depositTotal > 0 ? (
-                      <div className="mt-2 flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
-                        <span>Paystack fee</span>
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatMoney(String(depositFee))}</span>
-                      </div>
-                    ) : null}
-
-                    {depositTotal > 0 ? (
-                      <div className="mt-1 flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
-                        <span>Total charged</span>
-                        <span className="font-semibold text-zinc-900 dark:text-zinc-100">{formatMoney(String(depositTotal))}</span>
-                      </div>
-                    ) : null}
-
-                    {depositError ? (
-                      <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
-                        {depositError}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800/70 dark:bg-zinc-950/70">
-                  <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-emerald-500/18 via-lime-400/12 to-cyan-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110 dark:from-emerald-500/14 dark:via-lime-400/10 dark:to-cyan-400/8" />
-                  <div className="pointer-events-none absolute -bottom-14 right-10 h-28 w-28 rounded-full bg-gradient-to-br from-emerald-600/16 to-cyan-400/10 blur-2xl animate-floaty2" />
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="text-xs font-semibold tracking-wide text-zinc-500">Total Orders</div>
-                      <div className="mt-2 text-2xl font-semibold text-emerald-700 dark:text-emerald-300">
-                        {loading ? "..." : String(orders.length)}
-                      </div>
-                      <div className="mt-1 text-xs text-zinc-500">
-                        {loading ? "" : `${orders.filter((o) => String(o.status).toUpperCase() === "COMPLETED").length} successful`}
-                      </div>
-                    </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-zinc-200/70 bg-white/70 text-emerald-700 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-emerald-300">
-                      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-                        <path d="M7 7h14M7 12h14M7 17h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                        <path d="M3 7h.01M3 12h.01M3 17h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800/70 dark:bg-zinc-950/70 lg:col-span-2">
-                  <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-gradient-to-br from-purple-500/20 via-indigo-400/15 to-blue-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110 dark:from-purple-500/20 dark:via-indigo-400/12 dark:to-blue-400/10" />
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="text-xs font-semibold tracking-wide text-zinc-500">Agent Account</div>
-                      <div className="mt-2 text-lg font-semibold">
-                        {isAgent ? "Agent status active" : "Upgrade to agent"}
-                      </div>
-                      <div className="mt-1 text-xs text-zinc-500">
-                        {isAgent
-                          ? "You now access agent pricing across all bundles."
-                          : "Unlock agent-only pricing with a one-time GHS 40 upgrade fee."}
-                      </div>
-                    </div>
-                    {!isAgent ? (
-                      <button
-                        type="button"
-                        disabled={upgradeBusy}
-                        onClick={() => upgradeToAgent()}
-                        className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
-                      >
-                        {upgradeBusy ? "Redirecting..." : "Upgrade for GHS 40"}
-                      </button>
-                    ) : (
-                      <div className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-100 px-4 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
-                        Active
-                      </div>
-                    )}
-                  </div>
-
-                  {!isAgent ? (
-                    <div className="mt-4 flex flex-wrap gap-3 text-xs text-zinc-500">
-                      <span className="inline-flex items-center rounded-full border border-zinc-200/70 bg-white/70 px-3 py-1 dark:border-zinc-800/70 dark:bg-zinc-950/60">
-                        One-time fee
-                      </span>
-                      <span className="inline-flex items-center rounded-full border border-zinc-200/70 bg-white/70 px-3 py-1 dark:border-zinc-800/70 dark:bg-zinc-950/60">
-                        Faster margins
-                      </span>
-                      <span className="inline-flex items-center rounded-full border border-zinc-200/70 bg-white/70 px-3 py-1 dark:border-zinc-800/70 dark:bg-zinc-950/60">
-                        Agent pricing
-                      </span>
-                    </div>
-                  ) : null}
-
-                  {upgradeError ? (
-                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
-                      {upgradeError}
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-6 shadow-soft backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-zinc-800/70 dark:bg-zinc-950/70 lg:col-span-2">
-                  <div className="pointer-events-none absolute -left-10 -top-10 h-36 w-36 rounded-full bg-gradient-to-br from-amber-500/20 via-orange-400/15 to-rose-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
-                  <div>
-                    <div className="text-xs font-semibold tracking-wide text-zinc-500">Referral Program</div>
-                    <div className="mt-2 text-lg font-semibold">Earn 3% on every purchase</div>
-                    <div className="mt-1 text-sm text-zinc-500">Share your affiliate link below. When someone signs up through your link and makes a purchase, you earn 3% of their order value directly into your wallet.</div>
-                  </div>
-
-                  {referralCode ? (
-                    <div className="mt-5 space-y-4">
-                      <div>
-                        <div className="text-xs font-semibold text-zinc-500 mb-1.5">Your Referral Code</div>
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <div className="flex h-10 flex-1 items-center rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm font-mono font-bold tracking-widest text-zinc-900 backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-100">
-                            {referralCode}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => { void navigator.clipboard.writeText(referralCode); }}
-                            className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-white/70 px-4 text-sm font-semibold text-zinc-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-zinc-50 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-200"
-                          >
-                            Copy code
-                          </button>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-xs font-semibold text-zinc-500 mb-1.5">Your Affiliate Link</div>
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                          <div className="flex h-10 flex-1 items-center overflow-x-auto rounded-xl border border-amber-200/70 bg-amber-50/50 px-3 text-sm font-medium text-zinc-800 backdrop-blur dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-zinc-100">
-                            {typeof window !== "undefined" ? `${window.location.origin}/register?ref=${referralCode}` : `/register?ref=${referralCode}`}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const link = `${window.location.origin}/register?ref=${referralCode}`;
-                              void navigator.clipboard.writeText(link);
-                            }}
-                            className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95"
-                          >
-                            Copy link
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </>
+              <DashboardOverview
+                walletBalance={walletBalance}
+                depositAmount={depositAmount}
+                setDepositAmount={setDepositAmount}
+                depositBusy={depositBusy}
+                depositWithPaystack={depositWithPaystack}
+                depositTotal={depositTotal}
+                depositFee={depositFee}
+                depositError={depositError}
+                loading={loading}
+                orders={orders}
+                isAgent={isAgent}
+                upgradeBusy={upgradeBusy}
+                upgradeToAgent={upgradeToAgent}
+                upgradeError={upgradeError}
+                referralCode={referralCode}
+              />
             ) : null}
 
             {activeTab === "profile" ? (

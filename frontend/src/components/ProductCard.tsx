@@ -86,13 +86,13 @@ function networkMeta(slug?: string) {
   return {
     label: "NET",
     icon: null as string | null,
-    pill: "bg-zinc-200 text-zinc-900",
-    dot: "bg-zinc-300",
-    border: "border-zinc-200 dark:border-zinc-800",
-    badge: "bg-zinc-100 text-zinc-900 ring-zinc-200",
-    saveText: "text-blue-600",
-    priceText: "text-yellow-600",
-    cta: "bg-yellow-400 text-black hover:bg-yellow-300",
+    pill: "bg-slate-200 text-slate-900",
+    dot: "bg-slate-300",
+    border: "border-slate-200 dark:border-slate-700",
+    badge: "bg-slate-100 text-slate-900 ring-slate-200",
+    saveText: "text-indigo-600",
+    priceText: "text-amber-600",
+    cta: "bg-amber-400 text-black hover:bg-amber-300",
     glow:
       "radial-gradient(500px 220px at 30% 10%, rgba(245, 158, 11, 0.18), transparent 60%), radial-gradient(500px 220px at 80% 20%, rgba(234, 179, 8, 0.16), transparent 60%)",
   };
@@ -116,7 +116,7 @@ export function ProductCard({ product }: { product: Product }) {
   const saveAmount = hasPrice && oldPrice ? oldPrice - priceNum : null;
 
   return (
-    <div className={`group relative overflow-hidden rounded-3xl border bg-white p-4 shadow-soft transition hover:-translate-y-[2px] hover:shadow-lg dark:bg-zinc-950 ${net.border}`}>
+    <div className={`group relative overflow-hidden rounded-3xl border bg-white p-4 shadow-card transition hover:-translate-y-[2px] hover:shadow-lg dark:bg-slate-900 ${net.border}`}>
       <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100" style={{ backgroundImage: net.glow }} />
 
       <div className="relative">
@@ -136,18 +136,18 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
 
         <Link href={`/product/${product.slug || product.id}`} className="block">
-          <div className="rounded-2xl border border-zinc-100 bg-white p-3 pt-10 dark:border-zinc-900 dark:bg-zinc-950">
+          <div className="rounded-2xl border border-slate-100 bg-white p-3 pt-10 dark:border-slate-800 dark:bg-slate-950">
             <div className={`text-xs font-medium ${net.saveText}`}>Save</div>
             <div className={`mt-1 text-lg font-extrabold tracking-tight ${net.priceText}`}>{formatGhs(String(resolvedPrice))}</div>
-            <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
               {oldPrice != null ? (
                 <span className="line-through">{formatGhs(String(oldPrice.toFixed(2)))}</span>
               ) : null}
               {saveAmount != null ? (
-                <span className="text-zinc-400 dark:text-zinc-500">({formatGhs(String(saveAmount.toFixed(2)))} off)</span>
+                <span className="text-slate-400 dark:text-slate-500">({formatGhs(String(saveAmount.toFixed(2)))} off)</span>
               ) : null}
             </div>
-            <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">{product.category?.name || ""}</div>
+            <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{product.category?.name || ""}</div>
           </div>
         </Link>
       </div>
@@ -159,7 +159,7 @@ export function ProductCard({ product }: { product: Product }) {
         className={
           categoryEnabled
             ? `relative mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl text-sm font-semibold shadow-sm ${net.cta}`
-            : "relative mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-zinc-200 text-sm font-semibold text-zinc-500 shadow-sm dark:bg-zinc-900 dark:text-zinc-400"
+            : "relative mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-slate-200 text-sm font-semibold text-slate-500 shadow-sm dark:bg-slate-800 dark:text-slate-400"
         }
       >
         <span className="inline-flex h-4 w-4 items-center justify-center rounded bg-black/10 dark:bg-white/10">

@@ -13,7 +13,7 @@ function NavLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link
       href={href}
-      className="inline-flex h-10 items-center rounded-full px-4 text-sm font-semibold text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:hover:text-white"
+      className="inline-flex h-10 items-center rounded-full px-4 text-sm font-semibold text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
     >
       {children}
     </Link>
@@ -34,7 +34,7 @@ function IconButton({
       type="button"
       title={title}
       onClick={onClick}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
     >
       {children}
     </button>
@@ -231,11 +231,11 @@ export function Navbar() {
     <>
       <header className="sticky top-0 z-40 w-full">
         <div className="mx-auto max-w-6xl px-4 py-3">
-          <div className="hidden items-center justify-between rounded-full border border-zinc-200 bg-white/80 px-3 py-2 shadow-soft backdrop-blur dark:border-zinc-800 dark:bg-black/50 md:flex">
+          <div className="hidden items-center justify-between rounded-full border border-slate-200 bg-white/80 px-3 py-2 shadow-card backdrop-blur dark:border-slate-700 dark:bg-slate-900/60 md:flex">
             <div className="flex items-center gap-3">
               <Link href="/" className="flex items-center gap-2 rounded-full px-2 py-1">
                 <img src="/logo.png" alt="LOFAQ DATA HUB" className="h-9 w-9 rounded-full object-contain" />
-                <span className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white">LOFAQ DATA HUB</span>
+                <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">LOFAQ DATA HUB</span>
               </Link>
 
               <nav className="hidden items-center gap-1 md:flex">
@@ -270,20 +270,20 @@ export function Navbar() {
                       </svg>
                     </IconButton>
                     {isAuthenticated && unreadCount > 0 ? (
-                      <span className="pointer-events-none absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-semibold text-white">
+                      <span className="pointer-events-none absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-500 px-1 text-[11px] font-semibold text-white">
                         {unreadCount}
                       </span>
                     ) : null}
                   </div>
 
                   {notifOpen ? (
-                    <div className="absolute right-0 top-12 z-50 w-[340px] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-950">
-                      <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-                        <div className="text-sm font-semibold">Notifications</div>
+                    <div className="absolute right-0 top-12 z-50 w-[340px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card dark:border-slate-700 dark:bg-slate-900">
+                      <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+                        <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Notifications</div>
                         <button
                           type="button"
                           onClick={() => void clearNotifications()}
-                          className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                          className="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
                         >
                           Clear all
                         </button>
@@ -295,9 +295,9 @@ export function Navbar() {
                         ) : notifError ? (
                           <div className="p-4 text-sm text-red-700 dark:text-red-300">{notifError}</div>
                         ) : visibleNotifItems.length === 0 ? (
-                          <div className="p-4 text-sm text-zinc-600 dark:text-zinc-400">No notifications.</div>
+                          <div className="p-4 text-sm text-slate-600 dark:text-slate-400">No notifications.</div>
                         ) : (
-                          <div className="divide-y divide-zinc-100 dark:divide-zinc-900">
+                          <div className="divide-y divide-slate-100 dark:divide-slate-800">
                             {visibleNotifItems.map((n) => {
                               const clearedMs = notifClearedAt ? new Date(notifClearedAt).getTime() : 0;
                               const isUnread = new Date(n.createdAt).getTime() > clearedMs;
@@ -306,14 +306,14 @@ export function Navbar() {
                                   <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-2">
-                                        {isUnread ? <span className="h-2 w-2 rounded-full bg-blue-600" /> : null}
-                                        <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{n.title}</div>
+                                        {isUnread ? <span className="h-2 w-2 rounded-full bg-indigo-500" /> : null}
+                                        <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{n.title}</div>
                                       </div>
                                       <div
-                                        className="mt-1 text-xs text-zinc-600 dark:text-zinc-300"
+                                        className="mt-1 text-xs text-slate-600 dark:text-slate-300"
                                         dangerouslySetInnerHTML={{ __html: n.body }}
                                       />
-                                      <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">{new Date(n.createdAt).toLocaleString()}</div>
+                                      <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{new Date(n.createdAt).toLocaleString()}</div>
                                     </div>
                                   </div>
                                 </div>
@@ -330,7 +330,7 @@ export function Navbar() {
                   type="button"
                   onClick={cycleTheme}
                   title={`Theme: ${themeLabel} (click to switch)`}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   {theme === "dark" ? (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -361,14 +361,14 @@ export function Navbar() {
                 <>
                   <Link
                     href="/dashboard"
-                    className="hidden rounded-full bg-white px-3 py-2 text-sm font-semibold text-zinc-700 ring-1 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-950 dark:text-zinc-200 dark:ring-zinc-800 dark:hover:bg-zinc-900 sm:block"
+                    className="hidden rounded-full bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-800 sm:block"
                   >
                     {user?.email}
                   </Link>
                   <button
                     type="button"
                     onClick={() => logout()}
-                    className="inline-flex h-10 items-center justify-center rounded-full bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                    className="inline-flex h-10 items-center justify-center rounded-full bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
                   >
                     Logout
                   </button>
@@ -376,7 +376,7 @@ export function Navbar() {
               ) : (
                 <Link
                   href="/login"
-                  className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-zinc-900 ring-1 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-950 dark:text-zinc-100 dark:ring-zinc-800 dark:hover:bg-zinc-900"
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-white px-4 text-sm font-semibold text-slate-900 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700 dark:hover:bg-slate-800"
                 >
                   Login
                 </Link>
@@ -386,17 +386,17 @@ export function Navbar() {
                 href={joinCommunityHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-10 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-sm hover:opacity-95"
+                className="inline-flex h-10 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 text-sm font-semibold text-white shadow-sm hover:opacity-95"
               >
                 Join Community
               </a>
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-full border border-zinc-200 bg-white/80 px-3 py-2 shadow-soft backdrop-blur dark:border-zinc-800 dark:bg-black/50 md:hidden">
+          <div className="flex items-center justify-between rounded-full border border-slate-200 bg-white/80 px-3 py-2 shadow-card backdrop-blur dark:border-slate-700 dark:bg-slate-900/60 md:hidden">
             <Link href="/" className="flex items-center gap-2 rounded-full px-2 py-1">
               <img src="/logo.png" alt="LOFAQ DATA HUB" className="h-9 w-9 rounded-full object-contain" />
-                <span className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white">LOFAQ DATA HUB</span>
+                <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">LOFAQ DATA HUB</span>
             </Link>
 
             <div className="flex items-center gap-2">
@@ -404,7 +404,7 @@ export function Navbar() {
                 type="button"
                 onClick={cycleTheme}
                 title={`Theme: ${themeLabel}`}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 {theme === "dark" ? (
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -438,20 +438,20 @@ export function Navbar() {
                     </svg>
                   </IconButton>
                   {isAuthenticated && unreadCount > 0 ? (
-                    <span className="pointer-events-none absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-[11px] font-semibold text-white">
+                    <span className="pointer-events-none absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-500 px-1 text-[11px] font-semibold text-white">
                       {unreadCount}
                     </span>
                   ) : null}
                 </div>
 
                 {notifOpen ? (
-                  <div className="fixed left-1/2 top-16 z-50 w-[min(92vw,360px)] -translate-x-1/2 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-soft dark:border-zinc-800 dark:bg-zinc-950">
-                    <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
-                      <div className="text-sm font-semibold">Notifications</div>
+                  <div className="fixed left-1/2 top-16 z-50 w-[min(92vw,360px)] -translate-x-1/2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-card dark:border-slate-700 dark:bg-slate-900">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
+                      <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">Notifications</div>
                       <button
                         type="button"
                         onClick={() => void clearNotifications()}
-                        className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400"
+                        className="text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
                       >
                         Clear all
                       </button>
@@ -463,20 +463,20 @@ export function Navbar() {
                       ) : notifError ? (
                         <div className="p-4 text-sm text-red-700 dark:text-red-300">{notifError}</div>
                       ) : visibleNotifItems.length === 0 ? (
-                        <div className="p-4 text-sm text-zinc-600 dark:text-zinc-400">No notifications.</div>
+                        <div className="p-4 text-sm text-slate-600 dark:text-slate-400">No notifications.</div>
                       ) : (
-                        <div className="divide-y divide-zinc-100 dark:divide-zinc-900">
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
                           {visibleNotifItems.map((n) => {
                             const clearedMs = notifClearedAt ? new Date(notifClearedAt).getTime() : 0;
                             const isUnread = new Date(n.createdAt).getTime() > clearedMs;
                             return (
                               <div key={n.id} className="px-4 py-3">
                                 <div className="flex items-center gap-2">
-                                  {isUnread ? <span className="h-2 w-2 rounded-full bg-blue-600" /> : null}
-                                  <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{n.title}</div>
+                                  {isUnread ? <span className="h-2 w-2 rounded-full bg-indigo-500" /> : null}
+                                  <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{n.title}</div>
                                 </div>
-                                <div className="mt-1 text-xs text-zinc-600 dark:text-zinc-300" dangerouslySetInnerHTML={{ __html: n.body }} />
-                                <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">{new Date(n.createdAt).toLocaleString()}</div>
+                                <div className="mt-1 text-xs text-slate-600 dark:text-slate-300" dangerouslySetInnerHTML={{ __html: n.body }} />
+                                <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{new Date(n.createdAt).toLocaleString()}</div>
                               </div>
                             );
                           })}
@@ -491,14 +491,14 @@ export function Navbar() {
                 href={joinCommunityHref}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex h-10 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-cyan-500 px-4 text-sm font-semibold text-white shadow-sm hover:opacity-95"
+                className="inline-flex h-10 items-center justify-center rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 text-sm font-semibold text-white shadow-sm hover:opacity-95"
               >
                 Join
               </a>
 
               <Link
                 href={isAuthenticated ? dashboardHref : "/login"}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
                 title={isAuthenticated ? "Dashboard" : "Login"}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -512,7 +512,7 @@ export function Navbar() {
       </header>
 
       <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-4 md:hidden">
-        <div className="mx-auto max-w-md rounded-3xl border border-zinc-200 bg-white/90 shadow-soft backdrop-blur dark:border-zinc-800 dark:bg-black/60">
+        <div className="mx-auto max-w-md rounded-3xl border border-slate-200 bg-white/90 shadow-card backdrop-blur dark:border-slate-700 dark:bg-slate-900/60">
           <div className="flex items-center">
             <MobileTabLink href="/" label="Home" icon="home" active={isActive("/")} />
             <MobileTabLink href="/store" label="Store" icon="store" active={isActive("/store")} />

@@ -3,11 +3,11 @@
 @custom-variant dark (&:where(html.dark, html.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --primary: #2563eb;
-  --primary-2: #06b6d4;
-  --accent: #22c55e;
+  --background: #f5f6fa;
+  --foreground: #0f172a;
+  --primary: #6366f1;
+  --primary-2: #8b5cf6;
+  --accent: #10b981;
 }
 
 @theme inline {
@@ -18,8 +18,8 @@
 }
 
 html.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  --background: #0b0f19;
+  --foreground: #e2e8f0;
 }
 
 body {
@@ -34,27 +34,31 @@ html {
 
 @layer utilities {
   .bg-dot-grid {
-    background-image: radial-gradient(rgba(15, 23, 42, 0.10) 1px, transparent 1px);
+    background-image: radial-gradient(rgba(99, 102, 241, 0.08) 1px, transparent 1px);
     background-size: 18px 18px;
     background-position: 0 0;
   }
 
   .hero-wash {
     background-image:
-      radial-gradient(900px 500px at 20% 20%, rgba(37, 99, 235, 0.16), transparent 55%),
-      radial-gradient(800px 520px at 80% 30%, rgba(6, 182, 212, 0.16), transparent 55%),
-      radial-gradient(900px 520px at 65% 85%, rgba(34, 197, 94, 0.12), transparent 55%);
+      radial-gradient(900px 500px at 20% 20%, rgba(99, 102, 241, 0.12), transparent 55%),
+      radial-gradient(800px 520px at 80% 30%, rgba(139, 92, 246, 0.10), transparent 55%),
+      radial-gradient(900px 520px at 65% 85%, rgba(16, 185, 129, 0.08), transparent 55%);
   }
 
-  .text-gradient-blue {
-    background-image: linear-gradient(90deg, #2563eb, #06b6d4);
+  .text-gradient-purple {
+    background-image: linear-gradient(90deg, #6366f1, #8b5cf6);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
   .shadow-soft {
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+
+  .shadow-card {
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.04), 0 8px 24px rgba(15, 23, 42, 0.04);
   }
 }
 

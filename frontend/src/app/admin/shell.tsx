@@ -16,8 +16,8 @@ function SideLink({ href, label }: { href: string; label: string }) {
       href={href}
       className={`flex h-10 items-center rounded-xl px-3 text-sm font-medium transition ${
         active
-          ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
-          : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm"
+          : "text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
       }`}
     >
       {label}
@@ -49,7 +49,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   if (!isAuthenticated || user?.role !== "ADMIN") {
     return (
       <div className="mx-auto max-w-6xl px-4 py-10">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
           Redirecting...
         </div>
       </div>
@@ -59,18 +59,18 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10">
       <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-        <aside className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <aside className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/70">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold">Admin</p>
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{user.email}</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Admin</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{user.email}</p>
             </div>
 
             <button
               type="button"
               onClick={cycleTheme}
               title={`Theme: ${theme}`}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 shadow-sm hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             >
               {theme === "dark" ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

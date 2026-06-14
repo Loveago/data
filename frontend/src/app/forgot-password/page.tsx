@@ -30,28 +30,28 @@ export default function ForgotPasswordPage() {
     <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-12">
       <div className="pointer-events-none absolute inset-0 bg-dot-grid opacity-[0.35] dark:opacity-[0.18]" />
       <div className="pointer-events-none absolute inset-0 hero-wash" />
-      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-gradient-to-br from-blue-600/30 via-cyan-500/25 to-emerald-400/20 blur-3xl animate-floaty" />
-      <div className="pointer-events-none absolute -bottom-28 -right-24 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/25 via-blue-500/20 to-cyan-400/15 blur-3xl animate-floaty2" />
+      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-gradient-to-br from-indigo-500/25 via-violet-500/20 to-emerald-400/15 blur-3xl animate-floaty" />
+      <div className="pointer-events-none absolute -bottom-28 -right-24 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 via-indigo-500/16 to-violet-400/12 blur-3xl animate-floaty2" />
 
       <div className="relative w-full max-w-md">
         <div className="animate-fade-up">
-          <div className="rounded-3xl border border-zinc-200/70 bg-white/80 p-7 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+          <div className="rounded-3xl border border-slate-200/70 bg-white/80 p-7 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/70">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">Forgot password</h1>
-              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Forgot password</h1>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                 Enter your email and we&apos;ll send you a link to reset your password.
               </p>
             </div>
 
             <div className="mt-7 space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Email</label>
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Email</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm outline-none transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+                  className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
                 />
               </div>
 
@@ -71,7 +71,7 @@ export default function ForgotPasswordPage() {
                 type="button"
                 disabled={submitting}
                 onClick={() => submit()}
-                className="group inline-flex h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 hover:shadow-[0_18px_40px_rgba(37,99,235,0.28)] disabled:opacity-60 disabled:hover:translate-y-0"
+                className="group inline-flex h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-95 disabled:opacity-60"
               >
                 <span className="inline-flex items-center gap-2">
                   {submitting ? "Sending..." : "Send reset link"}
@@ -79,9 +79,9 @@ export default function ForgotPasswordPage() {
                 </span>
               </button>
 
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
                 Remember your password?{" "}
-                <Link href="/login" className="font-semibold text-blue-700 hover:underline dark:text-blue-300">
+                <Link href="/login" className="font-semibold text-indigo-700 hover:underline dark:text-indigo-300">
                   Login
                 </Link>
               </p>

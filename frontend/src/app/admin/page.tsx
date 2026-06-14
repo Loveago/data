@@ -85,46 +85,46 @@ export default function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-3xl font-semibold tracking-tight">Admin Dashboard</h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">Overview of store activity.</p>
+      <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Admin Dashboard</h1>
+      <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Overview of store activity.</p>
 
       {loading ? (
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+        <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-card dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
           Loading...
         </div>
       ) : !stats ? (
-        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
+        <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 shadow-card dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
           Failed to load admin stats.
         </div>
       ) : (
         <>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Total users</p>
-              <p className="mt-2 text-3xl font-semibold">{stats.totalUsers}</p>
+            <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/70">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total users</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{stats.totalUsers}</p>
             </div>
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Total orders</p>
-              <p className="mt-2 text-3xl font-semibold">{stats.totalOrders}</p>
+            <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/70">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total orders</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{stats.totalOrders}</p>
             </div>
-            <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Total revenue</p>
-              <p className="mt-2 text-3xl font-semibold">{formatMoney(stats.totalRevenue)}</p>
+            <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/70">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Total revenue</p>
+              <p className="mt-2 text-3xl font-bold text-indigo-600 dark:text-indigo-400">{formatMoney(stats.totalRevenue)}</p>
             </div>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-            <h2 className="text-lg font-semibold">Fulfillment Provider Control</h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <div className="mt-6 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/70">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Fulfillment Provider Control</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               Force a provider temporarily, or leave auto to use the GMT time window.
             </p>
 
-            <div className="mt-4 grid gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+            <div className="mt-4 grid gap-2 text-sm text-slate-600 dark:text-slate-400">
               <div>
-                Active provider: <span className="font-semibold text-zinc-900 dark:text-zinc-100">{fulfillment?.activeProvider || "-"}</span>
+                Active provider: <span className="font-semibold text-slate-900 dark:text-slate-100">{fulfillment?.activeProvider || "-"}</span>
               </div>
               <div>
-                Forced provider: <span className="font-semibold text-zinc-900 dark:text-zinc-100">{fulfillment?.forcedProvider || "auto"}</span>
+                Forced provider: <span className="font-semibold text-slate-900 dark:text-slate-100">{fulfillment?.forcedProvider || "auto"}</span>
               </div>
               <div>
                 Day window (UTC): {fulfillment?.dayWindowUtc.start || "08:30"} - {fulfillment?.dayWindowUtc.end || "18:00"}
@@ -139,7 +139,7 @@ export default function AdminDashboardPage() {
                   if (v === "encart" || v === "grandapi" || v === "datahubnet" || v === "elitnut") setProviderInput(v);
                   else setProviderInput("auto");
                 }}
-                className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none dark:border-zinc-800 dark:bg-zinc-950"
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-900"
               >
                 <option value="auto">Auto (time-based)</option>
                 <option value="encart">Force Encart</option>
@@ -151,14 +151,14 @@ export default function AdminDashboardPage() {
                 type="button"
                 onClick={saveFulfillmentProvider}
                 disabled={providerSaving}
-                className="inline-flex h-11 items-center justify-center rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                className="inline-flex h-11 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
               >
                 {providerSaving ? "Saving..." : "Save"}
               </button>
             </div>
 
             {providerMessage ? (
-              <div className="mt-3 text-sm text-zinc-700 dark:text-zinc-300">{providerMessage}</div>
+              <div className="mt-3 text-sm text-slate-600 dark:text-slate-400">{providerMessage}</div>
             ) : null}
           </div>
         </>

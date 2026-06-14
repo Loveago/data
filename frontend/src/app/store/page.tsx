@@ -207,26 +207,26 @@ export default function StorePage() {
 
   return (
     <div className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-70 dark:opacity-[0.18]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-60 dark:opacity-[0.12]" />
       <div className="pointer-events-none absolute inset-0 -z-10 hero-wash" />
-      <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-gradient-to-br from-blue-600/25 via-cyan-500/20 to-emerald-400/15 blur-3xl animate-floaty" />
-      <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 via-blue-500/16 to-cyan-400/12 blur-3xl animate-floaty2" />
+      <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-gradient-to-br from-indigo-500/20 via-violet-500/15 to-emerald-400/12 blur-3xl animate-floaty" />
+      <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/18 via-indigo-500/14 to-violet-400/10 blur-3xl animate-floaty2" />
 
       <div className="mx-auto w-full max-w-6xl px-4 py-10">
         <div className="text-center animate-fade-up">
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-            <span className="text-gradient-blue">Store</span>
+            <span className="text-gradient-purple">Store</span>
           </h1>
-          <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
             Browse premium data packages from Ghana&apos;s leading telecom providers
           </p>
 
           <div className="mt-5 flex justify-center">
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-soft hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-card hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800"
             >
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-blue-700 ring-1 ring-blue-100 dark:bg-blue-950/40 dark:text-blue-200 dark:ring-blue-900/40">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-300 dark:ring-indigo-900/40">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
                 </svg>
@@ -240,7 +240,7 @@ export default function StorePage() {
           {networks.map((n, idx) => (
             <div
               key={n.slug}
-              className={`group relative overflow-hidden rounded-3xl ${n.gradient} p-[1px] shadow-soft transition hover:-translate-y-[2px] hover:shadow-lg ${
+              className={`group relative overflow-hidden rounded-3xl ${n.gradient} p-[1px] shadow-card transition hover:-translate-y-[2px] hover:shadow-lg ${
                 idx % 2 === 0 ? "animate-floaty" : "animate-floaty2"
               }`}
             >
@@ -266,7 +266,7 @@ export default function StorePage() {
                       const el = document.getElementById("packages");
                       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
-                    className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-zinc-900 shadow-sm ring-1 ring-black/5 transition hover:bg-zinc-50 dark:bg-zinc-950/70 dark:text-white dark:ring-white/10 dark:hover:bg-zinc-900"
+                    className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-black/5 transition hover:bg-slate-50 dark:bg-slate-900/70 dark:text-white dark:ring-white/10 dark:hover:bg-slate-800"
                   >
                     View
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -282,8 +282,8 @@ export default function StorePage() {
         <div id="packages" className="mt-12">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">Packages</h2>
-              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Packages</h2>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
                 {category ? `Showing ${category.toUpperCase()} bundles` : "Select a network above to view bundles"}
               </p>
             </div>
@@ -299,12 +299,12 @@ export default function StorePage() {
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Search packages..."
-                className="h-11 w-full rounded-2xl border border-zinc-200 bg-white/80 px-4 text-sm outline-none ring-0 backdrop-blur transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-zinc-800 dark:bg-zinc-950/70 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 text-sm outline-none ring-0 backdrop-blur transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900/70 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
               />
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="h-11 w-full rounded-2xl border border-zinc-200 bg-white/80 px-4 text-sm outline-none backdrop-blur transition-all focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-zinc-800 dark:bg-zinc-950/70 dark:focus:border-blue-500 dark:focus:ring-blue-500/20"
+                className="h-11 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 text-sm outline-none backdrop-blur transition-all focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900/70 dark:focus:border-indigo-500 dark:focus:ring-indigo-500/20"
               >
                 <option value="">All networks</option>
                 {categories
@@ -319,12 +319,12 @@ export default function StorePage() {
           </div>
 
           {loading ? (
-            <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+            <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-card dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
               Loading...
             </div>
           ) : error ? (
             <>
-              <div className="mt-8 rounded-3xl border border-blue-200 bg-blue-50 p-6 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
+              <div className="mt-8 rounded-3xl border border-indigo-200 bg-indigo-50 p-6 text-sm text-indigo-900 shadow-card dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-200">
                 Backend is not running yet. Showing demo products so you can preview the UI.
               </div>
               <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -334,7 +334,7 @@ export default function StorePage() {
               </div>
             </>
           ) : items.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+            <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600 shadow-card dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
               No products found.
             </div>
           ) : (
