@@ -97,6 +97,52 @@ html {
   }
 }
 
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--x, 20px), 110vh, 0) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes bounce-once {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes check-draw {
+  0% {
+    stroke-dashoffset: 30;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @layer utilities {
   .animate-floaty {
     animation: floaty 6s ease-in-out infinite;
@@ -109,6 +155,22 @@ html {
   .animate-fade-up {
     animation: fade-up 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
+
+  .animate-confetti {
+    animation: confetti-fall 3s ease-out forwards;
+  }
+
+  .animate-bounce-once {
+    animation: bounce-once 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-check-draw {
+    animation: check-draw 0.5s ease-out 0.3s both;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -117,7 +179,8 @@ html {
   }
 
   .animate-floaty,
-  .animate-floaty2 {
+  .animate-floaty2,
+  .animate-confetti {
     animation: none !important;
   }
 

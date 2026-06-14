@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-const PUBLIC_PATHS = new Set(["/login", "/register", "/forgot-password", "/reset-password", "/track-order"]);
+const AUTH_PUBLIC_PATHS = new Set(["/login", "/register", "/forgot-password", "/reset-password"]);
+const ALWAYS_PUBLIC_PATHS = new Set(["/track-order"]);
 const PUBLIC_PREFIXES = ["/storefront"];
 
 function isAssetPath(pathname: string) {
@@ -17,7 +18,11 @@ export function middleware(request: NextRequest) {
 
   const authed = request.cookies.get("gigshub_authed")?.value === "1";
 
-  if (PUBLIC_PATHS.has(pathname)) {
+  if (ALWAYS_PUBLIC_PATHS.has(pathname)) {
+    return NextResponse.next();
+  }
+
+  if (AUTH_PUBLIC_PATHS.has(pathname)) {
     if (authed) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
