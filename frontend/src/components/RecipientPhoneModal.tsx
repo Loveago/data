@@ -59,12 +59,21 @@ function RecipientPhoneModalInner({
   const s = String(slug || "").toLowerCase();
   const networkBadgeClass =
     s === "mtn"
-      ? "bg-yellow-500 text-black"
+      ? "bg-yellow-400 text-slate-900"
       : s === "telecel"
-        ? "bg-red-600 text-white"
+        ? "bg-red-500 text-white"
         : s === "airteltigo"
-          ? "bg-rose-600 text-white"
-          : "bg-zinc-700 text-white";
+          ? "bg-rose-500 text-white"
+          : "bg-blue-600 text-white";
+
+  const networkButtonClass =
+    s === "mtn"
+      ? "bg-yellow-400 text-slate-900 hover:bg-yellow-500"
+      : s === "telecel"
+        ? "bg-red-500 text-white hover:bg-red-600"
+        : s === "airteltigo"
+          ? "bg-rose-500 text-white hover:bg-rose-600"
+          : "bg-blue-600 text-white hover:bg-blue-700";
 
   const prefixMatchesNetwork = !normalized || prefixes.length === 0 ? true : prefixes.some((p) => normalized.startsWith(p));
 
@@ -81,13 +90,15 @@ function RecipientPhoneModalInner({
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onCancel} />
 
       <div
-        className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl ring-1 ring-black/10 dark:bg-zinc-950 dark:ring-white/10"
+        className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-100 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4">
+        {/* Colorful top accent bar */}
+        <div className={`absolute top-0 left-0 right-0 h-1.5 ${networkBadgeClass.replace('text-white', '').replace('text-slate-900', '')}`} />
+        <div className="flex items-start justify-between gap-4 mt-1">
           <div>
-            <h3 className="text-base font-semibold">Enter Recipient Phone Number</h3>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <h3 className="text-lg font-bold text-slate-900">Enter Recipient Phone Number</h3>
+            <p className="mt-1 text-sm text-slate-500">
               Please enter the phone number that will receive the data bundle.
             </p>
           </div>
@@ -115,7 +126,7 @@ function RecipientPhoneModalInner({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="0240000000"
-            className="mt-2 h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:border-blue-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-blue-600"
+            className="mt-2 h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:bg-white"
           />
           <div className="mt-2 text-xs text-zinc-500">Valid prefixes: {prefixes.length ? prefixes.join(", ") : "Any"}</div>
 
@@ -125,29 +136,24 @@ function RecipientPhoneModalInner({
             </div>
           ) : null}
 
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
             <div className="flex gap-2">
-              <div className="mt-[1px]">
+              <div className="mt-[1px] text-amber-500">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M12 9V13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   <path d="M12 17H12.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <path
-                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                  />
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                 </svg>
               </div>
               <div>Please ensure the phone number is correct. Data will be sent to this number and cannot be reversed.</div>
             </div>
           </div>
 
-          <div className="mt-4 rounded-2xl bg-zinc-50 p-4 text-sm dark:bg-zinc-900/40">
+          <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm border border-slate-100">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <div className="text-xs text-zinc-500">Network:</div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-900 ring-1 ring-black/5 dark:bg-zinc-950 dark:text-white dark:ring-white/10">
+                <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${networkBadgeClass}`}>
                   {network.icon && !iconFailed ? (
                     <img
                       src={network.icon}
@@ -175,7 +181,7 @@ function RecipientPhoneModalInner({
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+            className="inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
@@ -183,9 +189,14 @@ function RecipientPhoneModalInner({
             type="button"
             disabled={!isValid}
             onClick={() => onConfirm(normalized)}
-            className="inline-flex h-10 items-center justify-center rounded-xl bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50"
+            className={`inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:hover:translate-y-0 ${networkButtonClass}`}
           >
-            Confirm
+            <span className="flex items-center gap-2">
+              Pay GHS {displayPrice}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 8l4 4m0 0l-4 4m4-4H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
           </button>
         </div>
       </div>

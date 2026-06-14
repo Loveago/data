@@ -9,12 +9,6 @@ import { getNetworkMeta } from "@/lib/network";
 import { RecipientPhoneModal } from "@/components/RecipientPhoneModal";
 import type { AgentStorefront, StorefrontProduct } from "@/lib/types";
 
-function formatGhs(value: string | number) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return `GHS ${value}`;
-  return `GHS ${n.toFixed(2)}`;
-}
-
 function extractGbValue(name: string) {
   const m = /(\d+(?:\.\d+)?)\s*gb/i.exec(String(name || ""));
   if (!m) return null;
@@ -30,6 +24,62 @@ function getNetworkOrder(slug: string | null | undefined): number {
   return 999;
 }
 
+function getNetworkColors(slug: string | null | undefined) {
+  const s = String(slug || "").toLowerCase();
+  if (s === "mtn") return {
+    bg: "bg-yellow-400",
+    bgHover: "hover:bg-yellow-500",
+    bgLight: "bg-yellow-50",
+    text: "text-yellow-600",
+    border: "border-yellow-400",
+    buttonBg: "bg-yellow-400",
+    buttonText: "text-slate-900",
+    price: "text-yellow-500",
+    badge: "bg-yellow-200 text-yellow-800",
+    activeBtn: "bg-yellow-400 text-slate-900",
+    gradient: "from-yellow-400/20 to-yellow-200/10",
+  };
+  if (s === "telecel") return {
+    bg: "bg-red-500",
+    bgHover: "hover:bg-red-600",
+    bgLight: "bg-red-50",
+    text: "text-red-500",
+    border: "border-red-500",
+    buttonBg: "bg-red-500",
+    buttonText: "text-white",
+    price: "text-red-500",
+    badge: "bg-red-200 text-red-800",
+    activeBtn: "bg-red-500 text-white",
+    gradient: "from-red-400/20 to-red-200/10",
+  };
+  if (s === "airteltigo") return {
+    bg: "bg-rose-500",
+    bgHover: "hover:bg-rose-600",
+    bgLight: "bg-rose-50",
+    text: "text-rose-500",
+    border: "border-rose-500",
+    buttonBg: "bg-rose-500",
+    buttonText: "text-white",
+    price: "text-rose-500",
+    badge: "bg-rose-200 text-rose-800",
+    activeBtn: "bg-rose-500 text-white",
+    gradient: "from-rose-400/20 to-rose-200/10",
+  };
+  return {
+    bg: "bg-blue-600",
+    bgHover: "hover:bg-blue-700",
+    bgLight: "bg-blue-50",
+    text: "text-blue-600",
+    border: "border-blue-600",
+    buttonBg: "bg-blue-600",
+    buttonText: "text-white",
+    price: "text-blue-600",
+    badge: "bg-blue-200 text-blue-800",
+    activeBtn: "bg-blue-600 text-white",
+    gradient: "from-blue-400/20 to-blue-200/10",
+  };
+}
+
 export default function StorefrontPage() {
   const params = useParams();
   const slug = String(params?.slug || "");
@@ -43,7 +93,6 @@ export default function StorefrontPage() {
   const [selectedItem, setSelectedItem] = useState<StorefrontProduct | null>(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [processingPhone, setProcessingPhone] = useState<string | null>(null);
-  const [subtotal, setSubtotal] = useState<string>("0.00");
   const [processingError, setProcessingError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -124,7 +173,11 @@ export default function StorefrontPage() {
     });
   }, [activeNetwork, items, search]);
 
-  const accent = storefront?.accentColor || "#0052CC";
+  function getProductBadge(index: number) {
+    if (index === 0) return { text: "BEST SELLER", class: "bg-yellow-100 text-yellow-700" };
+    if (index === 2) return { text: "GREAT VALUE", class: "bg-green-100 text-green-700" };
+    return null;
+  }
 
   const handlePhoneConfirm = async (recipientPhone: string) => {
     if (!selectedItem) return;
@@ -133,9 +186,6 @@ export default function StorefrontPage() {
     setProcessingError(null);
 
     try {
-      const price = selectedItem.sellPrice || selectedItem.product.price;
-      setSubtotal(String(price));
-
       const res = await api.post<{ authorizationUrl: string; reference: string; total: string }>(
         '/payments/paystack/initialize-storefront',
         {
@@ -165,33 +215,36 @@ export default function StorefrontPage() {
   };
 
   return (
-    <div className="relative overflow-hidden bg-white">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-40" />
-      <div
-        className="pointer-events-none absolute -left-40 -top-40 -z-10 h-96 w-96 rounded-full blur-3xl"
-        style={{ background: `radial-gradient(circle, ${accent}20 0%, transparent 70%)` }}
-      />
-      <div className="pointer-events-none absolute -bottom-40 -right-40 -z-10 h-96 w-96 rounded-full blur-3xl"
-        style={{ background: `radial-gradient(circle, ${accent}15 0%, transparent 70%)` }}
-      />
-
-      {/* Header with Track Order and Support */}
+    <div className="relative overflow-hidden bg-white min-h-screen">
+      {/* Header */}
       <div className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {storefront?.heroEmoji && <span className="text-2xl">{storefront.heroEmoji}</span>}
-            <h1 className="text-xl font-bold text-slate-900">{storefront?.title || "Data Store"}</h1>
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 17l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 12l10 5 10-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900 leading-tight">{storefront?.title || "Emmanuel Ago"}</h1>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">DATA STORE</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/track-order" className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" fill="currentColor"/>
+          <div className="flex items-center gap-6">
+            <Link href="/track-order" className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors group">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="group-hover:scale-110 transition-transform">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                <path d="M12 6v6l4 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
               Track Order
             </Link>
-            <Link href="#support" className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="currentColor"/>
+            <Link href="#support" className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors group">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="group-hover:scale-110 transition-transform">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                <path d="M12 16v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M12 8h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
               Support
             </Link>
@@ -200,35 +253,58 @@ export default function StorefrontPage() {
       </div>
 
       <div className="mx-auto w-full max-w-6xl px-4 py-12">
-        {/* Hero Section */}
-        <div className="rounded-3xl overflow-hidden mb-12" style={{ background: `linear-gradient(135deg, ${accent} 0%, ${accent}dd 100%)` }}>
-          <div className="px-8 py-12 text-white">
-            <div className="flex items-center gap-2 mb-4">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
-              </svg>
-              <span className="text-sm font-semibold">FAST • CHEAP • INSTANT</span>
+        {/* Hero Section - Rich Blue with Floating Elements */}
+        <div className="relative rounded-3xl overflow-hidden mb-10 shadow-2xl" style={{ background: 'linear-gradient(135deg, #1e40af 0%, #2563eb 35%, #3b82f6 70%, #60a5fa 100%)' }}>
+          {/* Floating decorative elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-6 right-[18%] w-14 h-14 rounded-2xl bg-yellow-400 flex items-center justify-center shadow-lg animate-bounce" style={{ animationDuration: '3s' }}>
+              <img src="/networks/mtn.svg" alt="MTN" className="w-9 h-9" />
             </div>
-            <h2 className="text-4xl font-bold mb-3">Buy Data Bundles Instantly</h2>
-            <p className="text-lg opacity-90 mb-6">MTN & AirtelTigo bundles delivered in seconds. Pay securely with MoMo.</p>
-            <div className="flex gap-4 flex-wrap">
-              <div className="flex items-center gap-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
-                </svg>
-                <span className="text-sm">100% Secure</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <div className="absolute top-14 right-[6%] w-12 h-12 rounded-2xl bg-red-500 flex items-center justify-center shadow-lg animate-bounce" style={{ animationDuration: '4s', animationDelay: '0.5s' }}>
+              <img src="/networks/airteltigo.svg" alt="AT" className="w-7 h-7" />
+            </div>
+            <div className="absolute bottom-10 right-[22%] w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center animate-bounce" style={{ animationDuration: '3.5s', animationDelay: '1s' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className="absolute top-4 right-[38%] w-2 h-2 rounded-full bg-white/40"></div>
+            <div className="absolute bottom-16 right-[10%] w-3 h-3 rounded-full bg-yellow-300/50"></div>
+          </div>
+
+          <div className="relative px-8 py-10 md:px-12 md:py-14 text-white">
+            <div className="max-w-xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-yellow-400/20 border border-yellow-400/30 px-3 py-1.5 text-xs font-bold text-yellow-300 mb-5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
                 </svg>
-                <span className="text-sm">Instant Delivery</span>
+                FAST &bull; CHEAP &bull; INSTANT
               </div>
-              <div className="flex items-center gap-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" fill="currentColor"/>
-                </svg>
-                <span className="text-sm">24/7 Support</span>
+              <h2 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight">
+                Buy Data Bundles <span className="text-yellow-300">Instantly</span>
+              </h2>
+              <p className="text-lg text-blue-100 mb-6">MTN &amp; AirtelTigo bundles delivered in seconds. Pay securely with MoMo.</p>
+              <div className="flex gap-5 flex-wrap">
+                <div className="flex items-center gap-2 text-sm text-blue-100">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="white"/>
+                  </svg>
+                  100% Secure
+                </div>
+                <div className="flex items-center gap-2 text-sm text-blue-100">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                  </svg>
+                  Instant Delivery
+                </div>
+                <div className="flex items-center gap-2 text-sm text-blue-100">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="white"/>
+                    <path d="M11 7h2v6h-2z" fill="white"/>
+                    <circle cx="12" cy="16" r="1" fill="white"/>
+                  </svg>
+                  24/7 Support
+                </div>
               </div>
             </div>
           </div>
@@ -238,44 +314,50 @@ export default function StorefrontPage() {
         <div className="mb-8 flex flex-col gap-4">
           <div className="relative">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
-              <path d="M15.5 1h-8C6.12 1 5 2.12 5 3.5v17C5 21.88 6.12 23 7.5 23h8c1.38 0 2.5-1.12 2.5-2.5v-17C18 2.12 16.88 1 15.5 1zm-4 21c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4.5-4H7V4h9v14z" fill="currentColor"/>
+              <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
+              <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
             </svg>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search for bundles..."
-              className="w-full h-12 rounded-xl border border-slate-200 bg-white pl-12 pr-4 text-sm outline-none transition-all focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+              className="w-full h-12 rounded-xl border border-slate-200 bg-white pl-12 pr-4 text-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100 shadow-sm"
             />
           </div>
 
-          {/* Network Filter */}
+          {/* Network Filter with network colors */}
           <div className="flex gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setActiveNetwork("")}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition shadow-sm hover:shadow-md ${
                 activeNetwork === ""
-                  ? "text-white"
-                  : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                  ? "bg-blue-600 text-white"
+                  : "border border-slate-200 bg-white text-slate-600 hover:border-blue-300"
               }`}
-              style={activeNetwork === "" ? { backgroundColor: accent } : undefined}
             >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+              </svg>
               All Networks
             </button>
             {networks.map((n) => {
               const meta = getNetworkMeta({ slug: n.slug, name: n.name });
+              const colors = getNetworkColors(n.slug);
               const isActive = activeNetwork === n.slug;
               return (
                 <button
                   key={n.slug}
                   type="button"
                   onClick={() => setActiveNetwork(n.slug)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition shadow-sm hover:shadow-md ${
                     isActive
-                      ? "text-white"
-                      : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                      ? `${colors.activeBtn}`
+                      : `border border-slate-200 bg-white text-slate-600 hover:${colors.border}`
                   }`}
-                  style={isActive ? { backgroundColor: accent } : undefined}
                 >
                   {meta.icon ? <img src={meta.icon} alt={meta.label} className="h-5 w-5" /> : null}
                   {meta.label}
@@ -299,41 +381,65 @@ export default function StorefrontPage() {
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredItems.map((item) => {
+            {filteredItems.map((item, index) => {
               const product = item.product;
               const price = item.sellPrice || product.price;
               const meta = getNetworkMeta({ slug: product.category?.slug, name: product.category?.name });
+              const colors = getNetworkColors(product.category?.slug);
+              const badge = getProductBadge(index);
+              const validityDays = product.name?.toLowerCase().includes("30") ? 30 : product.name?.toLowerCase().includes("15") ? 15 : 7;
+
               return (
-                <div key={product.id} className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-soft transition hover:shadow-md hover:-translate-y-1">
-                  <div className="flex items-start justify-between gap-3 mb-4">
-                    <div>
-                      <div className="text-xs font-semibold text-slate-500 uppercase">{meta.label}</div>
-                      <div className="mt-2 text-xl font-bold text-slate-900">{product.name}</div>
+                <div key={product.id} className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-soft transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+                  {/* Badge */}
+                  {badge && (
+                    <div className={`absolute top-3 right-3 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${badge.class}`}>
+                      {badge.text}
                     </div>
-                    {meta.icon ? <img src={meta.icon} alt={meta.label} className="h-12 w-12 flex-shrink-0" /> : null}
+                  )}
+
+                  {/* Network Logo */}
+                  <div className="mb-3">
+                    {meta.icon ? (
+                      <img src={meta.icon} alt={meta.label} className="h-10 w-10" />
+                    ) : (
+                      <div className={`h-10 w-10 rounded-lg ${colors.bg} flex items-center justify-center text-white font-bold text-sm`}>
+                        {meta.initials}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="mb-4 flex items-baseline gap-2">
-                    <div className="text-3xl font-bold" style={{ color: accent }}>
+                  {/* Product Info */}
+                  <div className="mb-2">
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">{meta.label}</div>
+                    <h3 className="text-lg font-bold text-slate-900 leading-snug">{product.name}</h3>
+                    <p className="text-sm text-slate-500">Data Bundle</p>
+                  </div>
+
+                  {/* Price */}
+                  <div className="mb-4">
+                    <span className={`text-2xl font-extrabold ${colors.price}`}>
                       GHS {Number(price).toFixed(2)}
-                    </div>
+                    </span>
                   </div>
 
-                  <div className="mb-4 flex gap-2 flex-wrap text-xs">
-                    <span className="inline-flex items-center gap-1 text-slate-600">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  {/* Features */}
+                  <div className="mb-4 flex gap-3 flex-wrap text-xs text-slate-500">
+                    <span className="inline-flex items-center gap-1">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
                       </svg>
                       Instant Delivery
                     </span>
-                    <span className="inline-flex items-center gap-1 text-slate-600">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <span className="inline-flex items-center gap-1">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
                       </svg>
-                      Valid 30 days
+                      Valid {validityDays} days
                     </span>
                   </div>
 
+                  {/* Buy Button - Network colored */}
                   <button
                     type="button"
                     onClick={() => {
@@ -341,16 +447,72 @@ export default function StorefrontPage() {
                       setPhoneOpen(true);
                     }}
                     disabled={processingPhone !== null}
-                    className="w-full h-11 rounded-xl text-white font-semibold transition hover:-translate-y-0.5 disabled:opacity-50"
-                    style={{ backgroundColor: accent }}
+                    className={`w-full h-11 rounded-xl font-bold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:hover:translate-y-0 ${colors.buttonBg} ${colors.buttonText}`}
                   >
-                    {processingPhone !== null ? 'Processing...' : 'Buy Now'}
+                    {processingPhone !== null ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                        Processing...
+                      </span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        Buy Now
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M17 8l4 4m0 0l-4 4m4-4H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </span>
+                    )}
                   </button>
                 </div>
               );
             })}
           </div>
         )}
+        {/* Features Section */}
+        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-soft hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="#3b82f6" stroke="#2563eb" strokeWidth="1.5"/>
+                <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">100% Secure</h3>
+            <p className="text-xs text-slate-500">Your payments are safe and protected</p>
+          </div>
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-soft hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+            <div className="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M13 10V3L4 14h7v7l9-11h-7z" fill="#eab308"/>
+              </svg>
+            </div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">Instant Delivery</h3>
+            <p className="text-xs text-slate-500">Bundles delivered to you in seconds</p>
+          </div>
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-soft hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="2" y="6" width="20" height="12" rx="2" fill="#22c55e"/>
+                <circle cx="12" cy="12" r="3" fill="white"/>
+              </svg>
+            </div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">MoMo Payments</h3>
+            <p className="text-xs text-slate-500">Pay easily with MTN MoMo and other methods</p>
+          </div>
+          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-soft hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" fill="#f43f5e"/>
+                <path d="M12 8v4M12 16h.01" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">24/7 Support</h3>
+            <p className="text-xs text-slate-500">We&apos;re always here to help you</p>
+          </div>
+        </div>
       </div>
 
       <RecipientPhoneModal
