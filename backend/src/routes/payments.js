@@ -29,13 +29,13 @@ const paymentCompleteRateLimit = createRateLimiter({
   message: 'Too many payment verification attempts. Please try again shortly.',
 });
 
-function generateOrderCode() {
+function generateOrderCode(prefix = 'DASH') {
   const d = new Date();
   const yyyy = String(d.getFullYear());
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
-  return `GH-${yyyy}${mm}${dd}-${rand}`;
+  return `${prefix}-${yyyy}${mm}${dd}-${rand}`;
 }
 
 function assertPaystackKey() {
@@ -715,9 +715,11 @@ router.post(
 
           const profit = computeAgentProfit(orderItemsData);
 
+          const orderId = crypto.randomBytes(12).toString('hex').toUpperCase();
+          const orderCode = `STORE-${orderId}`;
           const order = await tx.order.create({
             data: {
-              orderCode: generateOrderCode(),
+              orderCode,
               userId: storefront.userId,
               agentStorefrontId: storefront.id,
               agentProfitCreditedAt: new Date(),
@@ -728,7 +730,7 @@ router.post(
               subtotal,
               total: pesewasToDecimal(grossAmountPesewas),
               paymentProvider: 'paystack',
-              paymentReference: String(reference),
+              paymentReference: orderCode,
               paymentStatus: 'PAID',
               items: {
                 create: orderItemsData.map((d) => ({
@@ -810,9 +812,11 @@ router.post(
           });
         }
 
+        const orderId = crypto.randomBytes(12).toString('hex').toUpperCase();
+        const orderCode = `DASH-${orderId}`;
         const order = await tx.order.create({
           data: {
-            orderCode: generateOrderCode(),
+            orderCode,
             userId: String(userId),
             customerName: String(customerName),
             customerEmail: String(customerEmail),
@@ -821,7 +825,7 @@ router.post(
             subtotal,
             total: pesewasToDecimal(grossAmountPesewas),
             paymentProvider: 'paystack',
-            paymentReference: String(reference),
+            paymentReference: orderCode,
             paymentStatus: 'PAID',
             items: {
               create: orderItemsData.map((d) => ({

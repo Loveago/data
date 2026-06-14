@@ -11,13 +11,13 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 const MAX_ORDER_LINE_QUANTITY = Math.max(1, Number(process.env.MAX_ORDER_LINE_QUANTITY || 20) || 20);
 
-function generateOrderCode() {
+function generateOrderCode(prefix = 'DASH') {
   const d = new Date();
   const yyyy = String(d.getFullYear());
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
-  return `GH-${yyyy}${mm}${dd}-${rand}`;
+  return `${prefix}-${yyyy}${mm}${dd}-${rand}`;
 }
 
 function resolveUnitPrice(product, role) {
@@ -282,6 +282,52 @@ router.get(
     ]);
 
     return res.json({ items, total, page, limit });
+  })
+);
+
+router.get(
+  '/track',
+  asyncHandler(async (req, res) => {
+    const orderCode = typeof req.query.orderCode === 'string' ? req.query.orderCode.trim() : '';
+    const dateStr = typeof req.query.date === 'string' ? req.query.date.trim() : '';
+
+    if (!orderCode) {
+      return res.status(400).json({ error: 'Missing order code' });
+    }
+
+    if (!dateStr) {
+      return res.status(400).json({ error: 'Missing order date' });
+    }
+
+    let targetDate;
+    try {
+      targetDate = new Date(dateStr);
+      if (isNaN(targetDate.getTime())) {
+        return res.status(400).json({ error: 'Invalid order date format' });
+      }
+    } catch {
+      return res.status(400).json({ error: 'Invalid order date format' });
+    }
+
+    const nextDay = new Date(targetDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    const order = await prisma.order.findFirst({
+      where: {
+        orderCode: { equals: orderCode, mode: 'insensitive' },
+        createdAt: {
+          gte: targetDate,
+          lt: nextDay,
+        },
+      },
+      include: { items: { include: { product: true } } },
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found. Please check your order ID and date.' });
+    }
+
+    return res.json({ order });
   })
 );
 

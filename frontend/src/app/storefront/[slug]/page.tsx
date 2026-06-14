@@ -8,7 +8,6 @@ import { api } from "@/lib/api";
 import { getNetworkMeta } from "@/lib/network";
 import { RecipientPhoneModal } from "@/components/RecipientPhoneModal";
 import type { AgentStorefront, StorefrontProduct } from "@/lib/types";
-import { useStorefrontCart } from "@/context/StorefrontCartContext";
 
 function formatGhs(value: string | number) {
   const n = Number(value);
@@ -23,11 +22,17 @@ function extractGbValue(name: string) {
   return Number.isFinite(n) ? n : null;
 }
 
+function getNetworkOrder(slug: string | null | undefined): number {
+  const s = String(slug || "").toLowerCase();
+  if (s === "mtn") return 1;
+  if (s === "telecel") return 2;
+  if (s === "airteltigo") return 3;
+  return 999;
+}
+
 export default function StorefrontPage() {
   const params = useParams();
   const slug = String(params?.slug || "");
-
-  const { items: cartItems, count, subtotal, addItem } = useStorefrontCart();
 
   const [storefront, setStorefront] = useState<AgentStorefront | null>(null);
   const [items, setItems] = useState<StorefrontProduct[]>([]);
@@ -37,6 +42,9 @@ export default function StorefrontPage() {
   const [activeNetwork, setActiveNetwork] = useState<string>("");
   const [selectedItem, setSelectedItem] = useState<StorefrontProduct | null>(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const [processingPhone, setProcessingPhone] = useState<string | null>(null);
+  const [subtotal, setSubtotal] = useState<string>("0.00");
+  const [processingError, setProcessingError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,148 +83,268 @@ export default function StorefrontPage() {
       if (!cat) continue;
       map.set(cat.slug, { slug: cat.slug, name: cat.name });
     }
-    return Array.from(map.values());
+    return Array.from(map.values()).sort((a, b) => getNetworkOrder(a.slug) - getNetworkOrder(b.slug));
   }, [items]);
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const list = items.filter((item) => {
+    let list = items.filter((item) => {
       if (!activeNetwork) return true;
       return item.product.category?.slug === activeNetwork;
     });
 
-    const sorted = [...list].sort((a, b) => {
-      const ga = extractGbValue(a.product.name || "");
-      const gb = extractGbValue(b.product.name || "");
-      if (ga != null && gb != null && ga !== gb) return ga - gb;
-      if (ga != null && gb == null) return -1;
-      if (ga == null && gb != null) return 1;
-      return String(a.product.name || "").localeCompare(String(b.product.name || ""));
-    });
+    if (activeNetwork === "") {
+      list = list.sort((a, b) => {
+        const networkOrderA = getNetworkOrder(a.product.category?.slug);
+        const networkOrderB = getNetworkOrder(b.product.category?.slug);
+        if (networkOrderA !== networkOrderB) return networkOrderA - networkOrderB;
+        
+        const ga = extractGbValue(a.product.name || "");
+        const gb = extractGbValue(b.product.name || "");
+        if (ga != null && gb != null && ga !== gb) return ga - gb;
+        if (ga != null && gb == null) return -1;
+        if (ga == null && gb != null) return 1;
+        return String(a.product.name || "").localeCompare(String(b.product.name || ""));
+      });
+    } else {
+      list = list.sort((a, b) => {
+        const ga = extractGbValue(a.product.name || "");
+        const gb = extractGbValue(b.product.name || "");
+        if (ga != null && gb != null && ga !== gb) return ga - gb;
+        if (ga != null && gb == null) return -1;
+        if (ga == null && gb != null) return 1;
+        return String(a.product.name || "").localeCompare(String(b.product.name || ""));
+      });
+    }
 
-    if (!q) return sorted;
-    return sorted.filter((item) => {
+    if (!q) return list;
+    return list.filter((item) => {
       const hay = `${item.product.name} ${item.product.slug} ${item.product.category?.name}`.toLowerCase();
       return hay.includes(q);
     });
   }, [activeNetwork, items, search]);
 
-  const accent = storefront?.accentColor || "#1d4ed8";
+  const accent = storefront?.accentColor || "#0052CC";
+
+  const handlePhoneConfirm = async (recipientPhone: string) => {
+    if (!selectedItem) return;
+    
+    setProcessingPhone(recipientPhone);
+    setProcessingError(null);
+
+    try {
+      const price = selectedItem.sellPrice || selectedItem.product.price;
+      setSubtotal(String(price));
+
+      const res = await api.post<{ authorizationUrl: string; reference: string; total: string }>(
+        '/payments/paystack/initialize-storefront',
+        {
+          storefrontSlug: slug,
+          items: [
+            {
+              productId: selectedItem.product.id,
+              quantity: 1,
+              recipientPhone,
+            },
+          ],
+          callbackUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/storefront/${slug}/paystack/callback`,
+          customerName: 'Guest Buyer',
+          customerEmail: `guest-${Date.now()}@storefront.local`,
+          customerPhone: recipientPhone,
+        }
+      );
+
+      if (res.data?.authorizationUrl) {
+        window.location.href = res.data.authorizationUrl;
+      }
+    } catch (e: unknown) {
+      const maybeError = e as { response?: { data?: { error?: string } } };
+      setProcessingError(maybeError?.response?.data?.error || 'Failed to process payment. Please try again.');
+      setProcessingPhone(null);
+    }
+  };
 
   return (
-    <div className="relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-70" />
+    <div className="relative overflow-hidden bg-white">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-dot-grid opacity-40" />
       <div
-        className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full blur-3xl"
-        style={{ background: `radial-gradient(circle, ${accent}40 0%, transparent 70%)` }}
+        className="pointer-events-none absolute -left-40 -top-40 -z-10 h-96 w-96 rounded-full blur-3xl"
+        style={{ background: `radial-gradient(circle, ${accent}20 0%, transparent 70%)` }}
       />
-      <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 via-blue-500/16 to-cyan-400/12 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 -z-10 h-96 w-96 rounded-full blur-3xl"
+        style={{ background: `radial-gradient(circle, ${accent}15 0%, transparent 70%)` }}
+      />
 
-      <div className="mx-auto w-full max-w-6xl px-4 py-10">
-        <div className="rounded-3xl border border-zinc-200/70 bg-white/80 p-6 shadow-soft backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Agent Storefront</div>
-              <h1 className="mt-3 text-3xl font-extrabold tracking-tight">
-                {storefront?.heroEmoji ? <span className="mr-2">{storefront.heroEmoji}</span> : null}
-                Welcome to {storefront?.title || "this"} Store
-              </h1>
-              <p className="mt-2 text-sm text-zinc-600">{storefront?.welcomeMessage || "Choose a bundle and purchase instantly."}</p>
-            </div>
-            <div className="text-right">
-              <div className="text-xs font-semibold text-zinc-500">Your cart</div>
-              <div className="mt-2 text-lg font-semibold" style={{ color: accent }}>
-                {formatGhs(subtotal)}
-              </div>
-              <div className="text-xs text-zinc-500">{count} items</div>
-            </div>
+      {/* Header with Track Order and Support */}
+      <div className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {storefront?.heroEmoji && <span className="text-2xl">{storefront.heroEmoji}</span>}
+            <h1 className="text-xl font-bold text-slate-900">{storefront?.title || "Data Store"}</h1>
           </div>
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search bundles..."
-              className="h-11 w-full rounded-2xl border border-zinc-200 bg-white/80 px-4 text-sm outline-none backdrop-blur transition-all focus:border-blue-400"
-            />
-            <Link
-              href={`/storefront/${slug}/checkout`}
-              className="inline-flex h-11 items-center justify-center rounded-2xl px-5 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5"
-              style={{ backgroundColor: accent }}
-            >
-              Checkout
+          <div className="flex items-center gap-4">
+            <Link href="/track-order" className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" fill="currentColor"/>
+              </svg>
+              Track Order
+            </Link>
+            <Link href="#support" className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="currentColor"/>
+              </svg>
+              Support
             </Link>
           </div>
         </div>
+      </div>
 
-        <div className="mt-8 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveNetwork("")}
-            className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
-              activeNetwork === ""
-                ? "border-transparent text-white"
-                : "border-zinc-200 bg-white text-zinc-700"
-            }`}
-            style={activeNetwork === "" ? { backgroundColor: accent } : undefined}
-          >
-            All networks
-          </button>
-          {networks.map((n) => {
-            const meta = getNetworkMeta({ slug: n.slug, name: n.name });
-            const isActive = activeNetwork === n.slug;
-            return (
-              <button
-                key={n.slug}
-                type="button"
-                onClick={() => setActiveNetwork(n.slug)}
-                className={`flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold transition ${
-                  isActive ? "border-transparent text-white" : "border-zinc-200 bg-white text-zinc-700"
-                }`}
-                style={isActive ? { backgroundColor: accent } : undefined}
-              >
-                {meta.icon ? <img src={meta.icon} alt={meta.label} className="h-4 w-4" /> : null}
-                {meta.label}
-              </button>
-            );
-          })}
+      <div className="mx-auto w-full max-w-6xl px-4 py-12">
+        {/* Hero Section */}
+        <div className="rounded-3xl overflow-hidden mb-12" style={{ background: `linear-gradient(135deg, ${accent} 0%, ${accent}dd 100%)` }}>
+          <div className="px-8 py-12 text-white">
+            <div className="flex items-center gap-2 mb-4">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+              </svg>
+              <span className="text-sm font-semibold">FAST • CHEAP • INSTANT</span>
+            </div>
+            <h2 className="text-4xl font-bold mb-3">Buy Data Bundles Instantly</h2>
+            <p className="text-lg opacity-90 mb-6">MTN & AirtelTigo bundles delivered in seconds. Pay securely with MoMo.</p>
+            <div className="flex gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+                </svg>
+                <span className="text-sm">100% Secure</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                <span className="text-sm">Instant Delivery</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" fill="currentColor"/>
+                </svg>
+                <span className="text-sm">24/7 Support</span>
+              </div>
+            </div>
+          </div>
         </div>
 
+        {/* Search and Filter */}
+        <div className="mb-8 flex flex-col gap-4">
+          <div className="relative">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+              <path d="M15.5 1h-8C6.12 1 5 2.12 5 3.5v17C5 21.88 6.12 23 7.5 23h8c1.38 0 2.5-1.12 2.5-2.5v-17C18 2.12 16.88 1 15.5 1zm-4 21c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4.5-4H7V4h9v14z" fill="currentColor"/>
+            </svg>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search for bundles..."
+              className="w-full h-12 rounded-xl border border-slate-200 bg-white pl-12 pr-4 text-sm outline-none transition-all focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+            />
+          </div>
+
+          {/* Network Filter */}
+          <div className="flex gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setActiveNetwork("")}
+              className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
+                activeNetwork === ""
+                  ? "text-white"
+                  : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+              }`}
+              style={activeNetwork === "" ? { backgroundColor: accent } : undefined}
+            >
+              All Networks
+            </button>
+            {networks.map((n) => {
+              const meta = getNetworkMeta({ slug: n.slug, name: n.name });
+              const isActive = activeNetwork === n.slug;
+              return (
+                <button
+                  key={n.slug}
+                  type="button"
+                  onClick={() => setActiveNetwork(n.slug)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition ${
+                    isActive
+                      ? "text-white"
+                      : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                  }`}
+                  style={isActive ? { backgroundColor: accent } : undefined}
+                >
+                  {meta.icon ? <img src={meta.icon} alt={meta.label} className="h-5 w-5" /> : null}
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Products Grid */}
         {loading ? (
-          <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">Loading bundles...</div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500 mb-4"></div>
+            <p>Loading bundles...</p>
+          </div>
         ) : error ? (
-          <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-800">{error}</div>
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-800">{error}</div>
         ) : filteredItems.length === 0 ? (
-          <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">No bundles found.</div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-600">
+            <p className="text-lg">No bundles found</p>
+          </div>
         ) : (
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredItems.map((item) => {
               const product = item.product;
               const price = item.sellPrice || product.price;
               const meta = getNetworkMeta({ slug: product.category?.slug, name: product.category?.name });
               return (
-                <div key={product.id} className="group relative overflow-hidden rounded-3xl border border-zinc-200 bg-white p-4 shadow-soft transition hover:-translate-y-[2px]">
-                  <div className="flex items-start justify-between gap-3">
+                <div key={product.id} className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-soft transition hover:shadow-md hover:-translate-y-1">
+                  <div className="flex items-start justify-between gap-3 mb-4">
                     <div>
-                      <div className="text-xs font-semibold text-zinc-500">{meta.label}</div>
-                      <div className="mt-2 text-lg font-bold text-zinc-900">{product.name}</div>
+                      <div className="text-xs font-semibold text-slate-500 uppercase">{meta.label}</div>
+                      <div className="mt-2 text-xl font-bold text-slate-900">{product.name}</div>
                     </div>
-                    {meta.icon ? <img src={meta.icon} alt={meta.label} className="h-10 w-10" /> : null}
+                    {meta.icon ? <img src={meta.icon} alt={meta.label} className="h-12 w-12 flex-shrink-0" /> : null}
                   </div>
-                  <div className="mt-4 text-sm text-zinc-500">Price</div>
-                  <div className="mt-1 text-2xl font-semibold" style={{ color: accent }}>
-                    {formatGhs(price)}
+
+                  <div className="mb-4 flex items-baseline gap-2">
+                    <div className="text-3xl font-bold" style={{ color: accent }}>
+                      GHS {Number(price).toFixed(2)}
+                    </div>
                   </div>
+
+                  <div className="mb-4 flex gap-2 flex-wrap text-xs">
+                    <span className="inline-flex items-center gap-1 text-slate-600">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                      </svg>
+                      Instant Delivery
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-slate-600">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" fill="currentColor"/>
+                      </svg>
+                      Valid 30 days
+                    </span>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedItem(item);
                       setPhoneOpen(true);
                     }}
-                    className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-2xl text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5"
+                    disabled={processingPhone !== null}
+                    className="w-full h-11 rounded-xl text-white font-semibold transition hover:-translate-y-0.5 disabled:opacity-50"
                     style={{ backgroundColor: accent }}
                   >
-                    Purchase bundle
+                    {processingPhone !== null ? 'Processing...' : 'Buy Now'}
                   </button>
                 </div>
               );
@@ -229,31 +357,18 @@ export default function StorefrontPage() {
         open={phoneOpen}
         product={selectedItem?.product || null}
         priceOverride={selectedItem?.sellPrice || selectedItem?.product.price}
-        onCancel={() => setPhoneOpen(false)}
-        onConfirm={(recipientPhone) => {
-          if (!selectedItem) return;
-          addItem(selectedItem.product, 1, recipientPhone, Number(selectedItem.sellPrice || selectedItem.product.price));
+        onCancel={() => {
           setPhoneOpen(false);
+          setProcessingError(null);
         }}
+        onConfirm={handlePhoneConfirm}
       />
 
-      {cartItems.length > 0 ? (
-        <div className="fixed bottom-4 left-0 right-0 z-20 px-4">
-          <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white/90 px-4 py-3 shadow-soft backdrop-blur">
-            <div>
-              <div className="text-xs text-zinc-500">Cart total</div>
-              <div className="text-base font-semibold">{formatGhs(subtotal)}</div>
-            </div>
-            <Link
-              href={`/storefront/${slug}/checkout`}
-              className="inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold text-white"
-              style={{ backgroundColor: accent }}
-            >
-              Checkout ({count})
-            </Link>
-          </div>
+      {processingError && (
+        <div className="fixed bottom-4 left-4 right-4 z-40 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 max-w-md">
+          {processingError}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
