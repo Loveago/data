@@ -85,6 +85,11 @@ function RecipientPhoneModalInner({
   const displayPriceNum = Number(displayPriceRaw);
   const displayPrice = Number.isFinite(displayPriceNum) ? displayPriceNum.toFixed(2) : String(displayPriceRaw);
 
+  // Paystack fee = 1.95% of bundle price
+  const feeNum = Math.round(displayPriceNum * 100 * 0.0195) / 100;
+  const fee = feeNum.toFixed(2);
+  const total = (displayPriceNum + feeNum).toFixed(2);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onCancel} />
@@ -172,8 +177,22 @@ function RecipientPhoneModalInner({
             </div>
             <div className="text-xs text-zinc-500">Package:</div>
             <div className="mt-1 font-semibold">{packageLabel}</div>
-            <div className="mt-2 text-xs text-zinc-500">Price:</div>
-            <div className="mt-1 font-semibold text-emerald-600 dark:text-emerald-400">GHS {displayPrice}</div>
+
+            {/* Fee Breakdown */}
+            <div className="mt-3 rounded-xl bg-white border border-slate-100 p-3">
+              <div className="flex justify-between text-xs text-slate-500 mb-1">
+                <span>Bundle Price</span>
+                <span className="font-medium text-slate-700">GHS {displayPrice}</span>
+              </div>
+              <div className="flex justify-between text-xs text-slate-500 mb-1">
+                <span>Paystack Fee</span>
+                <span className="font-medium text-slate-700">GHS {fee}</span>
+              </div>
+              <div className="border-t border-slate-100 pt-1.5 flex justify-between text-sm">
+                <span className="font-bold text-slate-900">Total</span>
+                <span className="font-bold text-emerald-600">GHS {total}</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -192,7 +211,7 @@ function RecipientPhoneModalInner({
             className={`inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-bold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:hover:translate-y-0 ${networkButtonClass}`}
           >
             <span className="flex items-center gap-2">
-              Pay GHS {displayPrice}
+              Pay GHS {total}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M17 8l4 4m0 0l-4 4m4-4H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>

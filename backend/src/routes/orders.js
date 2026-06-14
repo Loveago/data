@@ -289,10 +289,11 @@ router.get(
   '/track',
   asyncHandler(async (req, res) => {
     const orderCode = typeof req.query.orderCode === 'string' ? req.query.orderCode.trim() : '';
+    const phone = typeof req.query.phone === 'string' ? req.query.phone.trim() : '';
     const dateStr = typeof req.query.date === 'string' ? req.query.date.trim() : '';
 
-    if (!orderCode) {
-      return res.status(400).json({ error: 'Missing order code' });
+    if (!orderCode && !phone) {
+      return res.status(400).json({ error: 'Please provide an order code or phone number' });
     }
 
     if (!dateStr) {
@@ -312,19 +313,26 @@ router.get(
     const nextDay = new Date(targetDate);
     nextDay.setDate(nextDay.getDate() + 1);
 
-    const order = await prisma.order.findFirst({
-      where: {
-        orderCode: { equals: orderCode, mode: 'insensitive' },
-        createdAt: {
-          gte: targetDate,
-          lt: nextDay,
-        },
+    const where = {
+      createdAt: {
+        gte: targetDate,
+        lt: nextDay,
       },
+    };
+
+    if (orderCode) {
+      where.orderCode = { equals: orderCode, mode: 'insensitive' };
+    } else if (phone) {
+      where.customerPhone = { contains: phone.replace(/\D/g, ''), mode: 'insensitive' };
+    }
+
+    const order = await prisma.order.findFirst({
+      where,
       include: { items: { include: { product: true } } },
     });
 
     if (!order) {
-      return res.status(404).json({ error: 'Order not found. Please check your order ID and date.' });
+      return res.status(404).json({ error: 'Order not found. Please check your details and date.' });
     }
 
     return res.json({ order });

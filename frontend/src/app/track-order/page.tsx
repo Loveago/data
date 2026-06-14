@@ -29,7 +29,9 @@ interface OrderDetails {
 }
 
 export default function TrackOrderPage() {
+  const [searchMode, setSearchMode] = useState<"orderCode" | "phone">("orderCode");
   const [orderCode, setOrderCode] = useState("");
+  const [phone, setPhone] = useState("");
   const [orderDate, setOrderDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +39,14 @@ export default function TrackOrderPage() {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!orderCode.trim()) {
+
+    if (searchMode === "orderCode" && !orderCode.trim()) {
       setError("Please enter an order ID");
+      return;
+    }
+
+    if (searchMode === "phone" && !phone.trim()) {
+      setError("Please enter a phone number");
       return;
     }
 
@@ -53,13 +60,21 @@ export default function TrackOrderPage() {
     setOrder(null);
 
     try {
+      const params = new URLSearchParams();
+      params.set("date", orderDate);
+      if (searchMode === "orderCode") {
+        params.set("orderCode", orderCode.trim());
+      } else {
+        params.set("phone", phone.trim().replace(/\D/g, ""));
+      }
+
       const res = await api.get<{ order: OrderDetails }>(
-        `/orders/track?orderCode=${encodeURIComponent(orderCode.trim())}&date=${encodeURIComponent(orderDate)}`
+        `/orders/track?${params.toString()}`
       );
       setOrder(res.data.order);
     } catch (e: unknown) {
       const maybeError = e as { response?: { data?: { error?: string } } };
-      setError(maybeError?.response?.data?.error || "Order not found. Please check your order ID and date.");
+      setError(maybeError?.response?.data?.error || "Order not found. Please check your details and date.");
     } finally {
       setLoading(false);
     }
@@ -110,22 +125,66 @@ export default function TrackOrderPage() {
 
         {/* Search Form */}
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-soft mb-8">
+          {/* Search Mode Toggle */}
+          <div className="flex rounded-xl bg-slate-100 p-1 mb-6">
+            <button
+              type="button"
+              onClick={() => { setSearchMode("orderCode"); setError(null); }}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition ${
+                searchMode === "orderCode"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Order ID
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSearchMode("phone"); setError(null); }}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition ${
+                searchMode === "phone"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              Phone Number
+            </button>
+          </div>
+
           <form onSubmit={handleSearch} className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-900 mb-2">
-                Order ID
-              </label>
-              <input
-                type="text"
-                value={orderCode}
-                onChange={(e) => setOrderCode(e.target.value)}
-                placeholder="e.g., STORE-ABC123DEF456"
-                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition-all focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Your order ID starts with STORE- (storefront) or DASH- (dashboard)
-              </p>
-            </div>
+            {searchMode === "orderCode" ? (
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  Order ID
+                </label>
+                <input
+                  type="text"
+                  value={orderCode}
+                  onChange={(e) => setOrderCode(e.target.value)}
+                  placeholder="e.g., STORE-ABC123DEF456"
+                  className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Your order ID starts with STORE- (storefront) or DASH- (dashboard)
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g., 0240000000"
+                  className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Enter the phone number used when placing the order
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-semibold text-slate-900 mb-2">
@@ -135,7 +194,7 @@ export default function TrackOrderPage() {
                 type="date"
                 value={orderDate}
                 onChange={(e) => setOrderDate(e.target.value)}
-                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition-all focus:border-blue-400 focus:ring-1 focus:ring-blue-200"
+                className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
               />
             </div>
 

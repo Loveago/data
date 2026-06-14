@@ -198,8 +198,6 @@ export default function StorefrontPage() {
             },
           ],
           callbackUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/storefront/${slug}/paystack/callback`,
-          customerName: 'Guest Buyer',
-          customerEmail: `guest-${Date.now()}@storefront.local`,
           customerPhone: recipientPhone,
         }
       );
