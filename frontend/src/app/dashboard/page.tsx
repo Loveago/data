@@ -978,7 +978,7 @@ function DashboardInner() {
                 upgradeError={upgradeError}
                 referralCode={referralCode}
                 user={user}
-                pushTab={pushTab}
+                pushTab={(tab: string) => pushTab(tab as DashboardTab)}
               />
             ) : null}
 
