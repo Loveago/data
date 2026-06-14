@@ -11,8 +11,8 @@ type Stats = {
 };
 
 type FulfillmentControl = {
-  forcedProvider: "encart" | "grandapi" | "datahubnet" | "elitnut" | null;
-  activeProvider: "encart" | "grandapi" | "datahubnet" | "elitnut";
+  forcedProvider: "encart" | "grandapi" | "datahubnet" | "elitnut" | "skanka5" | null;
+  activeProvider: "encart" | "grandapi" | "datahubnet" | "elitnut" | "skanka5";
   nowUtc: string;
   dayWindowUtc: {
     start: string;
@@ -29,7 +29,7 @@ function formatMoney(value: string) {
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [fulfillment, setFulfillment] = useState<FulfillmentControl | null>(null);
-  const [providerInput, setProviderInput] = useState<"auto" | "encart" | "grandapi" | "datahubnet" | "elitnut">("auto");
+  const [providerInput, setProviderInput] = useState<"auto" | "encart" | "grandapi" | "datahubnet" | "elitnut" | "skanka5">("auto");
   const [providerSaving, setProviderSaving] = useState(false);
   const [providerMessage, setProviderMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,7 +136,7 @@ export default function AdminDashboardPage() {
                 value={providerInput}
                 onChange={(e) => {
                   const v = e.target.value;
-                  if (v === "encart" || v === "grandapi" || v === "datahubnet" || v === "elitnut") setProviderInput(v);
+                  if (v === "encart" || v === "grandapi" || v === "datahubnet" || v === "elitnut" || v === "skanka5") setProviderInput(v);
                   else setProviderInput("auto");
                 }}
                 className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-900"
@@ -146,6 +146,7 @@ export default function AdminDashboardPage() {
                 <option value="grandapi">Force GrandAPI</option>
                 <option value="datahubnet">Force Datahubnet</option>
                 <option value="elitnut">Force ElitNut</option>
+                <option value="skanka5">Force Skanka5</option>
               </select>
               <button
                 type="button"
