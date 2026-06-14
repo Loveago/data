@@ -8,9 +8,11 @@ import { Navbar } from "@/components/Navbar";
 import { useAuth } from "@/context/AuthContext";
 
 const AUTH_PUBLIC_PATHS = new Set(["/login", "/register", "/forgot-password", "/reset-password"]);
+const ALWAYS_PUBLIC_PATHS = new Set(["/track-order"]);
 const PUBLIC_PREFIXES = ["/storefront"];
 
 function isPublicPath(pathname: string) {
+  if (ALWAYS_PUBLIC_PATHS.has(pathname)) return true;
   if (AUTH_PUBLIC_PATHS.has(pathname)) return true;
   return PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
