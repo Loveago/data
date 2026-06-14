@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 
 const { Prisma, NotificationLevel } = require('@prisma/client');
 const { prisma } = require('../lib/prisma');
-const { getFulfillmentControlState, setForcedProvider } = require('../lib/fulfillment');
+const { getFulfillmentControlState, setForcedProvider, setAutoDeliverEnabled } = require('../lib/fulfillment');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { sanitizeHtml } = require('./notifications');
@@ -24,7 +24,7 @@ function parseForcedProviderInput(value) {
   if (value == null) return null;
   const v = String(value).trim().toLowerCase();
   if (!v || v === 'auto' || v === 'none') return null;
-  if (v === 'encart' || v === 'grandapi' || v === 'datahubnet' || v === 'elitnut') return v;
+  if (v === 'encart' || v === 'grandapi' || v === 'datahubnet' || v === 'elitnut' || v === 'skanka5') return v;
   return undefined;
 }
 
@@ -45,11 +45,42 @@ router.patch(
   asyncHandler(async (req, res) => {
     const provider = parseForcedProviderInput(req.body?.provider);
     if (provider === undefined) {
-      return res.status(400).json({ error: 'Invalid provider. Use encart, grandapi, datahubnet, elitnut, or auto.' });
+      return res.status(400).json({ error: 'Invalid provider. Use encart, grandapi, datahubnet, elitnut, skanka5, or auto.' });
     }
 
     setForcedProvider(provider);
     return res.json(getFulfillmentControlState());
+  })
+);
+
+router.get(
+  '/fulfillment-auto-deliver',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    void req;
+    return res.json({
+      enabled: getFulfillmentControlState().autoDeliver.enabled,
+      timeoutMs: getFulfillmentControlState().autoDeliver.timeoutMs,
+    });
+  })
+);
+
+router.patch(
+  '/fulfillment-auto-deliver',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const enabled = req.body?.enabled;
+    if (enabled !== true && enabled !== false && enabled !== null) {
+      return res.status(400).json({ error: 'Invalid value for enabled. Use true, false, or null.' });
+    }
+
+    setAutoDeliverEnabled(enabled);
+    return res.json({
+      enabled: getFulfillmentControlState().autoDeliver.enabled,
+      timeoutMs: getFulfillmentControlState().autoDeliver.timeoutMs,
+    });
   })
 );
 

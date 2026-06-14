@@ -3,11 +3,13 @@ const { datahubnetCheckStatus, datahubnetPlaceOrder } = require('./datahubnet');
 const { grandapiCheckStatus, grandapiGetPackages, grandapiPlaceOrder } = require('./grandapi');
 const { encartCheckStatus, encartPurchase } = require('./encart');
 const { elitnutGetTransactionHistory, elitnutInitiateTransaction } = require('./elitnut');
+const { skanka5CheckStatus, skanka5PlaceOrder } = require('./skanka5');
 
 const DAY_START_MINUTES = 8 * 60 + 30;
 const DAY_END_MINUTES = 18 * 60;
 const ENABLE_FULFILLMENT_DEBUG = String(process.env.FULFILLMENT_DEBUG || '').trim().toLowerCase() === 'true';
 let runtimeForcedProvider = null;
+let runtimeAutoDeliverEnabled = null;
 const SHOULD_USE_DATAHUBNET_EXPRESS = String(process.env.FULFILLMENT_DATAHUBNET_EXPRESS || '')
   .trim()
   .toLowerCase() === 'true';
@@ -28,12 +30,12 @@ function normalizeForcedProviderValue(value) {
   const v = String(value || '').trim().toLowerCase();
   if (!v || v === 'auto' || v === 'none') return null;
   if (v === 'encart') return 'encart';
-  if (v === 'grandapi' || v === 'datahubnet' || v === 'elitnut') return v;
+  if (v === 'grandapi' || v === 'datahubnet' || v === 'elitnut' || v === 'skanka5') return v;
   return null;
 }
 
 function getForcedProvider() {
-  if (runtimeForcedProvider === 'encart' || runtimeForcedProvider === 'grandapi' || runtimeForcedProvider === 'datahubnet' || runtimeForcedProvider === 'elitnut') {
+  if (runtimeForcedProvider === 'encart' || runtimeForcedProvider === 'grandapi' || runtimeForcedProvider === 'datahubnet' || runtimeForcedProvider === 'elitnut' || runtimeForcedProvider === 'skanka5') {
     return runtimeForcedProvider;
   }
 
@@ -57,7 +59,7 @@ function getProviderAliasList(provider) {
 
 function getActiveProviderByTime(now = new Date()) {
   const forced = getForcedProvider();
-  if (forced === 'encart' || forced === 'grandapi' || forced === 'datahubnet' || forced === 'elitnut') {
+  if (forced === 'encart' || forced === 'grandapi' || forced === 'datahubnet' || forced === 'elitnut' || forced === 'skanka5') {
     debugLog('Force override active →', forced);
     return forced;
   }
@@ -129,6 +131,18 @@ function getElitnutNetworkMap() {
   };
   const raw = process.env.ELITNUT_NETWORK_MAP;
   const custom = parseJsonEnv(raw, 'ELITNUT_NETWORK_MAP');
+  return { ...defaults, ...custom };
+}
+
+function getSkanka5NetworkMap() {
+  const defaults = {
+    mtn: 3,
+    telecel: 2,
+    airteltigo: 1,
+    'at-bigtime': 4,
+  };
+  const raw = process.env.SKANKA5_NETWORK_MAP;
+  const custom = parseJsonEnv(raw, 'SKANKA5_NETWORK_MAP');
   return { ...defaults, ...custom };
 }
 
@@ -287,6 +301,10 @@ function getNetworkForProvider(provider, categorySlug) {
     const map = getGrandapiNetworkMap();
     return map[slug] ? String(map[slug]) : null;
   }
+  if (resolved === 'skanka5') {
+    const map = getSkanka5NetworkMap();
+    return map[slug] != null ? String(map[slug]) : null;
+  }
 
   const map = getDatahubnetNetworkMap();
   return map[slug] ? String(map[slug]) : null;
@@ -294,7 +312,7 @@ function getNetworkForProvider(provider, categorySlug) {
 
 function buildProviderReference(provider, orderId, itemId) {
   const resolved = normalizeProviderName(provider);
-  const prefix = resolved === 'grandapi' ? 'GA' : resolved === 'encart' ? 'EC' : 'DH';
+  const prefix = resolved === 'grandapi' ? 'GA' : resolved === 'encart' ? 'EC' : resolved === 'skanka5' ? 'SK5' : 'DH';
   const o = String(orderId || '').replace(/\W+/g, '');
   const i = String(itemId || '').replace(/\W+/g, '');
   const ref = `${prefix}-${o.slice(-8)}-${i.slice(-6)}`.toUpperCase();
@@ -315,7 +333,25 @@ function getAutoDeliverAfterMs() {
   return ms;
 }
 
+function getAutoDeliverEnabled() {
+  if (typeof runtimeAutoDeliverEnabled === 'boolean') return runtimeAutoDeliverEnabled;
+  const raw = process.env.HUBNET_AUTO_DELIVER_AFTER_MS;
+  if (raw === '0' || raw === 'false' || raw === 'off') return false;
+  return true;
+}
+
+function setAutoDeliverEnabled(value) {
+  if (value === null || value === undefined) {
+    runtimeAutoDeliverEnabled = null;
+    return null;
+  }
+  const bool = String(value).trim().toLowerCase() === 'true' || value === true || Number(value) === 1;
+  runtimeAutoDeliverEnabled = bool;
+  return bool;
+}
+
 async function finalizeStaleSubmittedItems() {
+  if (!getAutoDeliverEnabled()) return;
   const autoDeliverAfterMs = getAutoDeliverAfterMs();
   if (!autoDeliverAfterMs) return;
 
@@ -380,12 +416,14 @@ async function queueFulfillmentForOrder(orderId) {
   const grandapiConfigured = Boolean(process.env.GRANDAPI_API_KEY);
   const encartConfigured = Boolean(process.env.ENCART_API_KEY);
   const elitnutConfigured = Boolean(process.env.ELITNUT_API_KEY);
-  if (!datahubnetConfigured && !grandapiConfigured && !encartConfigured && !elitnutConfigured) return { queued: false };
+  const skanka5Configured = Boolean(process.env.SKANKA5_API_KEY);
+  if (!datahubnetConfigured && !grandapiConfigured && !encartConfigured && !elitnutConfigured && !skanka5Configured) return { queued: false };
 
   const grandapiNetworkMap = getGrandapiNetworkMap();
   const encartNetworkMap = getEncartNetworkMap();
   const datahubnetNetworkMap = getDatahubnetNetworkMap();
   const elitnutNetworkMap = getElitnutNetworkMap();
+  const skanka5NetworkMap = getSkanka5NetworkMap();
   const grandapiCapacityMap = getGrandapiCapacityMap();
   const encartCapacityMap = getEncartCapacityMap();
   const datahubnetCapacityMap = getDatahubnetCapacityMap();
@@ -419,8 +457,9 @@ async function queueFulfillmentForOrder(orderId) {
       const encartNetwork = categorySlug ? encartNetworkMap[categorySlug] : null;
       const datahubnetNetwork = categorySlug ? datahubnetNetworkMap[categorySlug] : null;
       const elitnutNetwork = categorySlug ? elitnutNetworkMap[categorySlug] : null;
+      const skanka5Network = categorySlug ? skanka5NetworkMap[categorySlug] : null;
 
-      if (!grandapiNetwork && !encartNetwork && !datahubnetNetwork && !elitnutNetwork) {
+      if (!grandapiNetwork && !encartNetwork && !datahubnetNetwork && !elitnutNetwork && !skanka5Network) {
         debugLog('Skipping item, no network mapping', item.id, categorySlug);
         await tx.orderItem.update({
           where: { id: item.id },
@@ -447,7 +486,8 @@ async function queueFulfillmentForOrder(orderId) {
       const grandapiCapacity = resolveCapacityForProduct(item.product, volumeMb, grandapiCapacityMap);
       const encartCapacity = resolveCapacityForProduct(item.product, volumeMb, encartCapacityMap);
       const datahubnetCapacity = resolveCapacityForProduct(item.product, volumeMb, datahubnetCapacityMap);
-      if (!grandapiCapacity && !encartCapacity && !datahubnetCapacity) {
+      const skanka5Capacity = volumeMb != null && Number.isFinite(volumeMb) && volumeMb > 0 ? volumeMb : null;
+      if (!grandapiCapacity && !encartCapacity && !datahubnetCapacity && !skanka5Capacity) {
         debugLog('Marking failed, unable to determine capacity', item.id);
         await tx.orderItem.update({
           where: { id: item.id },
@@ -593,8 +633,10 @@ async function dispatchOneProviderItem(provider, intervalMs) {
     ? getGrandapiCapacityMap()
     : resolvedProvider === 'encart'
       ? getEncartCapacityMap()
-      : getDatahubnetCapacityMap();
-  const capacity = resolveCapacityForProduct(item.product, volumeMb, capacityMap);
+      : resolvedProvider === 'skanka5'
+        ? null
+        : getDatahubnetCapacityMap();
+  const capacity = resolvedProvider === 'skanka5' ? volumeMb : resolveCapacityForProduct(item.product, volumeMb, capacityMap);
   if (!capacity) {
     await prisma.orderItem.update({
       where: { id: item.id },
@@ -665,6 +707,32 @@ async function dispatchOneProviderItem(provider, intervalMs) {
       });
 
       debugLog('Encart order submitted', item.id, reference, remoteRef);
+      return true;
+    }
+
+    if (provider === 'skanka5') {
+      const networkId = Number(network);
+      const res = await skanka5PlaceOrder({
+        networkId,
+        msisdn: phone,
+        volumeMb: Number(volumeMb),
+        reference,
+      });
+
+      const payload = res?.payload || res?.data || res;
+      const topRef = payload?.reference || payload?.order?.reference || payload?.id || reference;
+      const itemCode = payload?.items?.[0]?.order_code || null;
+      await prisma.orderItem.update({
+        where: { id: item.id },
+        data: {
+          hubnetStatus: 'SUBMITTED',
+          hubnetTransactionId: topRef ? String(topRef) : item.hubnetTransactionId,
+          hubnetPaymentId: itemCode ? String(itemCode) : item.hubnetPaymentId,
+          hubnetSubmittedAt: new Date(),
+        },
+      });
+
+      debugLog('Skanka5 order submitted', item.id, reference, topRef, itemCode);
       return true;
     }
 
@@ -850,6 +918,45 @@ async function pollOneProviderItem(provider, intervalMs) {
       return true;
     }
 
+    if (resolvedProvider === 'skanka5') {
+      const res = await skanka5CheckStatus(checkId);
+      const line = res?.items?.[0];
+      const statusText = line?.api_status || line?.status || res?.api_status || res?.status || '';
+      const text = String(statusText || '').toLowerCase();
+
+      if (!line) {
+        debugLog('Skanka5 poll: no items in status response', item.id, checkId);
+      }
+
+      if (isDeliveredStatus(text)) {
+        await prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            hubnetStatus: 'DELIVERED',
+            hubnetDeliveredAt: new Date(),
+            hubnetLastError: null,
+          },
+        });
+        await updateOrderCompletion(item.orderId);
+        debugLog('Skanka5 delivered', item.id, checkId);
+        return true;
+      }
+
+      if (isFailedStatus(text)) {
+        await prisma.orderItem.update({
+          where: { id: item.id },
+          data: {
+            hubnetStatus: 'FAILED',
+            hubnetLastError: String(statusText || 'Skanka5 failed'),
+          },
+        });
+        debugLog('Skanka5 failed status', item.id, statusText);
+        return true;
+      }
+
+      return true;
+    }
+
     if (resolvedProvider === 'grandapi') {
       const res = await grandapiCheckStatus(checkId);
       const statusText = res?.data?.status || res?.status || res?.payload?.status || '';
@@ -934,10 +1041,11 @@ function startFulfillmentDispatcher() {
   const grandapiConfigured = Boolean(process.env.GRANDAPI_API_KEY);
   const encartConfigured = Boolean(process.env.ENCART_API_KEY);
   const elitnutConfigured = Boolean(process.env.ELITNUT_API_KEY);
-  if (!datahubnetConfigured && !grandapiConfigured && !encartConfigured && !elitnutConfigured) return;
+  const skanka5Configured = Boolean(process.env.SKANKA5_API_KEY);
+  if (!datahubnetConfigured && !grandapiConfigured && !encartConfigured && !elitnutConfigured && !skanka5Configured) return;
   if (dispatcherTimer) return;
 
-  debugLog('Dispatcher initializing', { intervalMs, datahubnetConfigured, grandapiConfigured, encartConfigured, elitnutConfigured });
+  debugLog('Dispatcher initializing', { intervalMs, datahubnetConfigured, grandapiConfigured, encartConfigured, elitnutConfigured, skanka5Configured });
 
   dispatcherTimer = setInterval(() => {
     if (dispatcherInFlight) return;
@@ -970,6 +1078,12 @@ function startFulfillmentDispatcher() {
           if (dispatched) return;
         }
 
+        if (activeProvider === 'skanka5' && skanka5Configured) {
+          const dispatched = await dispatchOneProviderItem('skanka5', intervalMs);
+          debugLog('Skanka5 dispatch tick result', dispatched);
+          if (dispatched) return;
+        }
+
         const polledElitnut = elitnutConfigured ? await pollOneProviderItem('elitnut', intervalMs) : false;
         debugLog('ElitNut poll tick result', polledElitnut);
         if (polledElitnut) return;
@@ -985,6 +1099,10 @@ function startFulfillmentDispatcher() {
         const polledGrandapi = grandapiConfigured ? await pollOneProviderItem('grandapi', intervalMs) : false;
         debugLog('GrandAPI poll tick result', polledGrandapi);
         if (polledGrandapi) return;
+
+        const polledSkanka5 = skanka5Configured ? await pollOneProviderItem('skanka5', intervalMs) : false;
+        debugLog('Skanka5 poll tick result', polledSkanka5);
+        if (polledSkanka5) return;
       })
       .catch((e) => console.error(e))
       .finally(() => {
@@ -999,6 +1117,10 @@ function getFulfillmentControlState(now = new Date()) {
   return {
     forcedProvider,
     activeProvider,
+    autoDeliver: {
+      enabled: getAutoDeliverEnabled(),
+      timeoutMs: getAutoDeliverAfterMs(),
+    },
     nowUtc: now.toISOString(),
     dayWindowUtc: {
       start: '08:30',
@@ -1011,6 +1133,7 @@ module.exports = {
   getFulfillmentControlState,
   queueFulfillmentForOrder,
   setForcedProvider,
+  setAutoDeliverEnabled,
   startFulfillmentDispatcher,
   updateOrderCompletion,
 };

@@ -44,3 +44,4 @@ coverage/
 *.tsbuildinfo
 api2.txt
 backend/.env.example
+shank api.txt
