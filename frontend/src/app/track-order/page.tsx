@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 
 interface OrderDetails {
@@ -44,9 +43,13 @@ function PaymentBadge({ status }: { status: string }) {
   return <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">{status}</span>;
 }
 
+function getStorefrontSlug() {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get("storefront");
+}
+
 export default function TrackOrderPage() {
-  const searchParams = useSearchParams();
-  const storefrontSlug = searchParams.get("storefront");
+  const [storefrontSlug] = useState<string | null>(getStorefrontSlug);
 
   const [searchMode, setSearchMode] = useState<"orderCode" | "phone">("orderCode");
   const [orderCode, setOrderCode] = useState("");
