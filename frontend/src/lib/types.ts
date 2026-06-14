@@ -49,6 +49,7 @@ export type AgentStorefront = {
   welcomeMessage?: string | null;
   heroEmoji?: string | null;
   accentColor?: string | null;
+  whatsappLink?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };

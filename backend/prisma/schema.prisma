@@ -116,6 +116,7 @@ model AgentStorefront {
   welcomeMessage String?
   heroEmoji     String?
   accentColor   String?
+  whatsappLink  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

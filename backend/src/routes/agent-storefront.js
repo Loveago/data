@@ -32,6 +32,7 @@ function publicStorefront(storefront) {
     welcomeMessage: storefront.welcomeMessage,
     heroEmoji: storefront.heroEmoji,
     accentColor: storefront.accentColor,
+    whatsappLink: storefront.whatsappLink,
     createdAt: storefront.createdAt,
     updatedAt: storefront.updatedAt,
   };
@@ -107,7 +108,7 @@ router.put(
   requireAgent,
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
-    const { title, welcomeMessage, heroEmoji, accentColor, slug } = req.body || {};
+    const { title, welcomeMessage, heroEmoji, accentColor, slug, whatsappLink } = req.body || {};
 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -119,6 +120,7 @@ router.put(
     if (welcomeMessage != null) updates.welcomeMessage = String(welcomeMessage).trim();
     if (heroEmoji != null) updates.heroEmoji = String(heroEmoji).trim();
     if (accentColor != null) updates.accentColor = String(accentColor).trim();
+    if (whatsappLink != null) updates.whatsappLink = String(whatsappLink).trim() || null;
 
     if (slug != null) {
       const nextSlug = slugify(slug);
