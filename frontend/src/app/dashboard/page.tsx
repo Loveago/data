@@ -206,6 +206,7 @@ function DashboardInner() {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("gigshub_dashboard_sidebar_collapsed") === "1";
   });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const [walletBalance, setWalletBalance] = useState<string>(user?.walletBalance || "0");
   const [depositAmount, setDepositAmount] = useState<string>("");
@@ -413,6 +414,7 @@ function DashboardInner() {
     const sp = new URLSearchParams(searchParams.toString());
     sp.set("tab", next);
     router.push(`/dashboard?${sp.toString()}`);
+    setMobileSidebarOpen(false);
   }
 
   async function saveProfile() {
@@ -883,10 +885,18 @@ function DashboardInner() {
         <main className="relative min-w-0 animate-fade-up">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.06)_1px,transparent_0)] [background-size:24px_24px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)]" />
 
-          <div className="lg:hidden fixed left-0 right-0 top-[72px] z-30 px-4">
+          <div className="sticky top-[72px] z-30 px-4 lg:hidden">
             <div className="w-full">
               <div className="rounded-3xl border border-slate-200/70 bg-white/90 p-3 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/90">
                 <div className="flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setMobileSidebarOpen(true)}
+                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200/70 bg-white/70 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700/70 dark:bg-slate-800/50 dark:text-slate-200"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
+                    Menu
+                  </button>
                   <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Dashboard</div>
                   <button
                     type="button"
@@ -901,8 +911,35 @@ function DashboardInner() {
                     Sign out
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
 
-                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          {mobileSidebarOpen ? (
+            <>
+              <button
+                type="button"
+                aria-label="Close sidebar"
+                onClick={() => setMobileSidebarOpen(false)}
+                className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[1px] lg:hidden"
+              />
+              <aside className="fixed inset-y-0 left-0 z-50 w-[268px] border-r border-slate-200/70 bg-white p-4 shadow-2xl dark:border-slate-700/70 dark:bg-slate-900 lg:hidden">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Account Panel</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">Dashboard</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMobileSidebarOpen(false)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    aria-label="Close menu"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <nav className="mt-5 space-y-1 text-sm">
                   {dashboardTabs.map((tab) => {
                     const isActive = activeTab === tab;
                     return (
@@ -910,24 +947,31 @@ function DashboardInner() {
                         key={tab}
                         type="button"
                         onClick={() => pushTab(tab)}
-                        className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left font-medium transition-colors ${
                           isActive
                             ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm"
-                            : "border border-slate-200/70 bg-white/60 text-slate-700 hover:bg-white/80 dark:border-slate-700/70 dark:bg-slate-800/50 dark:text-slate-200 dark:hover:bg-slate-700"
+                            : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
                         }`}
-                        aria-current={isActive ? "page" : undefined}
                       >
-                        {tabLabel(tab)}
+                        <span
+                          className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border text-slate-700 dark:text-slate-200 ${
+                            isActive
+                              ? "border-white/20 bg-white/15 text-white"
+                              : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
+                          }`}
+                        >
+                          {tabIcon(tab)}
+                        </span>
+                        <span>{tabLabel(tab)}</span>
                       </button>
                     );
                   })}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="lg:hidden h-[204px]" aria-hidden="true" />
+                </nav>
+              </aside>
+            </>
+          ) : null}
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="hidden lg:flex lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
                 {timeGreeting()}, {displayName(user?.name, user?.email)} 👋
