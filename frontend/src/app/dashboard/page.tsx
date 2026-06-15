@@ -809,7 +809,7 @@ function DashboardInner() {
       <div className="pointer-events-none absolute -left-24 -top-24 -z-10 h-72 w-72 rounded-full bg-gradient-to-br from-indigo-500/20 via-violet-500/15 to-emerald-400/12 blur-3xl animate-floaty" />
       <div className="pointer-events-none absolute -bottom-28 -right-24 -z-10 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/18 via-indigo-500/14 to-violet-400/10 blur-3xl animate-floaty2" />
 
-      <div className="mx-auto max-w-7xl px-4 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 lg:py-8">
         <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside
           className={`hidden rounded-3xl border border-slate-200/70 bg-white p-4 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/70 lg:block ${
@@ -882,7 +882,7 @@ function DashboardInner() {
           </div>
         </aside>
 
-        <main className="relative min-w-0 animate-fade-up pb-32 md:pb-0">
+        <main className="relative min-w-0 animate-fade-up pb-36 md:pb-0">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.06)_1px,transparent_0)] [background-size:24px_24px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)]" />
 
           <div className="mb-4 px-1 lg:hidden">
@@ -891,11 +891,15 @@ function DashboardInner() {
                 <div className="flex items-center justify-between gap-3">
                   <button
                     type="button"
-                    onClick={() => setMobileSidebarOpen(true)}
+                    onClick={() => setMobileSidebarOpen((v) => !v)}
                     className="inline-flex h-9 items-center gap-2 rounded-full border border-slate-200/70 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700/70 dark:bg-slate-800 dark:text-slate-200"
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
-                    Menu
+                    {mobileSidebarOpen ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
+                    )}
+                    {mobileSidebarOpen ? "Close" : "Menu"}
                   </button>
                   <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Dashboard</div>
                   <button
@@ -916,77 +920,41 @@ function DashboardInner() {
           </div>
 
           {mobileSidebarOpen ? (
-            <>
-              <button
-                type="button"
-                aria-label="Close sidebar"
-                onClick={() => setMobileSidebarOpen(false)}
-                className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[1px] lg:hidden"
-              />
-              <aside className="fixed inset-y-3 left-3 z-50 w-[286px] rounded-3xl border border-slate-200/80 bg-white p-4 shadow-2xl dark:border-slate-700/70 dark:bg-slate-900 lg:hidden">
-                <div className="rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 p-3 text-white">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-white/80">Account Panel</div>
-                  <div className="mt-1 text-base font-bold">Dashboard</div>
-                </div>
+            <div className="mb-4 rounded-3xl border border-slate-200/80 bg-white/95 p-3 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/90 lg:hidden">
+              <div className="rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 p-3 text-white">
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-white/80">Account Panel</div>
+                <div className="mt-1 text-base font-bold">Dashboard Navigation</div>
+              </div>
 
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">Navigation</div>
-                  <button
-                    type="button"
-                    onClick={() => setMobileSidebarOpen(false)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                    aria-label="Close menu"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <nav className="mt-3 space-y-1.5 text-sm">
-                  {dashboardTabs.map((tab) => {
-                    const isActive = activeTab === tab;
-                    return (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => pushTab(tab)}
-                        className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left font-medium transition-colors ${
+              <nav className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                {dashboardTabs.map((tab) => {
+                  const isActive = activeTab === tab;
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => pushTab(tab)}
+                      className={`flex items-center gap-2 rounded-2xl px-3 py-2.5 text-left font-medium transition-colors ${
+                        isActive
+                          ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm"
+                          : "border border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      <span
+                        className={`inline-flex h-8 w-8 items-center justify-center rounded-xl border ${
                           isActive
-                            ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm"
-                            : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
+                            ? "border-white/20 bg-white/15 text-white"
+                            : "border-slate-200 bg-white text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                         }`}
                       >
-                        <span
-                          className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border text-slate-700 dark:text-slate-200 ${
-                            isActive
-                              ? "border-white/20 bg-white/15 text-white"
-                              : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
-                          }`}
-                        >
-                          {tabIcon(tab)}
-                        </span>
-                        <span>{tabLabel(tab)}</span>
-                      </button>
-                    );
-                  })}
-                </nav>
-
-                <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void (async () => {
-                        await logout();
-                        router.push("/login");
-                      })();
-                    }}
-                    className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
-                    <span>Sign out</span>
-                  </button>
-                </div>
-              </aside>
-            </>
+                        {tabIcon(tab)}
+                      </span>
+                      <span className="truncate">{tabLabel(tab)}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
           ) : null}
 
           <div className="hidden lg:flex lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -1021,27 +989,29 @@ function DashboardInner() {
             </div>
           ) : null}
 
-          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
             {activeTab === "overview" ? (
-              <DashboardOverviewV2
-                walletBalance={walletBalance}
-                depositAmount={depositAmount}
-                setDepositAmount={setDepositAmount}
-                depositBusy={depositBusy}
-                depositWithPaystack={depositWithPaystack}
-                depositTotal={depositTotal}
-                depositFee={depositFee}
-                depositError={depositError}
-                loading={loading}
-                orders={orders}
-                isAgent={isAgent}
-                upgradeBusy={upgradeBusy}
-                upgradeToAgent={upgradeToAgent}
-                upgradeError={upgradeError}
-                referralCode={referralCode}
-                user={user}
-                pushTab={(tab: string) => pushTab(tab as DashboardTab)}
-              />
+              <div className="lg:col-span-2">
+                <DashboardOverviewV2
+                  walletBalance={walletBalance}
+                  depositAmount={depositAmount}
+                  setDepositAmount={setDepositAmount}
+                  depositBusy={depositBusy}
+                  depositWithPaystack={depositWithPaystack}
+                  depositTotal={depositTotal}
+                  depositFee={depositFee}
+                  depositError={depositError}
+                  loading={loading}
+                  orders={orders}
+                  isAgent={isAgent}
+                  upgradeBusy={upgradeBusy}
+                  upgradeToAgent={upgradeToAgent}
+                  upgradeError={upgradeError}
+                  referralCode={referralCode}
+                  user={user}
+                  pushTab={(tab: string) => pushTab(tab as DashboardTab)}
+                />
+              </div>
             ) : null}
 
             {activeTab === "profile" ? (

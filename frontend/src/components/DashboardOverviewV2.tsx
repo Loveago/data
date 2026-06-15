@@ -117,16 +117,6 @@ export function DashboardOverviewV2({
         </div>
       </div>
 
-      {/* Desktop greeting - visible on lg+ */}
-      <div className="hidden lg:block">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-          {timeGreeting()}, {displayName(user?.name, user?.email)} 👋
-        </h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Here&apos;s what&apos;s happening with your account today.
-        </p>
-      </div>
-
       {/* Quick Actions */}
       <div>
         <h2 className="text-sm font-bold text-slate-900 dark:text-white lg:hidden">Quick Actions</h2>
