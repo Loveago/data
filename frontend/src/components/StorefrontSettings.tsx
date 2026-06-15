@@ -1,18 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-
-type StorefrontProduct = {
-  id: string;
-  sellPrice?: string | null;
-  product: {
-    id: string;
-    name: string;
-    price: string;
-    agentPrice?: string | null;
-    category?: { name: string } | null;
-  };
-};
+import { useState } from "react";
+import type { StorefrontProduct } from "@/lib/types";
 
 function formatMoney(value: string) {
   const n = Number(value);
