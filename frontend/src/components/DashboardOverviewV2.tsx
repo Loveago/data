@@ -39,7 +39,8 @@ function formatTime(value: string) {
 }
 
 function orderLabel(o: { orderCode?: string | null; id: string }) {
-  return o.orderCode || `Order #${o.id.slice(-6).toUpperCase()}`;
+  const raw = o.orderCode || `Order #${o.id.slice(-6).toUpperCase()}`;
+  return raw.length > 18 ? `${raw.slice(0, 18)}...` : raw;
 }
 
 type OrderItem = {
@@ -377,9 +378,9 @@ export function DashboardOverviewV2({
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-300">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 01-8 0"/></svg>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="block max-w-full truncate text-sm font-semibold text-slate-900 dark:text-white">
                       {orderLabel(order)}
                     </span>
                   </div>
