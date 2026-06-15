@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import type { AgentStorefront, StorefrontProduct, User } from "@/lib/types";
 import { DashboardOverviewV2 } from "@/components/DashboardOverviewV2";
+import { StorefrontSettings } from "@/components/StorefrontSettings";
 
 type Order = {
   id: string;
@@ -1135,223 +1136,37 @@ function DashboardInner() {
             ) : null}
 
             {activeTab === "storefront" ? (
-              <div className="lg:col-span-2 space-y-4">
-                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
-                  <div className="pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-blue-500/18 via-indigo-400/12 to-sky-400/10 blur-2xl transition-transform duration-500 group-hover:scale-110" />
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="text-sm font-semibold">Agent Storefront</div>
-                      <div className="mt-1 text-xs text-zinc-500">Customize your public storefront and set bundle prices.</div>
-                    </div>
-                    {isAgent ? (
-                      <button
-                        type="button"
-                        disabled={storefrontInfoSaving}
-                        onClick={() => saveStorefrontInfo()}
-                        className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:opacity-95 disabled:opacity-60"
-                      >
-                        {storefrontInfoSaving ? "Saving..." : "Save settings"}
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {!isAgent ? (
-                    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
-                      Upgrade to Agent to unlock your personal storefront and pricing tools.
-                    </div>
-                  ) : storefrontLoading ? (
-                    <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">Loading storefront...</div>
-                  ) : (
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <div className="sm:col-span-2">
-                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Store name</label>
-                        <input
-                          value={storefrontTitle}
-                          onChange={(e) => setStorefrontTitle(e.target.value)}
-                          placeholder="Emma's Data Store"
-                          className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Store slug</label>
-                        <input
-                          value={storefrontSlug}
-                          onChange={(e) => setStorefrontSlug(e.target.value)}
-                          placeholder="emma-store"
-                          className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Highlight emoji</label>
-                        <input
-                          value={storefrontEmoji}
-                          onChange={(e) => setStorefrontEmoji(e.target.value)}
-                          placeholder="🛰️"
-                          className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Welcome message</label>
-                        <input
-                          value={storefrontWelcome}
-                          onChange={(e) => setStorefrontWelcome(e.target.value)}
-                          placeholder="Welcome to Emma's data store."
-                          className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
-                        />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">WhatsApp link</label>
-                        <input
-                          value={storefrontWhatsapp}
-                          onChange={(e) => setStorefrontWhatsapp(e.target.value)}
-                          placeholder="https://wa.me/233XXXXXXXXX"
-                          className="mt-1 h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
-                        />
-                        <p className="mt-1 text-[11px] text-zinc-400 dark:text-zinc-500">Paste your WhatsApp channel or direct message link. It will appear as a chat bubble on your storefront.</p>
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Accent color</label>
-                        <div className="mt-1 flex items-center gap-3">
-                          <input
-                            type="color"
-                            value={storefrontAccent || "#1d4ed8"}
-                            onChange={(e) => setStorefrontAccent(e.target.value)}
-                            className="h-10 w-14 rounded-xl border border-zinc-200/70 bg-white/70 p-1 dark:border-zinc-800/70 dark:bg-zinc-950/50"
-                          />
-                          <input
-                            value={storefrontAccent}
-                            onChange={(e) => setStorefrontAccent(e.target.value)}
-                            className="h-10 flex-1 rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-blue-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-blue-500"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Storefront link</label>
-                        <div className="mt-1 flex items-center gap-2">
-                          <input
-                            value={storefrontLink || ""}
-                            readOnly
-                            className="h-10 flex-1 rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm text-zinc-600 outline-none dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-300"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!storefrontLink) return;
-                              void navigator.clipboard?.writeText(storefrontLink);
-                              setStorefrontSuccess("Storefront link copied.");
-                            }}
-                            className="inline-flex h-10 items-center justify-center rounded-xl border border-zinc-200 bg-white/70 px-3 text-xs font-semibold text-zinc-700 shadow-soft transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/60 dark:text-zinc-200 dark:hover:bg-zinc-900"
-                          >
-                            Copy
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-5 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
-                  <div className="pointer-events-none absolute -left-12 -top-12 h-44 w-44 rounded-full bg-gradient-to-br from-emerald-500/14 via-cyan-400/10 to-blue-400/8 blur-2xl transition-transform duration-500 group-hover:scale-110" />
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="text-sm font-semibold">Bundle pricing</div>
-                      <div className="mt-1 text-xs text-zinc-500">Set your selling price (must be above base price).</div>
-                    </div>
-                    {isAgent ? (
-                      <button
-                        type="button"
-                        disabled={storefrontPricesSaving}
-                        onClick={() => saveStorefrontPrices()}
-                        className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white shadow-soft transition-all hover:-translate-y-0.5 hover:bg-emerald-500 disabled:opacity-60"
-                      >
-                        {storefrontPricesSaving ? "Saving..." : "Save prices"}
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {storefrontLoading ? (
-                    <div className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">Loading bundles...</div>
-                  ) : (
-                    <>
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <input
-                          value={storefrontSearch}
-                          onChange={(e) => setStorefrontSearch(e.target.value)}
-                          placeholder="Search bundles"
-                          className="h-10 w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 text-sm outline-none backdrop-blur transition-colors focus:border-emerald-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-emerald-500"
-                        />
-                        <div className="text-xs text-zinc-500">{filteredStorefrontItems.length} bundles</div>
-                      </div>
-
-                      <div className="mt-4 overflow-x-auto">
-                        <table className="w-full min-w-[720px] text-sm">
-                          <thead>
-                            <tr className="border-b border-zinc-200 text-left text-zinc-500 dark:border-zinc-800">
-                              <th className="py-3">Bundle</th>
-                              <th className="py-3">Network</th>
-                              <th className="py-3">Agent price</th>
-                              <th className="py-3">Your price</th>
-                              <th className="py-3 text-right">Profit</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredStorefrontItems.map((item) => {
-                              const base = Number(item.product.agentPrice ?? item.product.price);
-                              const priceValue = storefrontPrices[item.product.id] ?? item.sellPrice ?? "";
-                              const sell = Number(priceValue);
-                              const profit = Number.isFinite(sell) && Number.isFinite(base) ? sell - base : null;
-                              const invalid = Number.isFinite(sell) && Number.isFinite(base) ? sell < base : false;
-                              return (
-                                <tr key={item.product.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                                  <td className="py-3 font-medium">{item.product.name}</td>
-                                  <td className="py-3 text-zinc-600 dark:text-zinc-400">{item.product.category?.name || "-"}</td>
-                                  <td className="py-3">GHS {Number(base).toFixed(2)}</td>
-                                  <td className="py-3">
-                                    <input
-                                      value={priceValue}
-                                      onChange={(e) =>
-                                        setStorefrontPrices((prev) => ({
-                                          ...prev,
-                                          [item.product.id]: e.target.value,
-                                        }))
-                                      }
-                                      placeholder="Set price"
-                                      className={`h-9 w-28 rounded-xl border px-3 text-sm outline-none transition-colors ${
-                                        invalid
-                                          ? "border-red-300 bg-red-50 text-red-700"
-                                          : "border-zinc-200 bg-white/70 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950/50 dark:text-zinc-200"
-                                      }`}
-                                    />
-                                  </td>
-                                  <td className="py-3 text-right">
-                                    {profit == null || Number.isNaN(profit) ? (
-                                      <span className="text-zinc-400">-</span>
-                                    ) : (
-                                      <span className={profit >= 0 ? "text-emerald-600" : "text-red-600"}>
-                                        GHS {profit.toFixed(2)}
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {storefrontError ? (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">
-                    {storefrontError}
-                  </div>
-                ) : null}
-                {storefrontSuccess ? (
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200">
-                    {storefrontSuccess}
-                  </div>
-                ) : null}
+              <div className="lg:col-span-2">
+                <StorefrontSettings
+                  isAgent={isAgent}
+                  storefront={storefront}
+                  storefrontItems={storefrontItems}
+                  storefrontPrices={storefrontPrices}
+                  setStorefrontPrices={setStorefrontPrices}
+                  storefrontTitle={storefrontTitle}
+                  setStorefrontTitle={setStorefrontTitle}
+                  storefrontSlug={storefrontSlug}
+                  setStorefrontSlug={setStorefrontSlug}
+                  storefrontEmoji={storefrontEmoji}
+                  setStorefrontEmoji={setStorefrontEmoji}
+                  storefrontWelcome={storefrontWelcome}
+                  setStorefrontWelcome={setStorefrontWelcome}
+                  storefrontWhatsapp={storefrontWhatsapp}
+                  setStorefrontWhatsapp={setStorefrontWhatsapp}
+                  storefrontAccent={storefrontAccent}
+                  setStorefrontAccent={setStorefrontAccent}
+                  storefrontLink={storefrontLink}
+                  storefrontLoading={storefrontLoading}
+                  storefrontError={storefrontError}
+                  storefrontSuccess={storefrontSuccess}
+                  storefrontInfoSaving={storefrontInfoSaving}
+                  storefrontPricesSaving={storefrontPricesSaving}
+                  saveStorefrontInfo={saveStorefrontInfo}
+                  saveStorefrontPrices={saveStorefrontPrices}
+                  filteredStorefrontItems={filteredStorefrontItems}
+                  storefrontSearch={storefrontSearch}
+                  setStorefrontSearch={setStorefrontSearch}
+                />
               </div>
             ) : null}
 
