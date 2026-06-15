@@ -882,17 +882,17 @@ function DashboardInner() {
           </div>
         </aside>
 
-        <main className="relative min-w-0 animate-fade-up">
+        <main className="relative min-w-0 animate-fade-up pb-32 md:pb-0">
           <div className="pointer-events-none absolute inset-0 -z-10 rounded-3xl bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.06)_1px,transparent_0)] [background-size:24px_24px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)]" />
 
-          <div className="sticky top-[72px] z-30 px-4 lg:hidden">
+          <div className="mb-4 px-1 lg:hidden">
             <div className="w-full">
-              <div className="rounded-3xl border border-slate-200/70 bg-white/90 p-3 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/90">
+              <div className="rounded-full border border-slate-200/80 bg-white/95 p-2 shadow-card backdrop-blur dark:border-slate-700/70 dark:bg-slate-900/90">
                 <div className="flex items-center justify-between gap-3">
                   <button
                     type="button"
                     onClick={() => setMobileSidebarOpen(true)}
-                    className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200/70 bg-white/70 px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700/70 dark:bg-slate-800/50 dark:text-slate-200"
+                    className="inline-flex h-9 items-center gap-2 rounded-full border border-slate-200/70 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700/70 dark:bg-slate-800 dark:text-slate-200"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
                     Menu
@@ -906,7 +906,7 @@ function DashboardInner() {
                         router.push("/login");
                       })();
                     }}
-                    className="inline-flex h-9 items-center justify-center rounded-xl border border-slate-200/70 bg-white/60 px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-slate-700/70 dark:bg-slate-800/50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    className="inline-flex h-9 items-center justify-center rounded-full border border-slate-200/70 bg-white px-3 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-slate-700/70 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-950/30"
                   >
                     Sign out
                   </button>
@@ -923,12 +923,14 @@ function DashboardInner() {
                 onClick={() => setMobileSidebarOpen(false)}
                 className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-[1px] lg:hidden"
               />
-              <aside className="fixed inset-y-0 left-0 z-50 w-[268px] border-r border-slate-200/70 bg-white p-4 shadow-2xl dark:border-slate-700/70 dark:bg-slate-900 lg:hidden">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Account Panel</div>
-                    <div className="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">Dashboard</div>
-                  </div>
+              <aside className="fixed inset-y-3 left-3 z-50 w-[286px] rounded-3xl border border-slate-200/80 bg-white p-4 shadow-2xl dark:border-slate-700/70 dark:bg-slate-900 lg:hidden">
+                <div className="rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 p-3 text-white">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-white/80">Account Panel</div>
+                  <div className="mt-1 text-base font-bold">Dashboard</div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">Navigation</div>
                   <button
                     type="button"
                     onClick={() => setMobileSidebarOpen(false)}
@@ -939,7 +941,7 @@ function DashboardInner() {
                   </button>
                 </div>
 
-                <nav className="mt-5 space-y-1 text-sm">
+                <nav className="mt-3 space-y-1.5 text-sm">
                   {dashboardTabs.map((tab) => {
                     const isActive = activeTab === tab;
                     return (
@@ -947,10 +949,10 @@ function DashboardInner() {
                         key={tab}
                         type="button"
                         onClick={() => pushTab(tab)}
-                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left font-medium transition-colors ${
+                        className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left font-medium transition-colors ${
                           isActive
                             ? "bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm"
-                            : "text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800"
+                            : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                         }`}
                       >
                         <span
@@ -967,6 +969,22 @@ function DashboardInner() {
                     );
                   })}
                 </nav>
+
+                <div className="mt-4 border-t border-slate-200 pt-4 dark:border-slate-700">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void (async () => {
+                        await logout();
+                        router.push("/login");
+                      })();
+                    }}
+                    className="flex w-full items-center gap-2 rounded-2xl px-3 py-2.5 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+                    <span>Sign out</span>
+                  </button>
+                </div>
               </aside>
             </>
           ) : null}
