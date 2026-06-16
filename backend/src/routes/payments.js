@@ -421,7 +421,7 @@ router.post(
 
     const { name, email, phone, address } = customerDetails;
 
-    const { normalized, subtotal, total } = await computeStorefrontOrderFromItems(items, storefront.id);
+    const { normalized, subtotal, total, orderItemsData } = await computeStorefrontOrderFromItems(items, storefront.id);
 
     const netPesewas = toPesewas(total);
     const { feePesewas, grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
@@ -466,6 +466,39 @@ router.post(
     const reference = data?.data?.reference ? String(data.data.reference) : '';
     if (!reference) {
       return res.status(502).json({ error: 'Missing payment reference' });
+    }
+
+    const pendingOrderId = crypto.randomBytes(12).toString('hex').toUpperCase();
+    const pendingOrderCode = `STORE-${pendingOrderId}`;
+    try {
+      await prisma.order.create({
+        data: {
+          orderCode: pendingOrderCode,
+          userId: storefront.userId,
+          agentStorefrontId: storefront.id,
+          customerName: name,
+          customerEmail: email,
+          customerPhone: phone,
+          customerAddress: address,
+          subtotal,
+          total: pesewasToDecimal(grossAmountPesewas),
+          paymentProvider: 'paystack',
+          paymentReference: reference,
+          paymentStatus: 'UNPAID',
+          items: {
+            create: orderItemsData.map((d) => ({
+              productId: d.productId,
+              quantity: d.quantity,
+              unitPrice: d.unitPrice,
+              lineTotal: d.lineTotal,
+              recipientPhone: d.recipientPhone,
+              agentCostPrice: d.agentCostPrice,
+            })),
+          },
+        },
+      });
+    } catch (e) {
+      console.error('[payments] storefront: failed to pre-create UNPAID order', { reference, error: e?.message });
     }
 
     return res.json({

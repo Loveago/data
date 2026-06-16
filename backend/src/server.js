@@ -17,6 +17,7 @@ const grandapiRoutes = require('./routes/grandapi');
 const skanka5Routes = require('./routes/skanka5');
 const walletRoutes = require('./routes/wallet');
 const { startFulfillmentDispatcher } = require('./lib/fulfillment');
+const { startReconcileWorker } = require('./lib/reconcileWorker');
 
 const app = express();
 
@@ -71,4 +72,5 @@ const port = process.env.PORT ? Number(process.env.PORT) : 4000;
 app.listen(port, () => {
   console.log(`API listening on http://localhost:${port}`);
   startFulfillmentDispatcher();
+  startReconcileWorker();
 });

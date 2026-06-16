@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const { Prisma, NotificationLevel } = require('@prisma/client');
 const { prisma } = require('../lib/prisma');
 const { getFulfillmentControlState, setForcedProvider, setAutoDeliverEnabled } = require('../lib/fulfillment');
+const { reconcileUnpaidOrders } = require('../lib/reconcileWorker');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { sanitizeHtml } = require('./notifications');
@@ -463,6 +464,51 @@ router.patch(
       status: updated.status,
       processedAt: updated.processedAt,
     });
+  })
+);
+
+router.get(
+  '/orders/unpaid',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const pageRaw = typeof req.query.page === 'string' ? req.query.page : '';
+    const limitRaw = typeof req.query.limit === 'string' ? req.query.limit : '';
+    const page = Math.max(1, Number(pageRaw || 1) || 1);
+    const limit = Math.min(100, Math.max(1, Number(limitRaw || 20) || 20));
+    const skip = Math.max(0, (page - 1) * limit);
+
+    const where = {
+      paymentStatus: 'UNPAID',
+      paymentProvider: 'paystack',
+      paymentReference: { not: null },
+    };
+
+    const [items, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        take: limit,
+        skip,
+        include: {
+          user: { select: { id: true, email: true } },
+          items: { include: { product: { select: { id: true, name: true } } } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.order.count({ where }),
+    ]);
+
+    return res.json({ items, total, page, limit });
+  })
+);
+
+router.post(
+  '/orders/reconcile',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const result = await reconcileUnpaidOrders();
+    return res.json(result);
   })
 );
 
