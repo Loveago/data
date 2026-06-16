@@ -53,7 +53,7 @@ export default function Home() {
               <div className="relative rounded-[32px] bg-white/70 p-3 shadow-card ring-1 ring-slate-200 backdrop-blur">
                 <img
                   src="/hero-illustration.svg"
-                  alt="LOFAQ hero"
+                  alt="Wolf Data Hub hero"
                   className="h-auto w-full rounded-[28px]"
                 />
               </div>

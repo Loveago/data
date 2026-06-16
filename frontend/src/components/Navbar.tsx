@@ -234,8 +234,8 @@ export function Navbar() {
           <div className="hidden items-center justify-between rounded-full border border-slate-200 bg-white/80 px-3 py-2 shadow-card backdrop-blur dark:border-slate-700 dark:bg-slate-900/60 md:flex">
             <div className="flex items-center gap-3">
               <Link href="/" className="flex items-center gap-2 rounded-full px-2 py-1">
-                <img src="/logo.png" alt="LOFAQ DATA HUB" className="h-9 w-9 rounded-full object-contain" />
-                <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">LOFAQ DATA HUB</span>
+                <img src="/logo.png" alt="Wolf Data Hub" className="h-9 w-9 rounded-full object-contain" />
+                <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">Wolf Data Hub</span>
               </Link>
 
               <nav className="hidden items-center gap-1 md:flex">
@@ -395,8 +395,8 @@ export function Navbar() {
 
           <div className="flex items-center justify-between rounded-full border border-slate-200 bg-white/80 px-3 py-2 shadow-card backdrop-blur dark:border-slate-700 dark:bg-slate-900/60 md:hidden">
             <Link href="/" className="flex items-center gap-2 rounded-full px-2 py-1">
-              <img src="/logo.png" alt="LOFAQ DATA HUB" className="h-9 w-9 rounded-full object-contain" />
-                <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">LOFAQ DATA HUB</span>
+              <img src="/logo.png" alt="Wolf Data Hub" className="h-9 w-9 rounded-full object-contain" />
+                <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">Wolf Data Hub</span>
             </Link>
 
             <div className="flex items-center gap-2">

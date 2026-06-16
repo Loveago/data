@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LOFAQ DATA HUB",
+  title: "Wolf Data Hub",
   description: "Fast, secure, and reliable data bundles.",
   icons: {
     icon: "/logo.png",
