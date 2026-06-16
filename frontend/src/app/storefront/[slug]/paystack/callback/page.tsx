@@ -122,13 +122,13 @@ function PaystackCallbackInner() {
 
       try {
         setMessage("Finalizing your order...");
-        const res = await api.post<{ order: OrderData }>(
+        const res = await api.post<OrderData>(
           "/payments/paystack/complete-public",
           { reference, storefrontSlug: slug }
         );
 
         if (cancelled) return;
-        setOrder(res.data.order);
+        setOrder(res.data);
         setStatus("success");
         setMessage("Payment confirmed!");
       } catch (e: unknown) {

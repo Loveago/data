@@ -385,7 +385,7 @@ export default function StorefrontPage() {
               const meta = getNetworkMeta({ slug: product.category?.slug, name: product.category?.name });
               const colors = getNetworkColors(product.category?.slug);
               const badge = getProductBadge(index);
-              const validityDays = product.name?.toLowerCase().includes("30") ? 30 : product.name?.toLowerCase().includes("15") ? 15 : 7;
+              const validityDays = product.name?.toLowerCase().includes("30") ? 30 : product.name?.toLowerCase().includes("15") ? 15 : 90;
 
               return (
                 <div key={product.id} className="group relative overflow-hidden rounded-2xl border border-slate-100 bg-white p-5 shadow-soft transition-all duration-300 hover:shadow-xl hover:-translate-y-1">

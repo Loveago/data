@@ -428,10 +428,15 @@ router.post(
 
     const secretKey = assertPaystackKey();
 
+    // Generate order code first so it can be used as the Paystack reference
+    // This makes orderCode === paymentReference === Paystack reference for easy tracking
+    const pendingOrderCode = generateOrderCode('STORE');
+
     const payload = {
       email,
       amount: grossAmountPesewas,
       callback_url: safeCallbackUrl,
+      reference: pendingOrderCode,
       metadata: {
         type: 'storefront_order',
         storefrontSlug: storefront.slug,
@@ -463,13 +468,8 @@ router.post(
       return res.status(502).json({ error: data?.message || 'Failed to initialize payment' });
     }
 
-    const reference = data?.data?.reference ? String(data.data.reference) : '';
-    if (!reference) {
-      return res.status(502).json({ error: 'Missing payment reference' });
-    }
+    const reference = data?.data?.reference ? String(data.data.reference) : pendingOrderCode;
 
-    const pendingOrderId = crypto.randomBytes(12).toString('hex').toUpperCase();
-    const pendingOrderCode = `STORE-${pendingOrderId}`;
     try {
       await prisma.order.create({
         data: {
@@ -483,7 +483,7 @@ router.post(
           subtotal,
           total: pesewasToDecimal(grossAmountPesewas),
           paymentProvider: 'paystack',
-          paymentReference: reference,
+          paymentReference: pendingOrderCode,
           paymentStatus: 'UNPAID',
           items: {
             create: orderItemsData.map((d) => ({
