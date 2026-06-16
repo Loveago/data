@@ -247,7 +247,7 @@ export function DashboardOverviewV2({
           </div>
           <div className="flex-1">
             <div className="text-sm font-bold text-slate-900 dark:text-white">Fast. Easy. Secure.</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Top up your wallet and pay faster with LOFAQ Data Hub.</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">Top up your wallet and pay faster with Wolf Data Hub.</div>
           </div>
           <button
             type="button"

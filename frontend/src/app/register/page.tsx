@@ -60,7 +60,7 @@ function RegisterInner() {
             <h1 className="mt-6 text-5xl font-extrabold leading-[1.02] tracking-tight text-slate-900 dark:text-white">
               Join the
               <br />
-              <span className="text-gradient-purple">LOFAQ DATA HUB</span>
+              <span className="text-gradient-purple">Wolf Data Hub</span>
             </h1>
 
             <p className="mt-4 max-w-xl text-base leading-7 text-slate-600 dark:text-zinc-300">
