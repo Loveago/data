@@ -3,10 +3,10 @@
 const { prisma } = require('./prisma');
 const { settleUnpaidOrder } = require('./orderSettlement');
 
-const RECONCILE_CUTOFF_MIN = Math.max(1, Number(process.env.RECONCILE_CUTOFF_MIN || 5));
+const RECONCILE_CUTOFF_MIN = Math.max(0, Number(process.env.RECONCILE_CUTOFF_MIN ?? 1));
 const RECONCILE_MAX_AGE_HOURS = Math.max(1, Number(process.env.RECONCILE_MAX_AGE_HOURS || 48));
 const RECONCILE_BATCH = Math.min(100, Math.max(1, Number(process.env.RECONCILE_BATCH || 50)));
-const RECONCILE_INTERVAL_MS = Math.max(60_000, Number(process.env.RECONCILE_INTERVAL_MS || 5 * 60 * 1000));
+const RECONCILE_INTERVAL_MS = Math.max(30_000, Number(process.env.RECONCILE_INTERVAL_MS || 60_000));
 
 let workerRunning = false;
 let workerTimer = null;
@@ -32,15 +32,18 @@ async function reconcileUnpaidOrders() {
 
   try {
     const now = new Date();
-    const cutoffRecent = new Date(now.getTime() - RECONCILE_CUTOFF_MIN * 60 * 1000);
     const cutoffOld = new Date(now.getTime() - RECONCILE_MAX_AGE_HOURS * 60 * 60 * 1000);
+    const createdAtFilter =
+      RECONCILE_CUTOFF_MIN > 0
+        ? { gt: cutoffOld, lt: new Date(now.getTime() - RECONCILE_CUTOFF_MIN * 60 * 1000) }
+        : { gt: cutoffOld };
 
     const unpaid = await prisma.order.findMany({
       where: {
         paymentStatus: 'UNPAID',
         paymentProvider: 'paystack',
         paymentReference: { not: null },
-        createdAt: { lt: cutoffRecent, gt: cutoffOld },
+        createdAt: createdAtFilter,
       },
       select: { id: true, paymentReference: true, total: true, orderCode: true },
       take: RECONCILE_BATCH,
@@ -109,7 +112,7 @@ function startReconcileWorker() {
   workerTimer = setInterval(() => {
     reconcileUnpaidOrders().catch((e) => console.error('[reconcile] worker error', e?.message));
   }, RECONCILE_INTERVAL_MS);
-  console.log(`[reconcile] worker started (interval: ${RECONCILE_INTERVAL_MS}ms, cutoff: ${RECONCILE_CUTOFF_MIN}min)`);
+  console.log(`[reconcile] worker started (interval: ${RECONCILE_INTERVAL_MS / 1000}s, cutoff: ${RECONCILE_CUTOFF_MIN}min)`);
 }
 
 module.exports = { reconcileUnpaidOrders, startReconcileWorker };
