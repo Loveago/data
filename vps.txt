@@ -73,7 +73,7 @@ pm2 startup systemd -u $USER --hp $HOME
 cd /var/www/lofaq/frontend
 
 cat <<'EOF' > .env.production
-NEXT_PUBLIC_API_URL=https://api.lofaq.uk
+NEXT_PUBLIC_API_URL=https://api.wolfdatahub.xyz
 EOF
 
 npm install
@@ -88,7 +88,7 @@ pm2 save
 sudo tee /etc/nginx/sites-available/lofaq <<'NGINX'
 server {
   listen 80;
-  server_name data.lofaq.uk;
+  server_name wolfdatahub.xyz www.wolfdatahub.xyz;
 
   location / {
     proxy_pass http://127.0.0.1:3000;
@@ -102,7 +102,7 @@ server {
 
 server {
   listen 80;
-  server_name api.lofaq.uk;
+  server_name api.wolfdatahub.xyz www.api.wolfdatahub.xyz;
 
   location / {
     proxy_pass http://127.0.0.1:4000;
@@ -122,7 +122,7 @@ sudo systemctl reload nginx
 8) HTTPS (Certbot)
 ------------------
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d data.lofaq.com -d api.lofaq.com
+sudo certbot --nginx -d wolfdatahub.xyz -d www.wolfdatahub.xyz -d api.wolfdatahub.xyz -d www.api.wolfdatahub.xyz
 
 9) Firewall
 ------------
@@ -132,7 +132,7 @@ sudo ufw --force enable
 
 10) Verify
 -----------
-curl https://api.lofaq.uk/api/health
+curl https://api.wolfdatahub.xyz/api/health
 # open https://data.lofaq.uk in browser
 
 Notes

@@ -66,14 +66,15 @@ async function processSkanka5StatusLine(line) {
 
   if (!item) return { action: 'notFound', orderCode };
 
-  const statusText = line?.api_status || line?.status || '';
-  const lowered = String(statusText).toLowerCase();
+  // line.status is the Skanka5 order lifecycle status: "pending", "processing", "processed"
+  // line.api_status is the downstream carrier API call result — NOT the order delivery status
+  const orderStatus = String(line?.status ?? '').toLowerCase();
   const updateBase = {
     hubnetLastAttemptAt: new Date(),
     fulfillmentProvider: 'skanka5',
   };
 
-  if (isDeliveredStatus(lowered)) {
+  if (orderStatus === 'processed') {
     await prisma.orderItem.update({
       where: { id: item.id },
       data: {
@@ -87,8 +88,8 @@ async function processSkanka5StatusLine(line) {
     return { action: 'delivered', itemId: item.id };
   }
 
-  if (isFailedStatus(lowered)) {
-    const reason = line?.message || line?.error || statusText || 'Skanka5 failed';
+  if (isFailedStatus(orderStatus)) {
+    const reason = line?.message || line?.error || orderStatus || 'Skanka5 failed';
     await prisma.orderItem.update({
       where: { id: item.id },
       data: {
@@ -100,6 +101,7 @@ async function processSkanka5StatusLine(line) {
     return { action: 'failed', itemId: item.id };
   }
 
+  // "pending" or "processing" — order is in progress, update last attempt time
   await prisma.orderItem.update({
     where: { id: item.id },
     data: {
@@ -107,7 +109,7 @@ async function processSkanka5StatusLine(line) {
       hubnetStatus: 'SUBMITTED',
     },
   });
-  return { action: 'submitted', itemId: item.id };
+  return { action: orderStatus || 'submitted', itemId: item.id };
 }
 
 router.post(
@@ -185,7 +187,8 @@ router.post(
 
     const data = await skanka5CheckStatus(reference);
     const line = data?.items?.[0];
-    const statusText = line?.api_status || line?.status || data?.api_status || data?.status || '';
+    // line.status is the Skanka5 order lifecycle status — do not use api_status as order status
+    const statusText = String(line?.status ?? data?.status ?? '').toLowerCase();
 
     const dbItem = await prisma.orderItem.findFirst({
       where: {
@@ -206,7 +209,7 @@ router.post(
     return res.json({
       ok: true,
       reference,
-      status: statusText || null,
+      orderStatus: statusText || null,
       remoteData: data,
       dbUpdated: updated,
     });

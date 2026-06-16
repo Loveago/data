@@ -921,14 +921,17 @@ async function pollOneProviderItem(provider, intervalMs) {
     if (resolvedProvider === 'skanka5') {
       const res = await skanka5CheckStatus(checkId);
       const line = res?.items?.[0];
-      const statusText = line?.api_status || line?.status || res?.api_status || res?.status || '';
-      const text = String(statusText || '').toLowerCase();
 
       if (!line) {
         debugLog('Skanka5 poll: no items in status response', item.id, checkId);
+        return true;
       }
 
-      if (isDeliveredStatus(text)) {
+      // line.status is the Skanka5 order lifecycle status: "pending", "processing", "processed"
+      // line.api_status is the downstream carrier API call result — NOT the order delivery status
+      const orderStatus = String(line.status ?? '').toLowerCase();
+
+      if (orderStatus === 'processed') {
         await prisma.orderItem.update({
           where: { id: item.id },
           data: {
@@ -942,18 +945,20 @@ async function pollOneProviderItem(provider, intervalMs) {
         return true;
       }
 
-      if (isFailedStatus(text)) {
+      if (isFailedStatus(orderStatus)) {
         await prisma.orderItem.update({
           where: { id: item.id },
           data: {
             hubnetStatus: 'FAILED',
-            hubnetLastError: String(statusText || 'Skanka5 failed'),
+            hubnetLastError: String(orderStatus || 'Skanka5 failed'),
           },
         });
-        debugLog('Skanka5 failed status', item.id, statusText);
+        debugLog('Skanka5 failed status', item.id, orderStatus);
         return true;
       }
 
+      // "pending" or "processing" — order is in progress, no state change needed
+      debugLog('Skanka5 in progress', item.id, checkId, orderStatus);
       return true;
     }
 
