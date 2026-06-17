@@ -38,6 +38,15 @@ export function ReferralPricing() {
     loadReferralPrices();
   }, []);
 
+  useEffect(() => {
+    console.log("[ReferralPricing] State updated, referralPrices:", referralPrices.length, "items");
+    const withPrices = referralPrices.filter((p) => p.hasReferralPrice);
+    console.log("[ReferralPricing] Items with prices in state:", withPrices.length);
+    if (withPrices.length > 0) {
+      console.log("[ReferralPricing] First item with price:", withPrices[0]);
+    }
+  }, [referralPrices]);
+
   async function loadReferralPrices() {
     setLoading(true);
     setError(null);
@@ -47,6 +56,10 @@ export function ReferralPricing() {
       console.log("[ReferralPricing] Loaded", res.data.referralPrices?.length || 0, "products");
       const withPrices = res.data.referralPrices?.filter((p) => p.hasReferralPrice) || [];
       console.log("[ReferralPricing] Products with referral prices:", withPrices.length);
+      console.log("[ReferralPricing] Full response:", res.data);
+      if (withPrices.length > 0) {
+        console.log("[ReferralPricing] First product with price:", withPrices[0]);
+      }
       setReferralPrices(res.data.referralPrices || []);
     } catch (err: any) {
       console.error("[ReferralPricing] Error loading", err);
