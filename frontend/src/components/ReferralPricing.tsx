@@ -38,36 +38,13 @@ export function ReferralPricing() {
     loadReferralPrices();
   }, []);
 
-  useEffect(() => {
-    console.log("[ReferralPricing] State updated, referralPrices:", referralPrices.length, "items");
-    const withPrices = referralPrices.filter((p) => p.hasReferralPrice);
-    console.log("[ReferralPricing] Items with prices in state:", withPrices.length);
-    if (referralPrices.length > 0) {
-      console.log("[ReferralPricing] First item (any):", referralPrices[0]);
-      console.log("[ReferralPricing] First item hasReferralPrice:", referralPrices[0].hasReferralPrice);
-      console.log("[ReferralPricing] First item referralPrice:", referralPrices[0].referralPrice);
-    }
-    if (withPrices.length > 0) {
-      console.log("[ReferralPricing] First item with price:", withPrices[0]);
-    }
-  }, [referralPrices]);
-
   async function loadReferralPrices() {
     setLoading(true);
     setError(null);
     try {
-      console.log("[ReferralPricing] Loading referral prices...");
       const res = await api.get<{ referralPrices: ReferralPrice[] }>("/referral-pricing/my-referral-pricing");
-      console.log("[ReferralPricing] Loaded", res.data.referralPrices?.length || 0, "products");
-      const withPrices = res.data.referralPrices?.filter((p) => p.hasReferralPrice) || [];
-      console.log("[ReferralPricing] Products with referral prices:", withPrices.length);
-      console.log("[ReferralPricing] Full response:", res.data);
-      if (withPrices.length > 0) {
-        console.log("[ReferralPricing] First product with price:", withPrices[0]);
-      }
       setReferralPrices(res.data.referralPrices || []);
     } catch (err: any) {
-      console.error("[ReferralPricing] Error loading", err);
       setError(err?.response?.data?.error || "Failed to load referral pricing");
     } finally {
       setLoading(false);
@@ -96,18 +73,15 @@ export function ReferralPricing() {
     setSubmitting(true);
     setError(null);
     try {
-      console.log("[ReferralPricing] Setting price for product", selectedProductId, "to", selectedPrice);
-      const res = await api.post("/referral-pricing/set-referral-price", {
+      await api.post("/referral-pricing/set-referral-price", {
         productId: selectedProductId,
         price: selectedPrice,
       });
-      console.log("[ReferralPricing] Price set successfully", res.data);
       await loadReferralPrices();
       setSelectedProductId("");
       setSelectedPrice("");
       setShowAddForm(false);
     } catch (err: any) {
-      console.error("[ReferralPricing] Error setting price", err);
       setError(err?.response?.data?.error || "Failed to set referral price");
     } finally {
       setSubmitting(false);
@@ -134,7 +108,7 @@ export function ReferralPricing() {
             <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Referral Pricing</div>
             <div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">Set Custom Prices for Referrals</div>
             <div className="mt-1 text-sm text-zinc-500">
-              Set custom prices for your referrals. They will see these prices instead of your base prices when making purchases.
+              Set custom prices for your referrals. They will see these prices instead of your cost price on all pages (store, storefront, API).
             </div>
           </div>
           <button
@@ -235,7 +209,7 @@ export function ReferralPricing() {
               <tr className="border-b border-zinc-200 dark:border-zinc-800">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500">Product</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500">Category</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Admin Base Price</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Your Cost Price</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Your Referral Price</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Markup</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Action</th>

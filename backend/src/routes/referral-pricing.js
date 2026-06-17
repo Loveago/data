@@ -90,21 +90,28 @@ router.get(
       }),
       prisma.user.findUnique({
         where: { id: userId },
-        select: { role: true },
+        select: { role: true, referredById: true },
       }),
     ]);
 
-    console.log(`[ReferralPricing] User ${userId} has ${referralPrices.length} referral prices set`);
+    // Fetch the prices set by this user's referrer (cascade chain)
+    const referrerPrices = user?.referredById
+      ? await prisma.referralPrice.findMany({ where: { referrerId: user.referredById } })
+      : [];
+    const referrerPriceByProductId = new Map(referrerPrices.map((rp) => [rp.productId, rp.price]));
+
     const userRole = user?.role || 'USER';
     const referralPriceByProductId = new Map(referralPrices.map((rp) => [rp.productId, rp]));
 
     const allProducts = products.map((product) => {
-      const basePrice =
+      // Base cost = referrer's set price (cascade), else role-based admin price
+      const roleBased =
         userRole === 'SUPER_AGENT'
           ? product.superAgentPrice ?? product.agentPrice ?? product.price
           : userRole === 'AGENT' || userRole === 'ADMIN'
             ? product.agentPrice ?? product.price
             : product.price;
+      const basePrice = referrerPriceByProductId.get(product.id) ?? roleBased;
 
       const rp = referralPriceByProductId.get(product.id);
 
@@ -154,17 +161,25 @@ router.post(
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { role: true },
+      select: { role: true, referredById: true },
     });
 
     const userRole = user?.role || 'USER';
 
-    const basePrice =
+    const roleBased =
       userRole === 'SUPER_AGENT'
         ? product.superAgentPrice ?? product.agentPrice ?? product.price
         : userRole === 'AGENT' || userRole === 'ADMIN'
           ? product.agentPrice ?? product.price
           : product.price;
+
+    // Use referrer's set price as the minimum cost (cascade chain)
+    const referrerReferralPrice = user?.referredById
+      ? await prisma.referralPrice.findUnique({
+          where: { referrerId_productId: { referrerId: user.referredById, productId: String(productId) } },
+        })
+      : null;
+    const basePrice = referrerReferralPrice?.price ?? roleBased;
 
     if (price.lt(new Prisma.Decimal(basePrice))) {
       return res.status(400).json({
@@ -195,7 +210,6 @@ router.post(
       },
     });
 
-    console.log(`[ReferralPricing] Set referral price for user ${userId}, product ${productId}: ${String(referralPrice.price)}`);
 
     return res.json({
       id: referralPrice.id,
