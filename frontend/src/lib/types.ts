@@ -56,6 +56,8 @@ export type AgentStorefront = {
 
 export type StorefrontProduct = {
   product: Product;
+  basePrice?: string;
+  referralPrice?: string | null;
   sellPrice: string | null;
 };
 

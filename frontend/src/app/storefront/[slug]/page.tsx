@@ -381,7 +381,8 @@ export default function StorefrontPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredItems.map((item, index) => {
               const product = item.product;
-              const price = item.sellPrice || product.price;
+              // Use sellPrice from storefront (what customer pays), fallback to product price
+              const price = item.sellPrice ? String(item.sellPrice) : String(product.price);
               const meta = getNetworkMeta({ slug: product.category?.slug, name: product.category?.name });
               const colors = getNetworkColors(product.category?.slug);
               const badge = getProductBadge(index);
@@ -516,7 +517,7 @@ export default function StorefrontPage() {
       <RecipientPhoneModal
         open={phoneOpen}
         product={selectedItem?.product || null}
-        priceOverride={selectedItem?.sellPrice || selectedItem?.product.price}
+        priceOverride={selectedItem?.sellPrice ? String(selectedItem.sellPrice) : (selectedItem?.product.price || undefined)}
         onCancel={() => {
           setPhoneOpen(false);
           setProcessingError(null);

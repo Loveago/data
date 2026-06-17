@@ -271,18 +271,48 @@ router.get(
   '/public/:slug',
   asyncHandler(async (req, res) => {
     const slug = String(req.params.slug || '').trim();
-    const storefront = await prisma.agentStorefront.findUnique({ where: { slug } });
+    const storefront = await prisma.agentStorefront.findUnique({
+      where: { slug },
+      include: { user: { select: { role: true, referredById: true } } },
+    });
     if (!storefront) return res.status(404).json({ error: 'Storefront not found' });
 
-    const prices = await prisma.agentStorefrontPrice.findMany({
-      where: { storefrontId: storefront.id },
-      include: { product: { include: { category: true } } },
-    });
+    const ownerRole = storefront.user?.role ?? 'USER';
+    const ownerReferrerId = storefront.user?.referredById;
 
-    const items = prices.map((price) => ({
-      product: price.product,
-      sellPrice: String(price.sellPrice),
-    }));
+    const [prices, referralPrices] = await Promise.all([
+      prisma.agentStorefrontPrice.findMany({
+        where: { storefrontId: storefront.id },
+        include: { product: { include: { category: true } } },
+      }),
+      ownerReferrerId
+        ? prisma.referralPrice.findMany({ where: { referrerId: ownerReferrerId } })
+        : Promise.resolve([]),
+    ]);
+
+    const referralPriceById = new Map(referralPrices.map((p) => [p.productId, p.price]));
+
+    const items = prices.map((price) => {
+      const product = price.product;
+      let basePrice =
+        ownerRole === 'SUPER_AGENT'
+          ? product.superAgentPrice ?? product.agentPrice ?? product.price
+          : ownerRole === 'AGENT' || ownerRole === 'ADMIN'
+            ? product.agentPrice ?? product.price
+            : product.price;
+
+      const referralPrice = referralPriceById.get(product.id);
+      if (referralPrice) {
+        basePrice = referralPrice;
+      }
+
+      return {
+        product,
+        basePrice: String(basePrice),
+        referralPrice: referralPrice ? String(referralPrice) : null,
+        sellPrice: String(price.sellPrice),
+      };
+    });
 
     return res.json({
       storefront: publicStorefront(storefront),
