@@ -140,13 +140,17 @@ router.post(
       return res.status(409).json({ error: 'Email already in use' });
     }
 
+    if (!refCode || !String(refCode).trim()) {
+      return res.status(400).json({ error: 'Affiliate code is required' });
+    }
+
     const passwordHash = await hashPassword(password);
 
-    let referredById = null;
-    if (refCode) {
-      const referrer = await prisma.user.findUnique({ where: { referralCode: String(refCode).trim() } });
-      if (referrer) referredById = referrer.id;
+    const referrer = await prisma.user.findUnique({ where: { referralCode: String(refCode).trim() } });
+    if (!referrer) {
+      return res.status(400).json({ error: 'Invalid affiliate code' });
     }
+    const referredById = referrer.id;
 
     let referralCode = generateReferralCode();
     for (let i = 0; i < 5; i++) {

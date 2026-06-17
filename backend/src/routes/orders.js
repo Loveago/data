@@ -25,6 +25,31 @@ function resolveUnitPrice(product, role) {
   return product.price;
 }
 
+async function resolveUnitPriceWithReferral(product, role, buyerId) {
+  let basePrice = product.price;
+  if (role === 'SUPER_AGENT') {
+    basePrice = product.superAgentPrice ?? product.agentPrice ?? product.price;
+  } else if (role === 'AGENT' || role === 'ADMIN') {
+    basePrice = product.agentPrice ?? product.price;
+  }
+
+  if (!buyerId) return basePrice;
+
+  const buyer = await prisma.user.findUnique({
+    where: { id: String(buyerId) },
+    select: { referredById: true },
+  });
+
+  if (!buyer?.referredById) return basePrice;
+
+  const referralPrice = await prisma.referralPrice.findUnique({
+    where: { referrerId_productId: { referrerId: buyer.referredById, productId: product.id } },
+  });
+
+  if (referralPrice) return referralPrice.price;
+  return basePrice;
+}
+
 function normalizeOrderItems(items) {
   if (!Array.isArray(items) || items.length === 0) {
     const err = new Error('Order items are required');
@@ -93,7 +118,13 @@ router.post(
 
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
     const role = user?.role || 'USER';
-    const priceById = new Map(products.map((p) => [p.id, resolveUnitPrice(p, role)]));
+    
+    const priceById = new Map();
+    for (const product of products) {
+      const price = await resolveUnitPriceWithReferral(product, role, userId);
+      priceById.set(product.id, price);
+    }
+    
     const stockById = new Map(products.map((p) => [p.id, p.stock]));
 
     for (const it of normalized) {

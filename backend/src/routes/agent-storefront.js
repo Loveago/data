@@ -141,19 +141,37 @@ router.get(
   requireAuth,
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true, role: true, referredById: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const storefront = await ensureStorefrontForUser(user);
     const products = await prisma.product.findMany({ include: { category: true } });
-    const prices = await prisma.agentStorefrontPrice.findMany({ where: { storefrontId: storefront.id } });
+    const [prices, referralPrices] = await Promise.all([
+      prisma.agentStorefrontPrice.findMany({ where: { storefrontId: storefront.id } }),
+      user.referredById ? prisma.referralPrice.findMany({ where: { referrerId: user.referredById } }) : Promise.resolve([]),
+    ]);
     const priceByProduct = new Map(prices.map((p) => [p.productId, p]));
+    const referralPriceByProduct = new Map(referralPrices.map((p) => [p.productId, p]));
 
     const items = products.map((product) => {
       const price = priceByProduct.get(product.id);
+      const referralPrice = referralPriceByProduct.get(product.id);
+
+      let basePrice =
+        user.role === 'SUPER_AGENT' ? (product.superAgentPrice ?? product.agentPrice ?? product.price) :
+        user.role === 'AGENT' || user.role === 'ADMIN' ? (product.agentPrice ?? product.price) :
+        product.price;
+
+      if (referralPrice) {
+        basePrice = referralPrice.price;
+      }
+
       return {
         product,
+        basePrice: String(basePrice),
+        referralPrice: referralPrice ? String(referralPrice.price) : null,
         sellPrice: price ? String(price.sellPrice) : null,
+        markup: price ? String(new Prisma.Decimal(price.sellPrice).minus(new Prisma.Decimal(basePrice))) : null,
       };
     });
 
@@ -172,7 +190,7 @@ router.put(
     const { prices } = req.body || {};
     if (!Array.isArray(prices)) return res.status(400).json({ error: 'Prices must be an array' });
 
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true, role: true } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true, role: true, referredById: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const storefront = await ensureStorefrontForUser(user);
@@ -180,10 +198,14 @@ router.put(
 
     if (productIds.length === 0) return res.status(400).json({ error: 'Missing product ids' });
 
-    const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
+    const [products, referralPrices] = await Promise.all([
+      prisma.product.findMany({ where: { id: { in: productIds } } }),
+      user.referredById ? prisma.referralPrice.findMany({ where: { referrerId: user.referredById, productId: { in: productIds } } }) : Promise.resolve([]),
+    ]);
     if (products.length !== productIds.length) return res.status(400).json({ error: 'One or more products not found' });
 
     const productById = new Map(products.map((p) => [p.id, p]));
+    const referralPriceById = new Map(referralPrices.map((p) => [p.productId, p.price]));
 
     const updates = prices.map((p) => {
       const productId = String(p.productId);
@@ -205,10 +227,16 @@ router.put(
         err.statusCode = 400;
         throw err;
       }
-      const basePrice =
+      let basePrice =
         user.role === 'SUPER_AGENT' ? (product.superAgentPrice ?? product.agentPrice ?? product.price) :
         user.role === 'AGENT' || user.role === 'ADMIN' ? (product.agentPrice ?? product.price) :
         product.price;
+
+      const referralPrice = referralPriceById.get(productId);
+      if (referralPrice) {
+        basePrice = referralPrice;
+      }
+
       if (sellPrice.lt(basePrice)) {
         const err = new Error('Sell price cannot be lower than your base price for this product');
         err.statusCode = 400;

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import type { Product } from "@/lib/types";
 import { ProductCard } from "@/components/ProductCard";
 
@@ -73,11 +74,19 @@ function extractGbValue(name: string) {
   return Number.isFinite(n) ? n : null;
 }
 
+type ReferralProduct = Product & {
+  basePrice?: string;
+  referralPrice?: string | null;
+  effectivePrice?: string;
+  isReferralPrice?: boolean;
+};
+
 export default function StorePage() {
+  const { isAuthenticated } = useAuth();
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
-  const [items, setItems] = useState<Product[]>([]);
+  const [items, setItems] = useState<ReferralProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -187,9 +196,16 @@ export default function StorePage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.get<ProductsResponse>("/products", { params });
-        if (cancelled) return;
-        setItems(res.data.items || []);
+        if (isAuthenticated) {
+          const res = await api.get<{ items: ReferralProduct[] }>("/referral-pricing/my-products");
+          if (cancelled) return;
+          const products = res.data.items || [];
+          setItems(products.map((p) => ({ ...p, price: p.effectivePrice || p.price })));
+        } else {
+          const res = await api.get<ProductsResponse>("/products", { params });
+          if (cancelled) return;
+          setItems(res.data.items || []);
+        }
       } catch {
         if (cancelled) return;
         setError("Failed to load products.");
@@ -203,7 +219,7 @@ export default function StorePage() {
     return () => {
       cancelled = true;
     };
-  }, [params]);
+  }, [params, isAuthenticated]);
 
   return (
     <div className="relative overflow-hidden">

@@ -98,7 +98,7 @@ function networkMeta(slug?: string) {
   };
 }
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product }: { product: Product & { isReferralPrice?: boolean; basePrice?: string } }) {
   const { addItem } = useCart();
   const { user } = useAuth();
   const router = useRouter();
@@ -109,7 +109,9 @@ export function ProductCard({ product }: { product: Product }) {
   const amount = extractDataAmountGb(product.name) || "";
   const net = networkMeta(product.category?.slug);
 
-  const resolvedPrice = user?.role === "AGENT" && product.agentPrice != null ? product.agentPrice : product.price;
+  // Use the effective price already set by the parent component (store page)
+  // The store page maps effectivePrice to price for authenticated users
+  const resolvedPrice = product.price;
   const priceNum = Number(resolvedPrice);
   const hasPrice = Number.isFinite(priceNum);
   const oldPrice = hasPrice ? (amount === "100GB" ? 390 : priceNum * 1.18) : null;
@@ -137,6 +139,14 @@ export function ProductCard({ product }: { product: Product }) {
 
         <Link href={`/product/${product.slug || product.id}`} className="block">
           <div className="rounded-2xl border border-slate-100 bg-white p-3 pt-10 dark:border-slate-800 dark:bg-slate-950">
+            {product.isReferralPrice && (
+              <div className="mb-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-900/40">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 2L15 8.5L22 9.5L17 14.5L18.5 22L12 18.5L5.5 22L7 14.5L2 9.5L9 8.5L12 2Z" fill="currentColor" stroke="none"/>
+                </svg>
+                Referral Price
+              </div>
+            )}
             <div className={`text-xs font-medium ${net.saveText}`}>Save</div>
             <div className={`mt-1 text-lg font-extrabold tracking-tight ${net.priceText}`}>{formatGhs(String(resolvedPrice))}</div>
             <div className="mt-1 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">

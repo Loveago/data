@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { api } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import type { Product } from "@/lib/types";
 import { ProductCard } from "@/components/ProductCard";
 
@@ -46,6 +47,13 @@ type ProductsResponse = {
   limit: number;
 };
 
+type ReferralProduct = Product & {
+  basePrice?: string;
+  referralPrice?: string | null;
+  effectivePrice?: string;
+  isReferralPrice?: boolean;
+};
+
 export function ProductsGrid({
   title,
   query,
@@ -53,7 +61,8 @@ export function ProductsGrid({
   title?: string;
   query?: { q?: string; category?: string; page?: number; limit?: number };
 }) {
-  const [items, setItems] = useState<Product[]>([]);
+  const { isAuthenticated } = useAuth();
+  const [items, setItems] = useState<ReferralProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,9 +82,16 @@ export function ProductsGrid({
       setLoading(true);
       setError(null);
       try {
-        const res = await api.get<ProductsResponse>("/products", { params });
-        if (cancelled) return;
-        setItems(res.data.items || []);
+        if (isAuthenticated) {
+          const res = await api.get<{ items: ReferralProduct[] }>("/referral-pricing/my-products");
+          if (cancelled) return;
+          const products = res.data.items || [];
+          setItems(products.map((p) => ({ ...p, price: p.effectivePrice || p.price })));
+        } else {
+          const res = await api.get<ProductsResponse>("/products", { params });
+          if (cancelled) return;
+          setItems(res.data.items || []);
+        }
       } catch {
         if (cancelled) return;
         setError("Failed to load products. Start the backend API and try again.");
@@ -89,7 +105,7 @@ export function ProductsGrid({
     return () => {
       cancelled = true;
     };
-  }, [params]);
+  }, [params, isAuthenticated]);
 
   return (
     <section>

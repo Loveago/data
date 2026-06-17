@@ -65,6 +65,31 @@ function resolveUnitPrice(product, role) {
   return product.price;
 }
 
+async function resolveUnitPriceWithReferral(product, role, buyerId) {
+  let basePrice = product.price;
+  if (role === 'SUPER_AGENT') {
+    basePrice = product.superAgentPrice ?? product.agentPrice ?? product.price;
+  } else if (role === 'AGENT' || role === 'ADMIN') {
+    basePrice = product.agentPrice ?? product.price;
+  }
+
+  if (!buyerId) return basePrice;
+
+  const buyer = await prisma.user.findUnique({
+    where: { id: String(buyerId) },
+    select: { referredById: true },
+  });
+
+  if (!buyer?.referredById) return basePrice;
+
+  const referralPrice = await prisma.referralPrice.findUnique({
+    where: { referrerId_productId: { referrerId: buyer.referredById, productId: product.id } },
+  });
+
+  if (referralPrice) return referralPrice.price;
+  return basePrice;
+}
+
 function normalizeString(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -184,13 +209,42 @@ function computeAgentProfit(items) {
 
 const REFERRAL_BONUS_PERCENT = new Prisma.Decimal('0.03');
 
-async function creditReferralBonus(tx, userId, subtotal, orderCode) {
+async function creditReferralBonus(tx, userId, subtotal, orderCode, orderItems = null) {
   if (!userId) return;
-  const buyer = await tx.user.findUnique({ where: { id: String(userId) }, select: { referredById: true } });
+  const buyer = await tx.user.findUnique({ where: { id: String(userId) }, select: { referredById: true, role: true } });
   if (!buyer?.referredById) return;
 
-  const bonus = new Prisma.Decimal(subtotal).mul(REFERRAL_BONUS_PERCENT);
-  if (bonus.isZero() || bonus.isNegative()) return;
+  let bonus = new Prisma.Decimal('0');
+
+  if (orderItems && Array.isArray(orderItems) && orderItems.length > 0) {
+    for (const item of orderItems) {
+      if (!item.productId) continue;
+
+      const referralPrice = await tx.referralPrice.findUnique({
+        where: { referrerId_productId: { referrerId: buyer.referredById, productId: item.productId } },
+      });
+
+      if (!referralPrice) continue;
+
+      const product = await tx.product.findUnique({ where: { id: item.productId } });
+      if (!product) continue;
+
+      const basePrice =
+        buyer.role === 'SUPER_AGENT'
+          ? product.superAgentPrice ?? product.agentPrice ?? product.price
+          : buyer.role === 'AGENT' || buyer.role === 'ADMIN'
+            ? product.agentPrice ?? product.price
+            : product.price;
+
+      const markup = new Prisma.Decimal(referralPrice.price).minus(new Prisma.Decimal(basePrice));
+      const lineProfit = markup.mul(new Prisma.Decimal(String(item.quantity || 1)));
+      bonus = bonus.add(lineProfit);
+    }
+  }
+
+  if (bonus.isZero() || bonus.isNegative()) {
+    bonus = new Prisma.Decimal(subtotal).mul(REFERRAL_BONUS_PERCENT);
+  }
 
   const rounded = new Prisma.Decimal(bonus.toFixed(2));
   if (rounded.isZero()) return;
@@ -225,7 +279,7 @@ async function getUserRole(userId, fallbackRole) {
   return user?.role || fallbackRole || 'USER';
 }
 
-async function computeOrderFromItems(items, role = 'USER') {
+async function computeOrderFromItems(items, role = 'USER', buyerId = null) {
   const normalized = normalizeOrderItems(items);
 
   const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
@@ -244,7 +298,12 @@ async function computeOrderFromItems(items, role = 'USER') {
     throw err;
   }
 
-  const priceById = new Map(products.map((p) => [p.id, resolveUnitPrice(p, role)]));
+  const priceById = new Map();
+  for (const product of products) {
+    const price = await resolveUnitPriceWithReferral(product, role, buyerId);
+    priceById.set(product.id, price);
+  }
+
   const stockById = new Map(products.map((p) => [p.id, p.stock]));
 
   for (const it of normalized) {
@@ -288,12 +347,16 @@ async function computeStorefrontOrderFromItems(items, storefrontId) {
   const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
   const storefront = await prisma.agentStorefront.findUnique({
     where: { id: storefrontId },
-    include: { user: { select: { role: true } } },
+    include: { user: { select: { role: true, referredById: true } } },
   });
   const ownerRole = storefront?.user?.role ?? 'USER';
-  const [products, prices] = await Promise.all([
+  const ownerId = storefront?.userId;
+  const ownerReferrerId = storefront?.user?.referredById;
+
+  const [products, prices, referralPrices] = await Promise.all([
     prisma.product.findMany({ where: { id: { in: productIds } }, include: { category: true } }),
     prisma.agentStorefrontPrice.findMany({ where: { storefrontId, productId: { in: productIds } } }),
+    ownerReferrerId ? prisma.referralPrice.findMany({ where: { referrerId: ownerReferrerId, productId: { in: productIds } } }) : Promise.resolve([]),
   ]);
 
   if (products.length !== productIds.length) {
@@ -310,6 +373,7 @@ async function computeStorefrontOrderFromItems(items, storefrontId) {
   }
 
   const priceById = new Map(prices.map((p) => [p.productId, p.sellPrice]));
+  const referralPriceById = new Map(referralPrices.map((p) => [p.productId, p.price]));
   const productById = new Map(products.map((p) => [p.id, p]));
   const stockById = new Map(products.map((p) => [p.id, p.stock]));
 
@@ -339,10 +403,16 @@ async function computeStorefrontOrderFromItems(items, storefrontId) {
       throw err;
     }
 
-    const basePrice =
+    let basePrice =
       ownerRole === 'SUPER_AGENT' ? (product.superAgentPrice ?? product.agentPrice ?? product.price) :
       ownerRole === 'AGENT' || ownerRole === 'ADMIN' ? (product.agentPrice ?? product.price) :
       product.price;
+
+    const referralPrice = referralPriceById.get(it.productId);
+    if (referralPrice) {
+      basePrice = referralPrice;
+    }
+
     if (sellPrice.lt(basePrice)) {
       const err = new Error('Storefront price cannot be lower than the base price for this product');
       err.statusCode = 400;
@@ -394,8 +464,9 @@ router.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const { items } = req.body || {};
-    const role = await getUserRole(req.user?.sub, req.user?.role);
-    const { subtotal, total } = await computeOrderFromItems(items, role);
+    const userId = req.user?.sub;
+    const role = await getUserRole(userId, req.user?.role);
+    const { subtotal, total } = await computeOrderFromItems(items, role, userId);
 
     const netPesewas = toPesewas(total);
     const { feePesewas, grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
@@ -558,7 +629,7 @@ router.post(
     const safeCallbackUrl = assertSafeCallbackUrl(callbackUrl);
 
     const role = await getUserRole(userId, req.user?.role);
-    const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role);
+    const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role, userId);
 
     const netPesewas = toPesewas(total);
     const { feePesewas, grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
@@ -816,7 +887,7 @@ router.post(
       }
 
       const role = await getUserRole(userId, verifiedMeta.role);
-      const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role);
+      const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role, userId);
 
       const customerName = normalizeString(verifiedMeta.customerName ?? bodyCustomerName);
       const customerEmail = normalizeString(verifiedMeta.customerEmail ?? bodyCustomerEmail);
@@ -881,7 +952,7 @@ router.post(
           include: { items: { include: { product: true } } },
         });
 
-        await creditReferralBonus(tx, String(userId), subtotal, order.orderCode);
+        await creditReferralBonus(tx, String(userId), subtotal, order.orderCode, orderItemsData);
         return order;
       });
 
@@ -960,7 +1031,7 @@ router.post(
         include: { items: { include: { product: true } } },
       });
       await creditAgentProfitForOrder(tx, updatedOrder);
-      await creditReferralBonus(tx, updatedOrder.userId, updatedOrder.subtotal, updatedOrder.orderCode);
+      await creditReferralBonus(tx, updatedOrder.userId, updatedOrder.subtotal, updatedOrder.orderCode, updatedOrder.items);
       return updatedOrder;
     });
 
@@ -987,7 +1058,7 @@ router.post(
     }
 
     const role = await getUserRole(userId, req.user?.role);
-    const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role);
+    const { normalized, subtotal, total, orderItemsData } = await computeOrderFromItems(items, role, userId);
 
     const netPesewas = toPesewas(total);
     const { grossAmountPesewas } = computePaystackGrossAmountPesewas(netPesewas);
@@ -1089,7 +1160,7 @@ router.post(
         include: { items: { include: { product: true } } },
       });
 
-      await creditReferralBonus(tx, userId, subtotal, created.orderCode);
+      await creditReferralBonus(tx, userId, subtotal, created.orderCode, orderItemsData);
       return created;
     });
 

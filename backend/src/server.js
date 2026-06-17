@@ -18,6 +18,7 @@ const skanka5Routes = require('./routes/skanka5');
 const walletRoutes = require('./routes/wallet');
 const apiAccessRoutes = require('./routes/api-access');
 const externalApiRoutes = require('./routes/external-api');
+const referralPricingRoutes = require('./routes/referral-pricing');
 const { startFulfillmentDispatcher } = require('./lib/fulfillment');
 const { startReconcileWorker } = require('./lib/reconcileWorker');
 
@@ -59,6 +60,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/agent-storefront', agentStorefrontRoutes);
+app.use('/api/referral-pricing', referralPricingRoutes);
 app.use('/api/grandapi', grandapiRoutes);
 app.use('/api/skanka5', skanka5Routes);
 app.use('/api/api-access', apiAccessRoutes);

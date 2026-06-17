@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { AgentStorefront, StorefrontProduct, User } from "@/lib/types";
 import { DashboardOverviewV2 } from "@/components/DashboardOverviewV2";
 import { StorefrontSettings } from "@/components/StorefrontSettings";
+import { ReferralPricing } from "@/components/ReferralPricing";
 
 type Order = {
   id: string;
@@ -1138,6 +1139,8 @@ function DashboardInner() {
                     </div>
                   )}
                 </div>
+
+                <ReferralPricing />
               </div>
             ) : null}
 

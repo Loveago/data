@@ -158,7 +158,7 @@ function RegisterInner() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Referral Code <span className="text-slate-400 dark:text-slate-500">(optional)</span></label>
+                    <label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Affiliate Code <span className="text-red-500">*</span></label>
                     <input
                       value={referralCode}
                       onChange={(e) => setReferralCode(e.target.value)}
