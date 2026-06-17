@@ -42,6 +42,11 @@ export function ReferralPricing() {
     console.log("[ReferralPricing] State updated, referralPrices:", referralPrices.length, "items");
     const withPrices = referralPrices.filter((p) => p.hasReferralPrice);
     console.log("[ReferralPricing] Items with prices in state:", withPrices.length);
+    if (referralPrices.length > 0) {
+      console.log("[ReferralPricing] First item (any):", referralPrices[0]);
+      console.log("[ReferralPricing] First item hasReferralPrice:", referralPrices[0].hasReferralPrice);
+      console.log("[ReferralPricing] First item referralPrice:", referralPrices[0].referralPrice);
+    }
     if (withPrices.length > 0) {
       console.log("[ReferralPricing] First item with price:", withPrices[0]);
     }
