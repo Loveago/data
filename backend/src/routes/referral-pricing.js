@@ -72,55 +72,58 @@ router.get(
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
 
-    const referralPrices = await prisma.referralPrice.findMany({
-      where: { referrerId: userId },
-      include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            price: true,
-            agentPrice: true,
-            superAgentPrice: true,
-            category: { select: { name: true, slug: true } },
-          },
+    const [referralPrices, products, user] = await Promise.all([
+      prisma.referralPrice.findMany({
+        where: { referrerId: userId },
+        select: {
+          id: true,
+          price: true,
+          productId: true,
+          createdAt: true,
+          updatedAt: true,
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
+      }),
+      prisma.product.findMany({
+        where: { category: { enabled: true } },
+        include: { category: { select: { name: true, slug: true } } },
+        orderBy: [{ categoryId: 'asc' }, { price: 'asc' }],
+      }),
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      }),
+    ]);
 
     const userRole = user?.role || 'USER';
+    const referralPriceByProductId = new Map(referralPrices.map((rp) => [rp.productId, rp]));
 
-    const pricesWithBasePrice = referralPrices.map((rp) => {
+    const allProducts = products.map((product) => {
       const basePrice =
         userRole === 'SUPER_AGENT'
-          ? rp.product.superAgentPrice ?? rp.product.agentPrice ?? rp.product.price
+          ? product.superAgentPrice ?? product.agentPrice ?? product.price
           : userRole === 'AGENT' || userRole === 'ADMIN'
-            ? rp.product.agentPrice ?? rp.product.price
-            : rp.product.price;
+            ? product.agentPrice ?? product.price
+            : product.price;
+
+      const rp = referralPriceByProductId.get(product.id);
 
       return {
-        id: rp.id,
-        productId: rp.product.id,
-        productName: rp.product.name,
-        productSlug: rp.product.slug,
-        category: rp.product.category,
+        id: rp?.id || null,
+        productId: product.id,
+        productName: product.name,
+        productSlug: product.slug,
+        category: product.category,
         basePrice: String(basePrice),
-        referralPrice: String(rp.price),
-        markup: String(new Prisma.Decimal(rp.price).minus(new Prisma.Decimal(basePrice))),
-        createdAt: rp.createdAt,
-        updatedAt: rp.updatedAt,
+        referralPrice: rp ? String(rp.price) : null,
+        markup: rp ? String(new Prisma.Decimal(rp.price).minus(new Prisma.Decimal(basePrice))) : null,
+        hasReferralPrice: !!rp,
+        createdAt: rp?.createdAt || null,
+        updatedAt: rp?.updatedAt || null,
       };
     });
 
     return res.json({
-      referralPrices: pricesWithBasePrice,
+      referralPrices: allProducts,
       userRole,
     });
   })

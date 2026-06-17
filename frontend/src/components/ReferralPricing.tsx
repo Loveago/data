@@ -4,16 +4,17 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 
 type ReferralPrice = {
-  id: string;
+  id: string | null;
   productId: string;
   productName: string;
   productSlug: string;
   category: { name: string; slug: string } | null;
   basePrice: string;
-  referralPrice: string;
-  markup: string;
-  createdAt: string;
-  updatedAt: string;
+  referralPrice: string | null;
+  markup: string | null;
+  hasReferralPrice: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
 };
 
 function formatMoney(value: string) {
@@ -196,9 +197,9 @@ export function ReferralPricing() {
         </div>
       ) : referralPrices.length === 0 ? (
         <div className="rounded-2xl border border-zinc-200/70 bg-zinc-50/50 p-6 text-center dark:border-zinc-800/70 dark:bg-zinc-950/30">
-          <div className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">No referral prices set yet</div>
+          <div className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">No products available</div>
           <div className="mt-1 text-xs text-zinc-500">
-            Add custom prices for your referrals to start earning markup on their purchases.
+            Contact admin to add products.
           </div>
         </div>
       ) : (
@@ -208,35 +209,65 @@ export function ReferralPricing() {
               <tr className="border-b border-zinc-200 dark:border-zinc-800">
                 <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500">Product</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500">Category</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Base Price</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Referral Price</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Admin Base Price</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Your Referral Price</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Markup</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500">Action</th>
               </tr>
             </thead>
             <tbody>
               {referralPrices.map((rp) => (
-                <tr key={rp.id} className="border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-900/30 transition-colors">
+                <tr key={rp.productId} className={`border-b border-zinc-100 dark:border-zinc-800/50 transition-colors ${rp.hasReferralPrice ? 'hover:bg-zinc-50 dark:hover:bg-zinc-900/30' : 'bg-zinc-50/30 dark:bg-zinc-900/20'}`}>
                   <td className="px-4 py-3 font-medium">{rp.productName}</td>
                   <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">{rp.category?.name || "-"}</td>
                   <td className="px-4 py-3 text-right text-zinc-600 dark:text-zinc-400">{formatMoney(rp.basePrice)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-indigo-700 dark:text-indigo-300">
-                    {formatMoney(rp.referralPrice)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-300">
-                    +{formatMoney(rp.markup)}
+                  <td className="px-4 py-3 text-right">
+                    {rp.hasReferralPrice ? (
+                      <span className="font-semibold text-indigo-700 dark:text-indigo-300">
+                        {formatMoney(rp.referralPrice!)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-400 italic">Using base price</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePrice(rp.id)}
-                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/20 transition-all"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      Delete
-                    </button>
+                    {rp.hasReferralPrice && rp.markup ? (
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-300">
+                        +{formatMoney(rp.markup)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {rp.hasReferralPrice && rp.id ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDeletePrice(rp.id!)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/20 transition-all"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Delete
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedProductId(rp.productId);
+                          setSelectedPrice(rp.basePrice);
+                          setShowAddForm(true);
+                          loadProducts();
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/20 transition-all"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                        Set Price
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
