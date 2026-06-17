@@ -221,14 +221,14 @@ export function StorefrontSettings({
                   <tr className="border-b border-slate-200 text-left text-xs font-semibold text-slate-500 dark:border-slate-700">
                     <th className="py-3 pr-3">Bundle</th>
                     <th className="py-3 pr-3">Network</th>
-                    <th className="py-3 pr-3">Agent price</th>
+                    <th className="py-3 pr-3">Your cost</th>
                     <th className="py-3 pr-3">Your price</th>
                     <th className="py-3 text-right">Profit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredStorefrontItems.map((item) => {
-                    const base = Number(item.product.agentPrice ?? item.product.price);
+                    const base = Number(item.basePrice ?? item.product.agentPrice ?? item.product.price);
                     const priceValue = storefrontPrices[item.product.id] ?? item.sellPrice ?? "";
                     const sell = Number(priceValue);
                     const profit = Number.isFinite(sell) && Number.isFinite(base) ? sell - base : null;
@@ -274,7 +274,7 @@ export function StorefrontSettings({
             {/* Mobile Cards */}
             <div className="mt-4 flex flex-col gap-3 sm:hidden">
               {filteredStorefrontItems.map((item) => {
-                const base = Number(item.product.agentPrice ?? item.product.price);
+                const base = Number(item.basePrice ?? item.product.agentPrice ?? item.product.price);
                 const priceValue = storefrontPrices[item.product.id] ?? item.sellPrice ?? "";
                 const sell = Number(priceValue);
                 const profit = Number.isFinite(sell) && Number.isFinite(base) ? sell - base : null;
@@ -287,7 +287,7 @@ export function StorefrontSettings({
                         <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{item.product.category?.name || "-"}</div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <div className="text-xs text-slate-500">Agent</div>
+                        <div className="text-xs text-slate-500">Your cost</div>
                         <div className="text-sm font-semibold">{formatMoney(String(base))}</div>
                       </div>
                     </div>
