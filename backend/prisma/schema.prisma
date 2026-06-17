@@ -19,6 +19,7 @@ enum OrderStatus {
   PENDING
   PROCESSING
   COMPLETED
+  FAILED
 }
 
 enum WalletTransactionType {

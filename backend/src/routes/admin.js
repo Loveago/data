@@ -99,7 +99,7 @@ router.get(
     const skip = Math.max(0, (page - 1) * limit);
 
     const where = {
-      ...(status && ['PENDING', 'PROCESSING', 'COMPLETED'].includes(status) ? { status } : {}),
+      ...(status && ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'].includes(status) ? { status } : {}),
       ...(q
         ? {
             OR: [
@@ -134,7 +134,7 @@ router.patch(
   asyncHandler(async (req, res) => {
     const id = req.params.id;
     const { status } = req.body || {};
-    if (!status || !['PENDING', 'PROCESSING', 'COMPLETED'].includes(status)) {
+    if (!status || !['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 

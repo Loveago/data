@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 type AdminOrder = {
   id: string;
   orderCode?: string | null;
-  status: "PENDING" | "PROCESSING" | "COMPLETED";
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   total: string;
   createdAt: string;
   paymentStatus?: string;
@@ -222,7 +222,7 @@ export default function AdminOrdersPage() {
                 value={status}
                 onChange={(e) => {
                   const v = e.target.value;
-                  setStatusFilter(v === "PENDING" || v === "PROCESSING" || v === "COMPLETED" ? v : "");
+                  setStatusFilter(v === "PENDING" || v === "PROCESSING" || v === "COMPLETED" || v === "FAILED" ? v : "");
                 }}
                 className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none dark:border-zinc-800 dark:bg-zinc-950"
               >
@@ -230,6 +230,7 @@ export default function AdminOrdersPage() {
                 <option value="PENDING">PENDING</option>
                 <option value="PROCESSING">PROCESSING</option>
                 <option value="COMPLETED">COMPLETED</option>
+                <option value="FAILED">FAILED</option>
               </select>
               <button
                 type="button"
@@ -281,6 +282,7 @@ export default function AdminOrdersPage() {
                               <option value="PENDING">PENDING</option>
                               <option value="PROCESSING">PROCESSING</option>
                               <option value="COMPLETED">COMPLETED</option>
+                              <option value="FAILED">FAILED</option>
                             </select>
                           </td>
                           <td className="py-3">

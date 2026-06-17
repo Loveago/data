@@ -58,7 +58,7 @@ async function requireApiKey(req, res, next) {
   try {
     const apiKey = await prisma.apiKey.findUnique({
       where: { key: String(key) },
-      include: { user: { select: { id: true, email: true, name: true, role: true } } },
+      include: { user: { select: { id: true, email: true, name: true, role: true, walletBalance: true } } },
     });
 
     if (!apiKey || !apiKey.isActive) {

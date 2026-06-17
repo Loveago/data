@@ -54,6 +54,7 @@ function statusPill(status: string) {
   const s = String(status || "").toUpperCase();
   if (s === "COMPLETED") return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200";
   if (s === "PROCESSING") return "bg-blue-100 text-blue-800 dark:bg-blue-950/30 dark:text-blue-200";
+  if (s === "FAILED") return "bg-red-100 text-red-800 dark:bg-red-950/30 dark:text-red-200";
   return "bg-amber-100 text-amber-800 dark:bg-amber-950/30 dark:text-amber-200";
 }
 
@@ -61,6 +62,7 @@ function statusLabel(status: string) {
   const s = String(status || "").toUpperCase();
   if (s === "COMPLETED") return "delivered";
   if (s === "PROCESSING") return "processing";
+  if (s === "FAILED") return "failed";
   return "pending";
 }
 

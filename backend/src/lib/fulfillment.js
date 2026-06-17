@@ -392,22 +392,22 @@ async function finalizeStaleSubmittedItems() {
 }
 
 async function updateOrderCompletion(orderId) {
-  const remaining = await prisma.orderItem.count({
-    where: {
-      orderId,
-      hubnetSkip: false,
-      NOT: { hubnetStatus: 'DELIVERED' },
-    },
+  const total = await prisma.orderItem.count({
+    where: { orderId, hubnetSkip: false },
+  });
+  if (total === 0) return;
+
+  const delivered = await prisma.orderItem.count({
+    where: { orderId, hubnetSkip: false, hubnetStatus: 'DELIVERED' },
+  });
+  const failed = await prisma.orderItem.count({
+    where: { orderId, hubnetSkip: false, hubnetStatus: 'FAILED' },
   });
 
-  if (remaining === 0) {
-    const deliverableCount = await prisma.orderItem.count({
-      where: { orderId, hubnetSkip: false },
-    });
-
-    if (deliverableCount > 0) {
-      await prisma.order.update({ where: { id: orderId }, data: { status: 'COMPLETED' } });
-    }
+  if (delivered + failed === total) {
+    // All items reached a terminal state
+    const newStatus = failed > 0 ? 'FAILED' : 'COMPLETED';
+    await prisma.order.update({ where: { id: orderId }, data: { status: newStatus } });
   }
 }
 
@@ -489,7 +489,7 @@ async function queueFulfillmentForOrder(orderId) {
       const skanka5Capacity = volumeMb != null && Number.isFinite(volumeMb) && volumeMb > 0 ? volumeMb : null;
       if (!grandapiCapacity && !encartCapacity && !datahubnetCapacity && !skanka5Capacity) {
         debugLog('Marking failed, unable to determine capacity', item.id);
-        await tx.orderItem.update({
+            await tx.orderItem.update({
           where: { id: item.id },
           data: {
             hubnetSkip: false,
@@ -537,6 +537,8 @@ async function queueFulfillmentForOrder(orderId) {
       debugLog('Order queued for fulfillment', order.id, deliverable);
     }
   });
+
+  await updateOrderCompletion(order.id);
 
   if (deliverable.length === 0) {
     debugLog('No deliverable items found for order', order.id);
@@ -609,6 +611,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         hubnetLastError: err?.message ? String(err.message) : 'Invalid phone number',
       },
     });
+    await updateOrderCompletion(item.orderId);
     debugLog('Dispatch failed - invalid phone', item.id, err?.message);
     return true;
   }
@@ -623,6 +626,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         hubnetLastError: `No network mapping for category: ${String(categorySlug || 'unknown')}`,
       },
     });
+    await updateOrderCompletion(item.orderId);
     debugLog('Dispatch failed - no network mapping', item.id, categorySlug);
     return true;
   }
@@ -645,6 +649,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         hubnetLastError: 'Unable to determine bundle size (capacity)',
       },
     });
+    await updateOrderCompletion(item.orderId);
     debugLog('Dispatch failed - capacity lookup', item.id, provider);
     return true;
   }
@@ -805,6 +810,7 @@ async function dispatchOneProviderItem(provider, intervalMs) {
         hubnetSubmittedAt: null,
       },
     });
+    await updateOrderCompletion(item.orderId);
     debugLog('Dispatch error', provider, item.id, message);
   }
 
@@ -877,6 +883,7 @@ async function pollOneProviderItem(provider, intervalMs) {
             hubnetLastError: String(statusText || 'ElitNut failed'),
           },
         });
+        await updateOrderCompletion(item.orderId);
         debugLog('ElitNut failed status', item.id, statusText);
         return true;
       }
@@ -911,6 +918,7 @@ async function pollOneProviderItem(provider, intervalMs) {
             hubnetLastError: String(statusText || 'Encart failed'),
           },
         });
+        await updateOrderCompletion(item.orderId);
         debugLog('Encart failed status', item.id, statusText);
         return true;
       }
@@ -953,6 +961,7 @@ async function pollOneProviderItem(provider, intervalMs) {
             hubnetLastError: String(orderStatus || 'Skanka5 failed'),
           },
         });
+        await updateOrderCompletion(item.orderId);
         debugLog('Skanka5 failed status', item.id, orderStatus);
         return true;
       }
@@ -989,6 +998,7 @@ async function pollOneProviderItem(provider, intervalMs) {
             hubnetLastError: String(statusText || 'GrandAPI failed'),
           },
         });
+        await updateOrderCompletion(item.orderId);
         debugLog('GrandAPI failed status', item.id, statusText);
         return true;
       }
@@ -1022,6 +1032,7 @@ async function pollOneProviderItem(provider, intervalMs) {
           hubnetLastError: String(statusText || 'DataHubnet failed'),
         },
       });
+      await updateOrderCompletion(item.orderId);
       debugLog('Datahubnet failed status', item.id, statusText);
       return true;
     }

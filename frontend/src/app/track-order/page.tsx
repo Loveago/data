@@ -32,6 +32,8 @@ function StatusBadge({ status }: { status: string }) {
     return <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">PROCESSING</span>;
   if (status === "PENDING")
     return <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">PENDING</span>;
+  if (status === "FAILED")
+    return <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">FAILED</span>;
   return <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">{status}</span>;
 }
 
@@ -294,6 +296,13 @@ export default function TrackOrderPage() {
                     <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                   </svg>
                   <span><strong>COMPLETED</strong> — Data bundle delivered successfully</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mt-0.5 flex-shrink-0 text-red-500">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M9 9l6 6M15 9l-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  <span><strong>FAILED</strong> — Delivery failed, contact support with your order code</span>
                 </li>
               </ul>
             </div>

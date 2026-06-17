@@ -77,18 +77,28 @@ router.get(
       orderBy: [{ categoryId: 'asc' }, { price: 'asc' }],
     });
 
+    const userRole = req.apiUser?.role || 'USER';
+
     return res.json({
       status: 'success',
       message: 'Packages retrieved successfully',
-      packages: products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        network: p.category?.name,
-        network_slug: p.category?.slug,
-        price: Number(p.price).toFixed(2),
-        stock: p.stock,
-      })),
+      packages: products.map((p) => {
+        const rawPrice =
+          userRole === 'SUPER_AGENT'
+            ? (p.superAgentPrice ?? p.agentPrice ?? p.price)
+            : userRole === 'AGENT' || userRole === 'ADMIN'
+              ? (p.agentPrice ?? p.price)
+              : p.price;
+        return {
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          network: p.category?.name,
+          network_slug: p.category?.slug,
+          price: Number(rawPrice).toFixed(2),
+          stock: p.stock,
+        };
+      }),
     });
   })
 );
@@ -118,13 +128,44 @@ router.post(
       return res.status(400).json({ status: 'error', message: `Insufficient stock. Available: ${product.stock}` });
     }
 
-    const unitPrice = new Prisma.Decimal(product.price);
+    // Role-aware pricing
+    const userRole = apiUser.role || 'USER';
+    const rawUnitPrice =
+      userRole === 'SUPER_AGENT'
+        ? (product.superAgentPrice ?? product.agentPrice ?? product.price)
+        : userRole === 'AGENT' || userRole === 'ADMIN'
+          ? (product.agentPrice ?? product.price)
+          : product.price;
+    const unitPrice = new Prisma.Decimal(rawUnitPrice);
     const lineTotal = unitPrice.mul(quantity);
+
+    // Wallet balance check
+    const walletBalance = new Prisma.Decimal(apiUser.walletBalance ?? 0);
+    if (walletBalance.lt(lineTotal)) {
+      return res.status(400).json({ status: 'error', message: `Insufficient wallet balance. Required: GHS ${Number(lineTotal).toFixed(2)}, Available: GHS ${Number(walletBalance).toFixed(2)}` });
+    }
 
     const orderCode = generateApiOrderCode();
     const externalReference = customer_reference ? String(customer_reference).slice(0, 100) : null;
 
     const order = await prisma.$transaction(async (tx) => {
+      // Deduct wallet balance
+      await tx.user.update({
+        where: { id: apiUser.id },
+        data: { walletBalance: { decrement: lineTotal } },
+      });
+
+      // Record wallet spend
+      await tx.walletTransaction.create({
+        data: {
+          userId: apiUser.id,
+          type: 'SPEND',
+          amount: lineTotal,
+          reference: orderCode,
+        },
+      });
+
+      // Decrement stock
       await tx.product.update({
         where: { id: product.id },
         data: { stock: { decrement: quantity } },
@@ -208,16 +249,15 @@ router.get(
     if (!order) return res.status(404).json({ status: 'error', message: 'Order not found' });
 
     const item = order.items[0];
-    const hubnetStatus = item?.hubnetStatus ?? null;
 
+    // Use order.status (same source of truth as the website dashboard)
     const statusMap = {
       PENDING: 'pending',
-      SENDING: 'processing',
-      SUBMITTED: 'processing',
-      DELIVERED: 'delivered',
+      PROCESSING: 'processing',
+      COMPLETED: 'delivered',
       FAILED: 'failed',
     };
-    const orderStatus = hubnetStatus ? (statusMap[hubnetStatus] ?? 'processing') : 'pending';
+    const orderStatus = statusMap[order.status] ?? 'pending';
 
     return res.json({
       status: 'success',
