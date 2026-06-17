@@ -15,11 +15,18 @@ function formatPrice(value: string) {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: "GHS" }).format(n);
 }
 
+type ReferralProduct = Product & {
+  basePrice?: string;
+  referralPrice?: string | null;
+  effectivePrice?: string;
+  isReferralPrice?: boolean;
+};
+
 export default function ProductDetailClient({ id }: { id: string }) {
   const router = useRouter();
   const { addItem } = useCart();
-  const { user } = useAuth();
-  const [product, setProduct] = useState<Product | null>(null);
+  const { user, isAuthenticated } = useAuth();
+  const [product, setProduct] = useState<ReferralProduct | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,9 +41,22 @@ export default function ProductDetailClient({ id }: { id: string }) {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.get<Product>(`/products/${id}`);
-        if (cancelled) return;
-        setProduct(res.data);
+        if (isAuthenticated) {
+          const res = await api.get<{ items: ReferralProduct[] }>("/referral-pricing/my-products");
+          if (cancelled) return;
+          const products = res.data.items || [];
+          const found = products.find((p) => p.id === id || p.slug === id);
+          if (found) {
+            setProduct({ ...found, price: found.effectivePrice || found.price });
+          } else {
+            setError("Product not found.");
+            setProduct(null);
+          }
+        } else {
+          const res = await api.get<Product>(`/products/${id}`);
+          if (cancelled) return;
+          setProduct(res.data);
+        }
       } catch {
         if (cancelled) return;
         setError("Product not found.");
@@ -50,7 +70,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, isAuthenticated]);
 
   if (loading) {
     return (
@@ -73,7 +93,8 @@ export default function ProductDetailClient({ id }: { id: string }) {
   }
 
   const img = product.imageUrls?.[0];
-  const resolvedPrice = user?.role === "AGENT" && product.agentPrice ? product.agentPrice : product.price;
+  // product.price is already set to effectivePrice by parent for authenticated users
+  const resolvedPrice = product.price;
   const resolvedPriceNum = Number(resolvedPrice);
 
   return (
@@ -92,6 +113,14 @@ export default function ProductDetailClient({ id }: { id: string }) {
         <div>
           <p className="text-sm text-zinc-500">{product.category?.name}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight">{product.name}</h1>
+          {product.isReferralPrice && (
+            <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:ring-emerald-900/40">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 2L15 8.5L22 9.5L17 14.5L18.5 22L12 18.5L5.5 22L7 14.5L2 9.5L9 8.5L12 2Z" fill="currentColor" stroke="none"/>
+              </svg>
+              Referral Price
+            </div>
+          )}
           <p className="mt-3 text-xl font-semibold">{formatPrice(String(resolvedPrice))}</p>
 
           <div className="mt-6 flex items-center gap-3">
