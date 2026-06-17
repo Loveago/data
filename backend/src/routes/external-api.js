@@ -10,9 +10,17 @@ const { Prisma } = require('@prisma/client');
 const { prisma } = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { requireApiKey } = require('../middleware/auth');
+const { createRateLimiter } = require('../middleware/rateLimit');
 const { queueFulfillmentForOrder } = require('../lib/fulfillment');
 
 const router = express.Router();
+
+const externalApiRateLimit = createRateLimiter({
+  windowMs: Number(process.env.EXTERNAL_API_WINDOW_MS || 60 * 1000),
+  limit: Number(process.env.EXTERNAL_API_LIMIT || 60),
+  keyPrefix: 'external-api',
+  message: 'Too many requests. Please slow down.',
+});
 
 function generateApiOrderCode() {
   const d = new Date();
@@ -49,6 +57,7 @@ function parseVolumeMbFromProductName(name) {
 
 router.get(
   '/networks',
+  externalApiRateLimit,
   requireApiKey,
   asyncHandler(async (req, res) => {
     const categories = await prisma.category.findMany({
@@ -72,6 +81,7 @@ router.get(
 
 router.get(
   '/packages',
+  externalApiRateLimit,
   requireApiKey,
   asyncHandler(async (req, res) => {
     const { network } = req.query;
@@ -130,6 +140,7 @@ router.get(
 
 router.post(
   '/orders',
+  externalApiRateLimit,
   requireApiKey,
   asyncHandler(async (req, res) => {
     const apiUser = req.apiUser;
@@ -181,10 +192,6 @@ router.post(
       return res.status(400).json({ status: 'error', message: 'quantity must be between 1 and 20' });
     }
 
-    if (product.stock < quantity) {
-      return res.status(400).json({ status: 'error', message: `Insufficient stock. Available: ${product.stock}` });
-    }
-
     // Role-aware pricing
     const userRole = apiUser.role || 'USER';
     const rawUnitPrice =
@@ -196,16 +203,23 @@ router.post(
     const unitPrice = new Prisma.Decimal(rawUnitPrice);
     const lineTotal = unitPrice.mul(quantity);
 
-    // Wallet balance check
-    const walletBalance = new Prisma.Decimal(apiUser.walletBalance ?? 0);
-    if (walletBalance.lt(lineTotal)) {
-      return res.status(400).json({ status: 'error', message: `Insufficient wallet balance. Required: GHS ${Number(lineTotal).toFixed(2)}, Available: GHS ${Number(walletBalance).toFixed(2)}` });
-    }
-
     const orderCode = generateApiOrderCode();
     const externalReference = customer_reference ? String(customer_reference).slice(0, 100) : null;
 
-    const order = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
+      // Re-read fresh values inside transaction to prevent race conditions
+      const freshUser = await tx.user.findUnique({ where: { id: apiUser.id }, select: { walletBalance: true } });
+      const freshProduct = await tx.product.findUnique({ where: { id: product.id }, select: { stock: true } });
+
+      const walletBalance = new Prisma.Decimal(freshUser?.walletBalance ?? 0);
+      if (walletBalance.lt(lineTotal)) {
+        return { ok: false, error: 'wallet', required: lineTotal, available: walletBalance };
+      }
+
+      if (freshProduct.stock < quantity) {
+        return { ok: false, error: 'stock', available: freshProduct.stock };
+      }
+
       // Deduct wallet balance
       await tx.user.update({
         where: { id: apiUser.id },
@@ -228,7 +242,7 @@ router.post(
         data: { stock: { decrement: quantity } },
       });
 
-      return tx.order.create({
+      const order = await tx.order.create({
         data: {
           orderCode,
           userId: apiUser.id,
@@ -258,8 +272,21 @@ router.post(
           items: { include: { product: { include: { category: true } } } },
         },
       });
+
+      return { ok: true, order };
     });
 
+    if (!result.ok) {
+      if (result.error === 'wallet') {
+        return res.status(400).json({ status: 'error', message: `Insufficient wallet balance. Required: GHS ${Number(result.required).toFixed(2)}, Available: GHS ${Number(result.available).toFixed(2)}` });
+      }
+      if (result.error === 'stock') {
+        return res.status(400).json({ status: 'error', message: `Insufficient stock. Available: ${result.available}` });
+      }
+      return res.status(400).json({ status: 'error', message: 'Order could not be placed' });
+    }
+
+    const order = result.order;
     queueFulfillmentForOrder(order.id).catch((e) => console.error('[external-api] fulfillment error', e));
 
     return res.status(201).json({
@@ -286,6 +313,7 @@ router.post(
 
 router.get(
   '/orders/:reference',
+  externalApiRateLimit,
   requireApiKey,
   asyncHandler(async (req, res) => {
     const reference = String(req.params.reference || '').trim();
@@ -343,6 +371,7 @@ router.get(
 
 router.get(
   '/balance',
+  externalApiRateLimit,
   requireApiKey,
   asyncHandler(async (req, res) => {
     const apiUser = req.apiUser;
