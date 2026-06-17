@@ -40,6 +40,20 @@ router.get(
   })
 );
 
+router.get(
+  '/transactions',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const userId = req.user.sub;
+    const transactions = await prisma.walletTransaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    return res.json({ transactions });
+  })
+);
+
 router.post(
   '/deposit/paystack/complete-public',
   asyncHandler(async (req, res) => {
