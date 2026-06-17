@@ -236,6 +236,8 @@ function DashboardInner() {
   const [withdrawFee, setWithdrawFee] = useState<string>("0");
   const [withdrawTotal, setWithdrawTotal] = useState<string>("0");
   const [upgradeError] = useState<string | null>(null);
+  const [walletTransactions, setWalletTransactions] = useState<{ id: string; type: string; amount: string; reference: string | null; createdAt: string }[]>([]);
+  const [walletTransactionsLoading, setWalletTransactionsLoading] = useState(false);
   const [apiAccessRequest, setApiAccessRequest] = useState<{ id: string; status: string; reason: string | null; apiKey: { key: string; isActive: boolean; lastUsedAt: string | null } | null } | null>(null);
   const [apiAccessLoading, setApiAccessLoading] = useState(false);
   const [apiAccessReason, setApiAccessReason] = useState("");
@@ -569,6 +571,28 @@ function DashboardInner() {
       cancelled = true;
     };
   }, [isAuthenticated, user?.walletBalance]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTransactions() {
+      if (!isAuthenticated) return;
+      setWalletTransactionsLoading(true);
+      try {
+        const res = await api.get<{ transactions: { id: string; type: string; amount: string; reference: string | null; createdAt: string }[] }>("/wallet/transactions");
+        if (!cancelled) setWalletTransactions(res.data.transactions || []);
+      } catch {
+        if (!cancelled) setWalletTransactions([]);
+      } finally {
+        if (!cancelled) setWalletTransactionsLoading(false);
+      }
+    }
+
+    loadTransactions();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, walletBalance]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1384,6 +1408,68 @@ function DashboardInner() {
                       {withdrawSuccess}
                     </div>
                   ) : null}
+                </div>
+
+                <div className="mt-6 border-t border-zinc-200 pt-5 dark:border-zinc-800">
+                  <div className="text-sm font-semibold">Transaction History</div>
+                  <div className="mt-1 text-xs text-zinc-500">Your recent wallet transactions.</div>
+
+                  {walletTransactionsLoading ? (
+                    <div className="mt-3 text-sm text-zinc-500">Loading transactions...</div>
+                  ) : walletTransactions.length === 0 ? (
+                    <div className="mt-3 text-sm text-zinc-500">No transactions yet.</div>
+                  ) : (
+                    <div className="mt-3 overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-200 text-left text-xs font-semibold text-zinc-500 dark:border-zinc-800">
+                            <th className="py-2 pr-3">Type</th>
+                            <th className="py-2 pr-3">Source</th>
+                            <th className="py-2 pr-3 text-right">Amount</th>
+                            <th className="py-2 text-right">Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {walletTransactions.map((tx) => {
+                            const isCredit = tx.type === 'DEPOSIT' || tx.type === 'REFERRAL_BONUS';
+                            const typeLabel =
+                              tx.type === 'DEPOSIT' ? 'Deposit'
+                                : tx.type === 'SPEND' ? 'Spend'
+                                  : tx.type === 'WITHDRAWAL' ? 'Withdrawal'
+                                    : tx.type === 'REFERRAL_BONUS' ? 'Referral Bonus'
+                                      : tx.type;
+                            const source =
+                              tx.type === 'REFERRAL_BONUS' ? 'Referral commission'
+                                : tx.type === 'DEPOSIT' && tx.reference?.startsWith('REF_BONUS:') ? 'Referral bonus'
+                                  : tx.type === 'DEPOSIT' && tx.reference ? 'Paystack deposit'
+                                    : tx.type === 'SPEND' ? 'Order payment'
+                                      : tx.type === 'WITHDRAWAL' ? 'Withdrawal request'
+                                        : tx.reference || '-';
+                            return (
+                              <tr key={tx.id} className="border-b border-zinc-100 dark:border-zinc-800/50">
+                                <td className="py-2 pr-3">
+                                  <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                                    isCredit
+                                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+                                      : 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
+                                  }`}>
+                                    {typeLabel}
+                                  </span>
+                                </td>
+                                <td className="py-2 pr-3 text-xs text-zinc-600 dark:text-zinc-400">{source}</td>
+                                <td className={`py-2 pr-3 text-right font-semibold ${isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`}>
+                                  {isCredit ? '+' : '-'}{formatMoney(tx.amount)}
+                                </td>
+                                <td className="py-2 text-right text-xs text-zinc-500">
+                                  {new Date(tx.createdAt).toLocaleDateString()}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : null}
