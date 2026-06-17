@@ -25,6 +25,27 @@ function toPesewas(ghsDecimal) {
   return Math.round(Number(ghsDecimal) * 100);
 }
 
+function getNetworkIdFromSlug(slug) {
+  const mapping = {
+    'mtn': 1,
+    'telecel': 2,
+    'at-ishare': 3,
+    'at-bigtime': 4,
+    'airtel': 5,
+    'vodafone': 6,
+  };
+  return mapping[String(slug || '').toLowerCase()] || null;
+}
+
+function parseVolumeMbFromProductName(name) {
+  if (!name) return null;
+  const match = String(name).match(/(\d+)\s*(?:gb|mb)/i);
+  if (!match) return null;
+  const value = Number(match[1]);
+  const isGb = String(name).toLowerCase().includes('gb');
+  return isGb ? value * 1000 : value;
+}
+
 router.get(
   '/networks',
   requireApiKey,
@@ -39,6 +60,7 @@ router.get(
       status: 'success',
       message: 'Networks retrieved successfully',
       networks: categories.map((c) => ({
+        network_id: getNetworkIdFromSlug(c.slug),
         id: c.id,
         name: c.name,
         slug: c.slug,
@@ -93,8 +115,10 @@ router.get(
           id: p.id,
           name: p.name,
           slug: p.slug,
+          network_id: getNetworkIdFromSlug(p.category?.slug),
           network: p.category?.name,
           network_slug: p.category?.slug,
+          volume_mb: parseVolumeMbFromProductName(p.name),
           price: Number(rawPrice).toFixed(2),
           stock: p.stock,
         };
@@ -108,22 +132,54 @@ router.post(
   requireApiKey,
   asyncHandler(async (req, res) => {
     const apiUser = req.apiUser;
-    const { package_id, recipient_number, quantity: rawQty, customer_reference } = req.body || {};
+    const { package_id, network_id, volume_mb, recipient_number, quantity: rawQty, customer_reference } = req.body || {};
 
-    if (!package_id) return res.status(400).json({ status: 'error', message: 'package_id is required' });
     if (!recipient_number) return res.status(400).json({ status: 'error', message: 'recipient_number is required' });
+
+    let product;
+
+    if (package_id) {
+      product = await prisma.product.findUnique({
+        where: { id: String(package_id) },
+        include: { category: true },
+      });
+      if (!product) return res.status(404).json({ status: 'error', message: 'Package not found' });
+    } else if (network_id != null && volume_mb != null) {
+      const networkIdNum = Number(network_id);
+      const volumeMbNum = Number(volume_mb);
+      if (!Number.isInteger(networkIdNum) || !Number.isInteger(volumeMbNum)) {
+        return res.status(400).json({ status: 'error', message: 'network_id and volume_mb must be integers' });
+      }
+
+      const allCategories = await prisma.category.findMany({
+        where: { enabled: true },
+        select: { id: true, slug: true },
+      });
+      const matchingCategory = allCategories.find((c) => getNetworkIdFromSlug(c.slug) === networkIdNum);
+      if (!matchingCategory) {
+        return res.status(404).json({ status: 'error', message: `Network ID ${networkIdNum} not found` });
+      }
+
+      const candidates = await prisma.product.findMany({
+        where: { categoryId: matchingCategory.id, stock: { gt: 0 } },
+        include: { category: true },
+      });
+
+      product = candidates.find((p) => parseVolumeMbFromProductName(p.name) === volumeMbNum);
+      if (!product) {
+        return res.status(404).json({ status: 'error', message: `No package found for network_id ${networkIdNum} with volume ${volumeMbNum}MB` });
+      }
+    } else {
+      return res.status(400).json({ status: 'error', message: 'Either package_id or (network_id + volume_mb) is required' });
+    }
+
+    if (!product) return res.status(404).json({ status: 'error', message: 'Package not found' });
 
     const quantity = Math.max(1, Number(rawQty || 1) || 1);
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 20) {
       return res.status(400).json({ status: 'error', message: 'quantity must be between 1 and 20' });
     }
 
-    const product = await prisma.product.findUnique({
-      where: { id: String(package_id) },
-      include: { category: true },
-    });
-
-    if (!product) return res.status(404).json({ status: 'error', message: 'Package not found' });
     if (product.stock < quantity) {
       return res.status(400).json({ status: 'error', message: `Insufficient stock. Available: ${product.stock}` });
     }

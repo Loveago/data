@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
@@ -47,9 +48,16 @@ function ParamRow({ name, type, required, description }: { name: string; type: s
   );
 }
 
-const BASE_URL = "https://api.yourdomain.com/api/v1";
-
 export default function ApiDocsPage() {
+  const [baseUrl, setBaseUrl] = useState("https://api.yourdomain.com/api/v1");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const protocol = window.location.protocol;
+      const host = window.location.host;
+      setBaseUrl(`${protocol}//${host}/api/v1`);
+    }
+  }, []);
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80 sticky top-0 z-10">
@@ -123,7 +131,7 @@ export default function ApiDocsPage() {
                 </p>
                 <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 p-4">
                   <div className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Base URL</div>
-                  <code className="font-mono text-sm text-violet-700 dark:text-violet-400">{BASE_URL}</code>
+                  <code className="font-mono text-sm text-violet-700 dark:text-violet-400">{baseUrl}</code>
                 </div>
                 <p>All requests and responses use <strong>JSON</strong>. All monetary values are in <strong>GHS (Ghanaian Cedis)</strong>.</p>
               </div>
@@ -141,7 +149,7 @@ export default function ApiDocsPage() {
                 </ol>
                 <CodeBlock language="bash" code={`# Include your API key in every request
 curl -H "x-api-key: YOUR_API_KEY" \\
-     ${BASE_URL}/packages`} />
+     ${baseUrl}/packages`} />
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/40 dark:bg-amber-950/30">
                   <div className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">Security</div>
                   <p className="text-xs text-amber-800 dark:text-amber-300">
@@ -228,15 +236,15 @@ curl -H "x-api-key: YOUR_API_KEY" \\
               <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-4">Returns all available networks (MTN, Telecel, AirtelTigo, etc.).</p>
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Example Request</h4>
               <CodeBlock language="bash" code={`curl -H "x-api-key: YOUR_API_KEY" \\
-     ${BASE_URL}/networks`} />
+     ${baseUrl}/networks`} />
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mt-5 mb-2">Example Response</h4>
               <CodeBlock code={`{
   "status": "success",
   "message": "Networks retrieved successfully",
   "networks": [
-    { "id": "clxyz001", "name": "MTN", "slug": "mtn" },
-    { "id": "clxyz002", "name": "Telecel", "slug": "telecel" },
-    { "id": "clxyz003", "name": "AirtelTigo", "slug": "airteltigo" }
+    { "network_id": 1, "id": "clxyz001", "name": "MTN", "slug": "mtn" },
+    { "network_id": 2, "id": "clxyz002", "name": "Telecel", "slug": "telecel" },
+    { "network_id": 3, "id": "clxyz003", "name": "AT iShare", "slug": "at-ishare" }
   ]
 }`} />
             </Section>
@@ -261,7 +269,7 @@ curl -H "x-api-key: YOUR_API_KEY" \\
               </div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Example Request</h4>
               <CodeBlock language="bash" code={`curl -H "x-api-key: YOUR_API_KEY" \\
-     "${BASE_URL}/packages?network=mtn"`} />
+     "${baseUrl}/packages?network=mtn"`} />
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mt-5 mb-2">Example Response</h4>
               <CodeBlock code={`{
   "status": "success",
@@ -271,8 +279,10 @@ curl -H "x-api-key: YOUR_API_KEY" \\
       "id": "prod_001",
       "name": "MTN 1GB Data Bundle",
       "slug": "mtn-1gb",
+      "network_id": 1,
       "network": "MTN",
       "network_slug": "mtn",
+      "volume_mb": 1000,
       "price": "12.00",
       "stock": 500
     },
@@ -280,13 +290,54 @@ curl -H "x-api-key: YOUR_API_KEY" \\
       "id": "prod_002",
       "name": "MTN 2GB Data Bundle",
       "slug": "mtn-2gb",
+      "network_id": 1,
       "network": "MTN",
       "network_slug": "mtn",
+      "volume_mb": 2000,
       "price": "22.00",
       "stock": 350
     }
   ]
 }`} />
+            </Section>
+
+            <Section id="network-mapping" title="Network ID Reference">
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-4">
+                Use these network IDs when placing orders with the simplified <code className="font-mono">network_id + volume_mb</code> format:
+              </p>
+              <div className="overflow-x-auto mb-5">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 dark:border-zinc-800 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+                      <th className="py-2 pr-4">Network ID</th>
+                      <th className="py-2 pr-4">Network Name</th>
+                      <th className="py-2">Slug</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      [1, "MTN", "mtn"],
+                      [2, "Telecel", "telecel"],
+                      [3, "AT iShare", "at-ishare"],
+                      [4, "AT BigTime", "at-bigtime"],
+                      [5, "Airtel", "airtel"],
+                      [6, "Vodafone", "vodafone"],
+                    ].map(([id, name, slug]) => (
+                      <tr key={id} className="border-b border-zinc-100 dark:border-zinc-800">
+                        <td className="py-3 pr-4"><code className="text-xs font-mono text-violet-700 dark:text-violet-400">{id}</code></td>
+                        <td className="py-3 pr-4">{name}</td>
+                        <td className="py-3"><code className="text-xs font-mono text-zinc-600 dark:text-zinc-400">{slug}</code></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800/40 dark:bg-amber-950/30">
+                <div className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">Tip</div>
+                <p className="text-xs text-amber-800 dark:text-amber-300">
+                  Volume is always in <strong>MB</strong>. For example: 1GB = 1000MB, 2GB = 2000MB, 500MB = 500MB. Use <code className="font-mono">GET /packages</code> to see available volumes for each network.
+                </p>
+              </div>
             </Section>
 
             <Section id="place-order" title="Place an Order">
@@ -295,6 +346,7 @@ curl -H "x-api-key: YOUR_API_KEY" \\
                 Places a new data bundle order. The order is fulfilled automatically. Returns the order reference which you can use to check status.
               </p>
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Request Body</h4>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-3">Use <strong>either</strong> format:</p>
               <div className="overflow-x-auto mb-5">
                 <table className="w-full text-sm">
                   <thead>
@@ -305,14 +357,16 @@ curl -H "x-api-key: YOUR_API_KEY" \\
                     </tr>
                   </thead>
                   <tbody>
-                    <ParamRow name="package_id" type="string" required description="The ID of the data package to purchase (from GET /packages)." />
+                    <ParamRow name="package_id" type="string" description="<strong>Format 1:</strong> The ID of the data package to purchase (from GET /packages)." />
+                    <ParamRow name="network_id" type="integer" description="<strong>Format 2:</strong> Network ID (1=MTN, 2=Telecel, 3=AT iShare, 4=AT BigTime, etc.). Use with volume_mb." />
+                    <ParamRow name="volume_mb" type="integer" description="<strong>Format 2:</strong> Data volume in MB (e.g. 1000 for 1GB, 2000 for 2GB). Use with network_id." />
                     <ParamRow name="recipient_number" type="string" required description="The mobile number to deliver the data to (e.g. 0241234567)." />
                     <ParamRow name="quantity" type="integer" description="Number of units to purchase. Defaults to 1. Maximum 20." />
                     <ParamRow name="customer_reference" type="string" description="Your own reference for this order (up to 100 chars). Optional but recommended for reconciliation." />
                   </tbody>
                 </table>
               </div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Example Request</h4>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Example Request — Format 1 (package_id)</h4>
               <CodeBlock language="bash" code={`curl -X POST \\
      -H "x-api-key: YOUR_API_KEY" \\
      -H "Content-Type: application/json" \\
@@ -322,7 +376,19 @@ curl -H "x-api-key: YOUR_API_KEY" \\
        "quantity": 1,
        "customer_reference": "myapp-order-99"
      }' \\
-     ${BASE_URL}/orders`} />
+     ${baseUrl}/orders`} />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mt-5 mb-2">Example Request — Format 2 (network_id + volume_mb)</h4>
+              <CodeBlock language="bash" code={`curl -X POST \\
+     -H "x-api-key: YOUR_API_KEY" \\
+     -H "Content-Type: application/json" \\
+     -d '{
+       "network_id": 1,
+       "volume_mb": 1000,
+       "recipient_number": "0241234567",
+       "quantity": 1,
+       "customer_reference": "myapp-order-99"
+     }' \\
+     ${baseUrl}/orders`} />
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mt-5 mb-2">Example Response — 201 Created</h4>
               <CodeBlock code={`{
   "status": "success",
@@ -397,7 +463,7 @@ curl -H "x-api-key: YOUR_API_KEY" \\
               </div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Example Request</h4>
               <CodeBlock language="bash" code={`curl -H "x-api-key: YOUR_API_KEY" \\
-     ${BASE_URL}/orders/API-20260617-3A9F2B1C`} />
+     ${baseUrl}/orders/API-20260617-3A9F2B1C`} />
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mt-5 mb-2">Example Response</h4>
               <CodeBlock code={`{
   "status": "success",
@@ -432,7 +498,7 @@ curl -H "x-api-key: YOUR_API_KEY" \\
               <p className="text-sm text-zinc-700 dark:text-zinc-300 mb-4">Returns the current wallet balance associated with your API key account.</p>
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">Example Request</h4>
               <CodeBlock language="bash" code={`curl -H "x-api-key: YOUR_API_KEY" \\
-     ${BASE_URL}/balance`} />
+     ${baseUrl}/balance`} />
               <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 mt-5 mb-2">Example Response</h4>
               <CodeBlock code={`{
   "status": "success",
