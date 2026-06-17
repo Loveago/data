@@ -98,11 +98,7 @@ export function StorefrontSettings({
           ) : null}
         </div>
 
-        {!isAgent ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
-            Upgrade to Agent to unlock your personal storefront and pricing tools.
-          </div>
-        ) : storefrontLoading ? (
+        {storefrontLoading ? (
           <div className="mt-4 text-sm text-slate-600 dark:text-slate-400">Loading storefront...</div>
         ) : (
           <div className="mt-5 grid gap-4 sm:grid-cols-2">

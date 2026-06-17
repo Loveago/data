@@ -38,6 +38,7 @@ export default function AdminProductsPage() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [agentPrice, setAgentPrice] = useState("");
+  const [superAgentPrice, setSuperAgentPrice] = useState("");
   const [stock, setStock] = useState("0");
   const [categoryId, setCategoryId] = useState("");
   const [imageUrls, setImageUrls] = useState("");
@@ -88,6 +89,7 @@ export default function AdminProductsPage() {
     setDescription(p.description);
     setPrice(String(p.price));
     setAgentPrice(p.agentPrice != null ? String(p.agentPrice) : "");
+    setSuperAgentPrice((p as unknown as { superAgentPrice?: string | null }).superAgentPrice != null ? String((p as unknown as { superAgentPrice?: string | null }).superAgentPrice) : "");
     setStock(String(p.stock));
     setCategoryId(p.category?.id || "");
     setImageUrls(Array.isArray(p.imageUrls) ? p.imageUrls.join(", ") : "");
@@ -101,6 +103,7 @@ export default function AdminProductsPage() {
     setDescription("");
     setPrice("");
     setAgentPrice("");
+    setSuperAgentPrice("");
     setStock("0");
     setImageUrls("");
   }
@@ -135,6 +138,7 @@ export default function AdminProductsPage() {
           description,
           price,
           agentPrice,
+          superAgentPrice,
           stock: Number(stock),
           categoryId,
           imageUrls: parsedImages,
@@ -147,6 +151,7 @@ export default function AdminProductsPage() {
           description,
           price,
           agentPrice,
+          superAgentPrice,
           stock: Number(stock),
           categoryId,
           imageUrls: parsedImages,
@@ -157,6 +162,7 @@ export default function AdminProductsPage() {
         setDescription("");
         setPrice("");
         setAgentPrice("");
+        setSuperAgentPrice("");
         setStock("0");
         setImageUrls("");
       }
@@ -241,6 +247,12 @@ export default function AdminProductsPage() {
             className="h-11 rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600"
           />
           <input
+            value={superAgentPrice}
+            onChange={(e) => setSuperAgentPrice(e.target.value)}
+            placeholder="Super Agent price (optional)"
+            className="h-11 rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:focus:border-zinc-600"
+          />
+          <input
             value={stock}
             onChange={(e) => setStock(e.target.value)}
             placeholder="Stock"
@@ -314,6 +326,7 @@ export default function AdminProductsPage() {
                   <th className="py-3">Category</th>
                   <th className="py-3">Price</th>
                   <th className="py-3">Agent price</th>
+                  <th className="py-3">Super Agent price</th>
                   <th className="py-3">Stock</th>
                   <th className="py-3"></th>
                 </tr>
@@ -325,6 +338,7 @@ export default function AdminProductsPage() {
                     <td className="py-3 text-zinc-600 dark:text-zinc-400">{p.category?.name}</td>
                     <td className="py-3">{p.price}</td>
                     <td className="py-3">{p.agentPrice ?? "-"}</td>
+                    <td className="py-3">{(p as unknown as { superAgentPrice?: string | null }).superAgentPrice ?? "-"}</td>
                     <td className="py-3">{p.stock}</td>
                     <td className="py-3 text-right">
                       <div className="flex justify-end gap-3">

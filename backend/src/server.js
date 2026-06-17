@@ -16,6 +16,8 @@ const { router: notificationsRoutes } = require('./routes/notifications');
 const grandapiRoutes = require('./routes/grandapi');
 const skanka5Routes = require('./routes/skanka5');
 const walletRoutes = require('./routes/wallet');
+const apiAccessRoutes = require('./routes/api-access');
+const externalApiRoutes = require('./routes/external-api');
 const { startFulfillmentDispatcher } = require('./lib/fulfillment');
 const { startReconcileWorker } = require('./lib/reconcileWorker');
 
@@ -59,6 +61,8 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/agent-storefront', agentStorefrontRoutes);
 app.use('/api/grandapi', grandapiRoutes);
 app.use('/api/skanka5', skanka5Routes);
+app.use('/api/api-access', apiAccessRoutes);
+app.use('/api/v1', externalApiRoutes);
 
 app.use((err, req, res, next) => {
   void next;

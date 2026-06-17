@@ -80,11 +80,11 @@ function extractGbValue(name: string) {
   return Number.isFinite(n) ? n : null;
 }
 
-type DashboardTab = "overview" | "profile" | "wallet" | "orders" | "affiliate" | "storefront" | "settings";
+type DashboardTab = "overview" | "profile" | "wallet" | "orders" | "affiliate" | "storefront" | "api-access" | "settings";
 
 function normalizeTab(value: string | null): DashboardTab {
   const v = String(value || "").toLowerCase();
-  if (v === "profile" || v === "wallet" || v === "orders" || v === "affiliate" || v === "settings" || v === "storefront") return v;
+  if (v === "profile" || v === "wallet" || v === "orders" || v === "affiliate" || v === "settings" || v === "storefront" || v === "api-access") return v;
   return "overview";
 }
 
@@ -94,6 +94,7 @@ function tabLabel(tab: DashboardTab) {
   if (tab === "orders") return "Orders";
   if (tab === "affiliate") return "Affiliate";
   if (tab === "storefront") return "Storefront";
+  if (tab === "api-access") return "API Access";
   if (tab === "settings") return "Settings";
   return "Overview";
 }
@@ -166,6 +167,15 @@ function tabIcon(tab: DashboardTab) {
       </svg>
     );
   }
+  if (tab === "api-access") {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className={common} aria-hidden="true">
+        <path d="M7 8h10M7 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <rect x="2" y="4" width="20" height="16" rx="3" stroke="currentColor" strokeWidth="2" />
+        <path d="M14 14l2 2 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
   if (tab === "settings") {
     return (
       <svg viewBox="0 0 24 24" fill="none" className={common} aria-hidden="true">
@@ -200,7 +210,6 @@ function DashboardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const recentOrder = searchParams.get("order");
-  const agentUpgradeStatus = searchParams.get("agentUpgrade");
 
   const [activeTab, setActiveTab] = useState<DashboardTab>(() => normalizeTab(searchParams.get("tab")));
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -223,10 +232,15 @@ function DashboardInner() {
   const [withdrawSuccess, setWithdrawSuccess] = useState<string | null>(null);
   const [withdrawFee, setWithdrawFee] = useState<string>("0");
   const [withdrawTotal, setWithdrawTotal] = useState<string>("0");
-  const [upgradeBusy, setUpgradeBusy] = useState(false);
-  const [upgradeError, setUpgradeError] = useState<string | null>(null);
+  const [upgradeError] = useState<string | null>(null);
+  const [apiAccessRequest, setApiAccessRequest] = useState<{ id: string; status: string; reason: string | null; apiKey: { key: string; isActive: boolean; lastUsedAt: string | null } | null } | null>(null);
+  const [apiAccessLoading, setApiAccessLoading] = useState(false);
+  const [apiAccessReason, setApiAccessReason] = useState("");
+  const [apiAccessSubmitting, setApiAccessSubmitting] = useState(false);
+  const [apiAccessError, setApiAccessError] = useState<string | null>(null);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
 
-  const isAgent = user?.role === "AGENT";
+  const isAgent = user?.role === "AGENT" || user?.role === "SUPER_AGENT";
 
   const [storefront, setStorefront] = useState<AgentStorefront | null>(null);
   const [storefrontItems, setStorefrontItems] = useState<StorefrontProduct[]>([]);
@@ -285,9 +299,7 @@ function DashboardInner() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
 
-  const dashboardTabs: DashboardTab[] = isAgent
-    ? ["overview", "profile", "wallet", "orders", "affiliate", "storefront", "settings"]
-    : ["overview", "profile", "wallet", "orders", "affiliate", "settings"];
+  const dashboardTabs: DashboardTab[] = ["overview", "profile", "wallet", "orders", "affiliate", "storefront", "api-access", "settings"];
 
   const filteredStorefrontItems = useMemo(() => {
     const q = storefrontSearch.trim().toLowerCase();
@@ -331,7 +343,7 @@ function DashboardInner() {
   }, [user?.email, user?.name, user?.phone]);
 
   useEffect(() => {
-    if (!isAgent) {
+    if (!isAuthenticated) {
       setStorefront(null);
       setStorefrontItems([]);
       setStorefrontPrices({});
@@ -380,7 +392,26 @@ function DashboardInner() {
     return () => {
       cancelled = true;
     };
-  }, [isAgent]);
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (activeTab !== "api-access" || !isAuthenticated) return;
+    let cancelled = false;
+    async function loadApiAccess() {
+      setApiAccessLoading(true);
+      setApiAccessError(null);
+      try {
+        const res = await api.get<{ request: { id: string; status: string; reason: string | null; apiKey: { key: string; isActive: boolean; lastUsedAt: string | null } | null } | null }>("/api-access/my");
+        if (!cancelled) setApiAccessRequest(res.data.request);
+      } catch {
+        if (!cancelled) setApiAccessError("Failed to load API access info.");
+      } finally {
+        if (!cancelled) setApiAccessLoading(false);
+      }
+    }
+    loadApiAccess();
+    return () => { cancelled = true; };
+  }, [activeTab, isAuthenticated]);
 
   useEffect(() => {
     if (activeTab !== "affiliate" || !isAuthenticated) return;
@@ -685,41 +716,23 @@ function DashboardInner() {
     }
   }
 
-  async function upgradeToAgent() {
-    if (user?.role === "AGENT") return;
-    setUpgradeBusy(true);
-    setUpgradeError(null);
+  async function requestApiAccess() {
+    setApiAccessSubmitting(true);
+    setApiAccessError(null);
     try {
-      const callbackUrl = `${window.location.origin}/dashboard/agent-upgrade/paystack`;
-      const res = await api.post("/payments/agent-upgrade/initialize", {
-        callbackUrl,
-        email: user?.email,
-      });
-
-      const authorizationUrl = res.data?.authorizationUrl;
-      const reference = res.data?.reference;
-      if (!authorizationUrl) throw new Error("Missing authorizationUrl");
-
-      if (reference) {
-        window.sessionStorage.setItem(
-          "gigshub_agent_upgrade_pending",
-          JSON.stringify({
-            reference,
-          })
-        );
-      }
-
-      window.location.href = authorizationUrl;
+      const res = await api.post<{ request: { id: string; status: string; reason: string | null; apiKey: null } }>("/api-access/request", { reason: apiAccessReason });
+      setApiAccessRequest(res.data.request);
+      setApiAccessReason("");
     } catch (e: unknown) {
-      const maybeError = e as { response?: { data?: { error?: string } } };
-      setUpgradeError(maybeError?.response?.data?.error || "Failed to start agent upgrade.");
+      const maybeError = e as { response?: { data?: { error?: string; request?: { id: string; status: string; reason: string | null; apiKey: { key: string; isActive: boolean; lastUsedAt: string | null } | null } } } };
+      if (maybeError?.response?.data?.request) setApiAccessRequest(maybeError.response.data.request);
+      setApiAccessError(maybeError?.response?.data?.error || "Failed to submit request.");
     } finally {
-      setUpgradeBusy(false);
+      setApiAccessSubmitting(false);
     }
   }
 
   async function saveStorefrontInfo() {
-    if (!isAgent) return;
     setStorefrontInfoSaving(true);
     setStorefrontError(null);
     setStorefrontSuccess(null);
@@ -750,7 +763,6 @@ function DashboardInner() {
   }
 
   async function saveStorefrontPrices() {
-    if (!isAgent) return;
     setStorefrontPricesSaving(true);
     setStorefrontError(null);
     setStorefrontSuccess(null);
@@ -980,15 +992,7 @@ function DashboardInner() {
             </div>
           ) : null}
 
-          {agentUpgradeStatus === "success" ? (
-            <div className="mt-6 rounded-3xl border border-indigo-200 bg-indigo-50 p-5 text-sm text-indigo-900 shadow-card dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-200 animate-fade-up">
-              Your account has been upgraded to <span className="font-semibold">Agent</span> status.
-            </div>
-          ) : agentUpgradeStatus === "error" ? (
-            <div className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow-card dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200 animate-fade-up">
-              We couldn&apos;t confirm your agent upgrade. Please try again.
-            </div>
-          ) : null}
+          {null}
 
           <div className="mt-5 grid gap-4 lg:grid-cols-2">
             {activeTab === "overview" ? (
@@ -1005,8 +1009,8 @@ function DashboardInner() {
                   loading={loading}
                   orders={orders}
                   isAgent={isAgent}
-                  upgradeBusy={upgradeBusy}
-                  upgradeToAgent={upgradeToAgent}
+                  upgradeBusy={false}
+                  upgradeToAgent={() => pushTab("api-access")}
                   upgradeError={upgradeError}
                   referralCode={referralCode}
                   user={user}
@@ -1129,6 +1133,89 @@ function DashboardInner() {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            {activeTab === "api-access" ? (
+              <div className="lg:col-span-2 space-y-4">
+                <div className="group relative overflow-hidden rounded-3xl border border-zinc-200/70 bg-white/80 p-6 shadow-soft backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-950/70">
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-violet-500/18 via-blue-400/12 to-cyan-400/10 blur-2xl" />
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-zinc-500">Developer API</div>
+                      <div className="mt-1 text-lg font-bold text-slate-900 dark:text-white">API Access</div>
+                      <div className="mt-1 text-sm text-zinc-500">Integrate our data bundle platform directly into your website or application.</div>
+                    </div>
+                    <a href="/api-docs" target="_blank" className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-4 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-all dark:border-violet-800/40 dark:bg-violet-950/30 dark:text-violet-300">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" strokeWidth="2"/><polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="2"/><line x1="16" y1="13" x2="8" y2="13" stroke="currentColor" strokeWidth="2"/><line x1="16" y1="17" x2="8" y2="17" stroke="currentColor" strokeWidth="2"/></svg>
+                      View Docs
+                    </a>
+                  </div>
+
+                  {apiAccessLoading ? (
+                    <div className="mt-6 text-sm text-zinc-500">Loading...</div>
+                  ) : apiAccessRequest?.status === "APPROVED" && apiAccessRequest.apiKey?.isActive ? (
+                    <div className="mt-6 space-y-4">
+                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800/40 dark:bg-emerald-950/30">
+                        <div className="flex items-center gap-2 mb-1">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="12" cy="12" r="9" stroke="#10b981" strokeWidth="2"/></svg>
+                          <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">API Access Active</span>
+                        </div>
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400">Your API key is active. Keep it secret — treat it like a password.</p>
+                      </div>
+                      <div>
+                        <div className="text-xs font-semibold text-zinc-500 mb-1.5">Your API Key</div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <div className="flex-1 rounded-xl border border-zinc-200/70 bg-zinc-50 px-3 py-2.5 font-mono text-xs text-zinc-800 break-all dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:text-zinc-200">
+                            {apiAccessRequest.apiKey.key}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { void navigator.clipboard.writeText(apiAccessRequest?.apiKey?.key || ""); setApiKeyCopied(true); setTimeout(() => setApiKeyCopied(false), 2000); }}
+                            className="shrink-0 inline-flex h-9 items-center gap-1.5 rounded-xl bg-zinc-900 px-4 text-xs font-semibold text-white hover:bg-zinc-700 transition-all dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                          >
+                            {apiKeyCopied ? "Copied!" : "Copy"}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-xs text-zinc-500">
+                        Send <code className="rounded bg-zinc-100 px-1 py-0.5 dark:bg-zinc-800">x-api-key: YOUR_KEY</code> in request headers.
+                        {" "}<a href="/api-docs" target="_blank" className="text-blue-600 underline dark:text-blue-400">Read the docs →</a>
+                      </div>
+                    </div>
+                  ) : apiAccessRequest?.status === "PENDING" ? (
+                    <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800/40 dark:bg-amber-950/30">
+                      <div className="text-sm font-semibold text-amber-800 dark:text-amber-300">Request Pending</div>
+                      <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">Your API access request is under review. You will gain access once an admin approves it.</p>
+                    </div>
+                  ) : apiAccessRequest?.status === "REJECTED" ? (
+                    <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-800/40 dark:bg-red-950/30">
+                      <div className="text-sm font-semibold text-red-800 dark:text-red-300">Request Rejected</div>
+                      <p className="mt-1 text-xs text-red-700 dark:text-red-400">Your request was not approved. Contact support for more information.</p>
+                    </div>
+                  ) : (
+                    <div className="mt-6 space-y-3">
+                      <div className="text-sm font-medium text-slate-800 dark:text-slate-200">Request API Access</div>
+                      <p className="text-xs text-zinc-500">Submit a request and an admin will review it. Once approved, you&apos;ll receive an API key to integrate our platform.</p>
+                      <textarea
+                        value={apiAccessReason}
+                        onChange={(e) => setApiAccessReason(e.target.value)}
+                        placeholder="Briefly describe how you plan to use the API (optional)"
+                        rows={3}
+                        className="w-full rounded-xl border border-zinc-200/70 bg-white/70 px-3 py-2 text-sm outline-none backdrop-blur resize-none transition-colors focus:border-violet-400 dark:border-zinc-800/70 dark:bg-zinc-950/50 dark:focus:border-violet-500"
+                      />
+                      {apiAccessError && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200">{apiAccessError}</div>}
+                      <button
+                        type="button"
+                        disabled={apiAccessSubmitting}
+                        onClick={requestApiAccess}
+                        className="inline-flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 disabled:opacity-60"
+                      >
+                        {apiAccessSubmitting ? "Submitting..." : "Request Access"}
+                      </button>
                     </div>
                   )}
                 </div>

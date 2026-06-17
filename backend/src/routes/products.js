@@ -72,13 +72,14 @@ router.post(
   requireAuth,
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const { name, slug, description, price, agentPrice, stock, categoryId, imageUrls } = req.body || {};
+    const { name, slug, description, price, agentPrice, superAgentPrice, stock, categoryId, imageUrls } = req.body || {};
 
     if (!name || !slug || !description || price == null || !categoryId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
     const agentPriceValue = agentPrice == null || agentPrice === '' ? null : new Prisma.Decimal(String(agentPrice));
+    const superAgentPriceValue = superAgentPrice == null || superAgentPrice === '' ? null : new Prisma.Decimal(String(superAgentPrice));
 
     const created = await prisma.product.create({
       data: {
@@ -87,6 +88,7 @@ router.post(
         description,
         price: new Prisma.Decimal(String(price)),
         agentPrice: agentPriceValue,
+        superAgentPrice: superAgentPriceValue,
         stock: stock == null ? 0 : Number(stock),
         categoryId,
         imageUrls: Array.isArray(imageUrls) ? imageUrls.map(String) : [],
@@ -104,10 +106,12 @@ router.put(
   requireAdmin,
   asyncHandler(async (req, res) => {
     const id = req.params.id;
-    const { name, slug, description, price, agentPrice, stock, categoryId, imageUrls } = req.body || {};
+    const { name, slug, description, price, agentPrice, superAgentPrice, stock, categoryId, imageUrls } = req.body || {};
 
     const agentPriceValue =
       agentPrice === undefined ? undefined : agentPrice === '' || agentPrice == null ? null : new Prisma.Decimal(String(agentPrice));
+    const superAgentPriceValue =
+      superAgentPrice === undefined ? undefined : superAgentPrice === '' || superAgentPrice == null ? null : new Prisma.Decimal(String(superAgentPrice));
 
     const updated = await prisma.product.update({
       where: { id },
@@ -117,6 +121,7 @@ router.put(
         ...(description != null ? { description } : {}),
         ...(price != null ? { price: new Prisma.Decimal(String(price)) } : {}),
         ...(agentPriceValue !== undefined ? { agentPrice: agentPriceValue } : {}),
+        ...(superAgentPriceValue !== undefined ? { superAgentPrice: superAgentPriceValue } : {}),
         ...(stock != null ? { stock: Number(stock) } : {}),
         ...(categoryId != null ? { categoryId } : {}),
         ...(imageUrls != null ? { imageUrls: Array.isArray(imageUrls) ? imageUrls.map(String) : [] } : {}),

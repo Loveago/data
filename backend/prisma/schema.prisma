@@ -12,6 +12,7 @@ enum Role {
   USER
   ADMIN
   AGENT
+  SUPER_AGENT
 }
 
 enum OrderStatus {
@@ -66,6 +67,8 @@ model User {
   walletTransactions  WalletTransaction[]
   withdrawalRequests  WithdrawalRequest[]
   storefront          AgentStorefront?
+  apiAccessRequest    ApiAccessRequest?
+  apiKey              ApiKey?
 }
 
 model Notification {
@@ -92,9 +95,10 @@ model Product {
   name        String
   slug        String   @unique
   description String
-  price       Decimal  @db.Decimal(12, 2)
-  agentPrice  Decimal? @db.Decimal(12, 2)
-  stock       Int      @default(0)
+  price            Decimal  @db.Decimal(12, 2)
+  agentPrice       Decimal? @db.Decimal(12, 2)
+  superAgentPrice  Decimal? @db.Decimal(12, 2)
+  stock            Int      @default(0)
   imageUrls   String[]
 
   categoryId String
@@ -214,6 +218,37 @@ enum WithdrawalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum ApiAccessStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ApiAccessRequest {
+  id        String          @id @default(cuid())
+  userId    String          @unique
+  user      User            @relation(fields: [userId], references: [id])
+  reason    String?
+  status    ApiAccessStatus @default(PENDING)
+  apiKey    ApiKey?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model ApiKey {
+  id         String           @id @default(cuid())
+  userId     String           @unique
+  user       User             @relation(fields: [userId], references: [id])
+  requestId  String           @unique
+  request    ApiAccessRequest @relation(fields: [requestId], references: [id])
+  key        String           @unique
+  name       String?
+  isActive   Boolean          @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 }
 
 model WithdrawalRequest {

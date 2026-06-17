@@ -3,7 +3,7 @@ const express = require('express');
 const { Prisma } = require('@prisma/client');
 const { prisma } = require('../lib/prisma');
 const { asyncHandler } = require('../utils/asyncHandler');
-const { requireAuth, requireAgent } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -78,7 +78,6 @@ async function ensureStorefrontForUser(user) {
 router.get(
   '/me',
   requireAuth,
-  requireAgent,
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true } });
@@ -105,7 +104,6 @@ router.get(
 router.put(
   '/me',
   requireAuth,
-  requireAgent,
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
     const { title, welcomeMessage, heroEmoji, accentColor, slug, whatsappLink } = req.body || {};
@@ -141,7 +139,6 @@ router.put(
 router.get(
   '/me/products',
   requireAuth,
-  requireAgent,
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true } });
@@ -170,13 +167,12 @@ router.get(
 router.put(
   '/me/prices',
   requireAuth,
-  requireAgent,
   asyncHandler(async (req, res) => {
     const userId = req.user.sub;
     const { prices } = req.body || {};
     if (!Array.isArray(prices)) return res.status(400).json({ error: 'Prices must be an array' });
 
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true, role: true } });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const storefront = await ensureStorefrontForUser(user);
@@ -209,9 +205,12 @@ router.put(
         err.statusCode = 400;
         throw err;
       }
-      const basePrice = product.agentPrice ?? product.price;
+      const basePrice =
+        user.role === 'SUPER_AGENT' ? (product.superAgentPrice ?? product.agentPrice ?? product.price) :
+        user.role === 'AGENT' || user.role === 'ADMIN' ? (product.agentPrice ?? product.price) :
+        product.price;
       if (sellPrice.lt(basePrice)) {
-        const err = new Error('Sell price cannot be lower than agent price');
+        const err = new Error('Sell price cannot be lower than your base price for this product');
         err.statusCode = 400;
         throw err;
       }

@@ -9,7 +9,7 @@ type AdminUser = {
   email: string;
   name: string | null;
   phone: string | null;
-  role: "USER" | "ADMIN" | "AGENT";
+  role: "USER" | "ADMIN" | "AGENT" | "SUPER_AGENT";
   walletBalance?: string;
   createdAt: string;
 };
@@ -182,8 +182,9 @@ export default function AdminUsersPage() {
                         className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none dark:border-zinc-800 dark:bg-zinc-950"
                       >
                         <option value="USER">USER</option>
-                        <option value="ADMIN">ADMIN</option>
                         <option value="AGENT">AGENT</option>
+                        <option value="SUPER_AGENT">SUPER AGENT</option>
+                        <option value="ADMIN">ADMIN</option>
                       </select>
                     </td>
                     <td className="py-3">

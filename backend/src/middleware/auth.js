@@ -25,19 +25,21 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
+const AGENT_ROLES = ['AGENT', 'SUPER_AGENT', 'ADMIN'];
+
 async function requireAgent(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const role = req.user.role;
-  if (role === 'AGENT' || role === 'ADMIN') {
+  if (AGENT_ROLES.includes(role)) {
     return next();
   }
 
   try {
     const dbUser = await prisma.user.findUnique({ where: { id: req.user.sub }, select: { role: true } });
-    if (dbUser && (dbUser.role === 'AGENT' || dbUser.role === 'ADMIN')) {
+    if (dbUser && AGENT_ROLES.includes(dbUser.role)) {
       req.user.role = dbUser.role;
       return next();
     }
@@ -47,4 +49,30 @@ async function requireAgent(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, requireAdmin, requireAgent };
+async function requireApiKey(req, res, next) {
+  const key = req.headers['x-api-key'];
+  if (!key) {
+    return res.status(401).json({ error: 'Missing x-api-key header', message: 'Include your API key in the x-api-key header' });
+  }
+
+  try {
+    const apiKey = await prisma.apiKey.findUnique({
+      where: { key: String(key) },
+      include: { user: { select: { id: true, email: true, name: true, role: true } } },
+    });
+
+    if (!apiKey || !apiKey.isActive) {
+      return res.status(401).json({ error: 'Invalid or inactive API key', message: 'The provided API key is invalid or has been deactivated' });
+    }
+
+    await prisma.apiKey.update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } });
+
+    req.apiKey = apiKey;
+    req.apiUser = apiKey.user;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { requireAuth, requireAdmin, requireAgent, requireApiKey };

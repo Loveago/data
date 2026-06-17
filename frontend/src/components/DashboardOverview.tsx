@@ -188,45 +188,19 @@ export function DashboardOverview({
               <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Agent Account</div>
             </div>
             <div className="mt-3 text-xl font-bold">
-              {isAgent ? "Agent status active" : "Upgrade to agent"}
+              {isAgent ? "Agent status active" : "Upgrade to Agent or Super Agent"}
             </div>
             <div className="mt-1 text-sm text-slate-500">
               {isAgent
                 ? "You now access agent pricing across all bundles."
-                : "Unlock agent-only pricing with a one-time GHS 40 upgrade fee."}
+                : "Agent and Super Agent roles unlock special pricing. Contact an admin to upgrade your account."}
             </div>
-            {!isAgent ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                  One-time fee
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                  Faster margins
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                  Agent pricing
-                </span>
-              </div>
-            ) : null}
           </div>
           <div className="flex flex-col items-start gap-3 md:items-end">
             {!isAgent ? (
-              <>
-                <div className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Upgrade for</div>
-                <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">GHS 40</div>
-                <button
-                  type="button"
-                  disabled={upgradeBusy}
-                  onClick={upgradeToAgent}
-                  className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-95 disabled:opacity-60"
-                >
-                  {upgradeBusy ? "Redirecting..." : "Upgrade Now"}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </button>
-              </>
+              <div className="inline-flex h-10 items-center justify-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 dark:border-indigo-800/40 dark:bg-indigo-950/30 dark:text-indigo-300">
+                Contact Admin
+              </div>
             ) : (
               <div className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-100 px-4 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                 Active

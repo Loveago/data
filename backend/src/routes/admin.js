@@ -178,7 +178,7 @@ router.patch(
   asyncHandler(async (req, res) => {
     const id = req.params.id;
     const { role } = req.body || {};
-    if (!role || !['USER', 'ADMIN', 'AGENT'].includes(role)) {
+    if (!role || !['USER', 'ADMIN', 'AGENT', 'SUPER_AGENT'].includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
 
@@ -509,6 +509,65 @@ router.post(
   asyncHandler(async (req, res) => {
     const result = await reconcileUnpaidOrders();
     return res.json(result);
+  })
+);
+
+router.get(
+  '/api-access',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const requests = await prisma.apiAccessRequest.findMany({
+      include: {
+        user: { select: { id: true, email: true, name: true, role: true } },
+        apiKey: { select: { id: true, key: true, isActive: true, lastUsedAt: true, createdAt: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return res.json({ requests });
+  })
+);
+
+router.patch(
+  '/api-access/:id',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { action } = req.body || {};
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ error: 'action must be approve or reject' });
+    }
+
+    const request = await prisma.apiAccessRequest.findUnique({
+      where: { id },
+      include: { apiKey: true },
+    });
+    if (!request) return res.status(404).json({ error: 'Request not found' });
+
+    if (action === 'approve') {
+      if (request.status === 'APPROVED' && request.apiKey) {
+        return res.json({ request, apiKey: request.apiKey });
+      }
+
+      const rawKey = require('crypto').randomBytes(32).toString('hex');
+      const apiKey = await prisma.$transaction(async (tx) => {
+        await tx.apiAccessRequest.update({ where: { id }, data: { status: 'APPROVED' } });
+        return tx.apiKey.upsert({
+          where: { requestId: id },
+          create: { userId: request.userId, requestId: id, key: rawKey },
+          update: { isActive: true },
+        });
+      });
+      return res.json({ ok: true, action: 'approved', apiKey });
+    }
+
+    await prisma.apiAccessRequest.update({ where: { id }, data: { status: 'REJECTED' } });
+    if (request.apiKey) {
+      await prisma.apiKey.update({ where: { requestId: id }, data: { isActive: false } });
+    }
+    return res.json({ ok: true, action: 'rejected' });
   })
 );
 

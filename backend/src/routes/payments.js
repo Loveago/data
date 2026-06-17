@@ -286,6 +286,11 @@ async function computeStorefrontOrderFromItems(items, storefrontId) {
   const normalized = normalizeOrderItems(items);
 
   const productIds = Array.from(new Set(normalized.map((it) => it.productId)));
+  const storefront = await prisma.agentStorefront.findUnique({
+    where: { id: storefrontId },
+    include: { user: { select: { role: true } } },
+  });
+  const ownerRole = storefront?.user?.role ?? 'USER';
   const [products, prices] = await Promise.all([
     prisma.product.findMany({ where: { id: { in: productIds } }, include: { category: true } }),
     prisma.agentStorefrontPrice.findMany({ where: { storefrontId, productId: { in: productIds } } }),
@@ -334,9 +339,12 @@ async function computeStorefrontOrderFromItems(items, storefrontId) {
       throw err;
     }
 
-    const basePrice = product.agentPrice ?? product.price;
+    const basePrice =
+      ownerRole === 'SUPER_AGENT' ? (product.superAgentPrice ?? product.agentPrice ?? product.price) :
+      ownerRole === 'AGENT' || ownerRole === 'ADMIN' ? (product.agentPrice ?? product.price) :
+      product.price;
     if (sellPrice.lt(basePrice)) {
-      const err = new Error('Storefront price cannot be lower than agent price');
+      const err = new Error('Storefront price cannot be lower than the base price for this product');
       err.statusCode = 400;
       throw err;
     }
