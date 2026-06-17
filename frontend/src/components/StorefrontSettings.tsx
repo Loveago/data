@@ -86,16 +86,14 @@ export function StorefrontSettings({
             <div className="text-base font-bold text-slate-900 dark:text-white">Agent Storefront</div>
             <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Customize your public storefront and set bundle prices.</div>
           </div>
-          {isAgent ? (
-            <button
-              type="button"
-              disabled={storefrontInfoSaving}
-              onClick={() => saveStorefrontInfo()}
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 px-5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-95 disabled:opacity-60"
-            >
-              {storefrontInfoSaving ? "Saving..." : "Save settings"}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            disabled={storefrontInfoSaving}
+            onClick={() => saveStorefrontInfo()}
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-500 px-5 text-sm font-semibold text-white shadow-sm transition-all hover:opacity-95 disabled:opacity-60"
+          >
+            {storefrontInfoSaving ? "Saving..." : "Save settings"}
+          </button>
         </div>
 
         {storefrontLoading ? (
@@ -192,16 +190,14 @@ export function StorefrontSettings({
             <div className="text-base font-bold text-slate-900 dark:text-white">Bundle pricing</div>
             <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">Set your selling price (must be above base price).</div>
           </div>
-          {isAgent ? (
-            <button
-              type="button"
-              disabled={storefrontPricesSaving}
-              onClick={() => saveStorefrontPrices()}
-              className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-60"
-            >
-              {storefrontPricesSaving ? "Saving..." : "Save prices"}
-            </button>
-          ) : null}
+          <button
+            type="button"
+            disabled={storefrontPricesSaving}
+            onClick={() => saveStorefrontPrices()}
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 disabled:opacity-60"
+          >
+            {storefrontPricesSaving ? "Saving..." : "Save prices"}
+          </button>
         </div>
 
         {storefrontLoading ? (
