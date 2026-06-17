@@ -29,6 +29,7 @@ function getNetworkIdFromSlug(slug) {
   const mapping = {
     'mtn': 1,
     'telecel': 2,
+    'airteltigo': 3,
     'at-ishare': 3,
     'at-bigtime': 4,
     'airtel': 5,

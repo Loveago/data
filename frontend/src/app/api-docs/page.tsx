@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
@@ -49,15 +48,8 @@ function ParamRow({ name, type, required, description }: { name: string; type: s
 }
 
 export default function ApiDocsPage() {
-  const [baseUrl, setBaseUrl] = useState("https://api.yourdomain.com/api/v1");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const protocol = window.location.protocol;
-      const host = window.location.host;
-      setBaseUrl(`${protocol}//${host}/api/v1`);
-    }
-  }, []);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const baseUrl = `${apiBase}/api/v1`;
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950">
       <div className="border-b border-zinc-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80 sticky top-0 z-10">
@@ -244,7 +236,7 @@ curl -H "x-api-key: YOUR_API_KEY" \\
   "networks": [
     { "network_id": 1, "id": "clxyz001", "name": "MTN", "slug": "mtn" },
     { "network_id": 2, "id": "clxyz002", "name": "Telecel", "slug": "telecel" },
-    { "network_id": 3, "id": "clxyz003", "name": "AT iShare", "slug": "at-ishare" }
+    { "network_id": 3, "id": "clxyz003", "name": "AT iShare", "slug": "airteltigo" }
   ]
 }`} />
             </Section>
@@ -318,7 +310,7 @@ curl -H "x-api-key: YOUR_API_KEY" \\
                     {[
                       [1, "MTN", "mtn"],
                       [2, "Telecel", "telecel"],
-                      [3, "AT iShare", "at-ishare"],
+                      [3, "AT iShare / AirtelTigo", "airteltigo"],
                       [4, "AT BigTime", "at-bigtime"],
                       [5, "Airtel", "airtel"],
                       [6, "Vodafone", "vodafone"],
@@ -358,7 +350,7 @@ curl -H "x-api-key: YOUR_API_KEY" \\
                   </thead>
                   <tbody>
                     <ParamRow name="package_id" type="string" description="<strong>Format 1:</strong> The ID of the data package to purchase (from GET /packages)." />
-                    <ParamRow name="network_id" type="integer" description="<strong>Format 2:</strong> Network ID (1=MTN, 2=Telecel, 3=AT iShare, 4=AT BigTime, etc.). Use with volume_mb." />
+                    <ParamRow name="network_id" type="integer" description="<strong>Format 2:</strong> Network ID (1=MTN, 2=Telecel, 3=AT iShare / AirtelTigo, 4=AT BigTime, etc.). Use with volume_mb." />
                     <ParamRow name="volume_mb" type="integer" description="<strong>Format 2:</strong> Data volume in MB (e.g. 1000 for 1GB, 2000 for 2GB). Use with network_id." />
                     <ParamRow name="recipient_number" type="string" required description="The mobile number to deliver the data to (e.g. 0241234567)." />
                     <ParamRow name="quantity" type="integer" description="Number of units to purchase. Defaults to 1. Maximum 20." />
