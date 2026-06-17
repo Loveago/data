@@ -1,7 +1,7 @@
 const express = require('express');
 const { prisma } = require('../lib/prisma');
 const { requireAuth } = require('../middleware/auth');
-const { asyncHandler } = require('../lib/asyncHandler');
+const { asyncHandler } = require('../utils/asyncHandler');
 const Prisma = require('@prisma/client').Prisma;
 
 const router = express.Router();
