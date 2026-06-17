@@ -42,9 +42,14 @@ export function ReferralPricing() {
     setLoading(true);
     setError(null);
     try {
+      console.log("[ReferralPricing] Loading referral prices...");
       const res = await api.get<{ referralPrices: ReferralPrice[] }>("/referral-pricing/my-referral-pricing");
+      console.log("[ReferralPricing] Loaded", res.data.referralPrices?.length || 0, "products");
+      const withPrices = res.data.referralPrices?.filter((p) => p.hasReferralPrice) || [];
+      console.log("[ReferralPricing] Products with referral prices:", withPrices.length);
       setReferralPrices(res.data.referralPrices || []);
     } catch (err: any) {
+      console.error("[ReferralPricing] Error loading", err);
       setError(err?.response?.data?.error || "Failed to load referral pricing");
     } finally {
       setLoading(false);
@@ -73,15 +78,18 @@ export function ReferralPricing() {
     setSubmitting(true);
     setError(null);
     try {
-      await api.post("/referral-pricing/set-referral-price", {
+      console.log("[ReferralPricing] Setting price for product", selectedProductId, "to", selectedPrice);
+      const res = await api.post("/referral-pricing/set-referral-price", {
         productId: selectedProductId,
         price: selectedPrice,
       });
+      console.log("[ReferralPricing] Price set successfully", res.data);
       await loadReferralPrices();
       setSelectedProductId("");
       setSelectedPrice("");
       setShowAddForm(false);
     } catch (err: any) {
+      console.error("[ReferralPricing] Error setting price", err);
       setError(err?.response?.data?.error || "Failed to set referral price");
     } finally {
       setSubmitting(false);

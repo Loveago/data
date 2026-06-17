@@ -94,6 +94,7 @@ router.get(
       }),
     ]);
 
+    console.log(`[ReferralPricing] User ${userId} has ${referralPrices.length} referral prices set`);
     const userRole = user?.role || 'USER';
     const referralPriceByProductId = new Map(referralPrices.map((rp) => [rp.productId, rp]));
 
@@ -193,6 +194,8 @@ router.post(
         },
       },
     });
+
+    console.log(`[ReferralPricing] Set referral price for user ${userId}, product ${productId}: ${String(referralPrice.price)}`);
 
     return res.json({
       id: referralPrice.id,
